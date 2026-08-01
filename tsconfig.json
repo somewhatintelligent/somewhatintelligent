@@ -1,0 +1,10 @@
+{
+  "exclude": ["chemistry"],
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true
+  }
+}

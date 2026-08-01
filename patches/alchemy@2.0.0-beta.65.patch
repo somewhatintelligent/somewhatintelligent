@@ -1,0 +1,222 @@
+diff --git a/lib/Cloudflare/Access/Application.d.ts b/lib/Cloudflare/Access/Application.d.ts
+index 0f5153414a09a0eb1692be5ab010657ab812e389..24b48361827606ef83a81396f3c4b8c46e8744e9 100644
+--- a/lib/Cloudflare/Access/Application.d.ts
++++ b/lib/Cloudflare/Access/Application.d.ts
+@@ -1,3 +1,4 @@
++import type * as zeroTrust from "@distilled.cloud/cloudflare/zero-trust";
+ import * as Provider from "../../Provider.ts";
+ import { Resource } from "../../Resource.ts";
+ import { CloudflareEnvironment } from "../CloudflareEnvironment.ts";
+@@ -131,6 +132,12 @@ export interface ApplicationProps {
+             emailListUuid?: string;
+         }>;
+     }>;
++    /**
++     * Managed OAuth. When enabled, Access acts as the OAuth authorization
++     * server for this application, which is what allows non-browser clients
++     * (MCP) to authenticate without a cookie flow.
++     */
++    oauthConfiguration?: OAuthConfiguration;
+     /**
+      * Adopt an existing app that already lives in Cloudflare (matched by
+      * applicationId observation) instead of failing on conflict.
+@@ -139,6 +146,8 @@ export interface ApplicationProps {
+      */
+     adopt?: boolean;
+ }
++/** Referenced off the request type so it tracks spec regeneration. */
++export type OAuthConfiguration = NonNullable<zeroTrust.UpdateAccessApplicationForAccountRequest["oauthConfiguration"]>;
+ /**
+  * Output attributes persisted between reconciles.
+  */
+diff --git a/lib/Cloudflare/Access/Application.js b/lib/Cloudflare/Access/Application.js
+index c3b31ca5c18cb49713a8e273fbe8ff7ad9ddc408..82147042fe484e639860fe56bed107e3c5abc215 100644
+--- a/lib/Cloudflare/Access/Application.js
++++ b/lib/Cloudflare/Access/Application.js
+@@ -197,6 +197,7 @@ export const ApplicationProvider = () => Provider.succeed(Application, {
+                 appLauncherVisible: body.appLauncherVisible,
+                 tags: body.tags === undefined ? undefined : Array.from(body.tags),
+                 policies: toRequestPolicies(body.policies),
++                oauthConfiguration: body.oauthConfiguration,
+                 destinations: body.destinations === undefined
+                     ? undefined
+                     : Array.from(body.destinations),
+@@ -238,6 +239,7 @@ export const ApplicationProvider = () => Provider.succeed(Application, {
+                 appLauncherVisible: body.appLauncherVisible,
+                 tags: body.tags === undefined ? undefined : Array.from(body.tags),
+                 policies: toRequestPolicies(body.policies),
++                oauthConfiguration: body.oauthConfiguration,
+                 destinations: body.destinations === undefined
+                     ? undefined
+                     : Array.from(body.destinations),
+@@ -370,6 +372,7 @@ const narrowApp = (raw) => ({
+     policies: raw.policies == null
+         ? undefined
+         : raw.policies,
++    oauthConfiguration: undef(raw.oauthConfiguration),
+     createdAt: undef(raw.createdAt),
+     updatedAt: undef(raw.updatedAt),
+ });
+@@ -435,6 +438,9 @@ const buildMutableBody = (news, resolvedName, resolvedAllowedIdps, resolvedPolic
+     if (resolvedPolicies !== undefined) {
+         body.policies = resolvedPolicies;
+     }
++    if (news.oauthConfiguration !== undefined) {
++        body.oauthConfiguration = news.oauthConfiguration;
++    }
+     return body;
+ };
+ // ---------------------------------------------------------------------------
+@@ -466,6 +472,19 @@ const policiesEq = (desired, observed) => {
+     }
+     return true;
+ };
++/**
++ * Cloudflare echoes `oauth_configuration` back enriched with server-side
++ * defaults, so a whole-object compare would re-PUT on every reconcile. Every
++ * leaf the caller set must still be present and equal — which is what catches
++ * the field being silently wiped by an unrelated update.
++ */
++const oauthSubsetOf = (desired, observed) => {
++    if (desired === null || typeof desired !== "object" || Array.isArray(desired))
++        return jsonEq(desired, observed);
++    if (observed === null || typeof observed !== "object")
++        return false;
++    return Object.entries(desired).every(([key, value]) => oauthSubsetOf(value, observed[key]));
++};
+ const bodyEqualsObserved = (desired, observed) => {
+     if (desired.name !== undefined && desired.name !== observed.name) {
+         return false;
+@@ -506,6 +525,10 @@ const bodyEqualsObserved = (desired, observed) => {
+     if (!policiesEq(desired.policies, observed.policies)) {
+         return false;
+     }
++    if (desired.oauthConfiguration !== undefined &&
++        !oauthSubsetOf(desired.oauthConfiguration, observed.oauthConfiguration)) {
++        return false;
++    }
+     return true;
+ };
+ //# sourceMappingURL=Application.js.map
+\ No newline at end of file
+diff --git a/src/Cloudflare/Access/Application.ts b/src/Cloudflare/Access/Application.ts
+index 04864c6c2f2e5bdfebf098dc2e9e8ef02472776c..0c53ff280714727c9b7210efca555cc84bcc703e 100644
+--- a/src/Cloudflare/Access/Application.ts
++++ b/src/Cloudflare/Access/Application.ts
+@@ -150,6 +150,12 @@ export interface ApplicationProps {
+         }>;
+       }
+   >;
++  /**
++   * Managed OAuth. When enabled, Access acts as the OAuth authorization
++   * server for this application, which is what allows non-browser clients
++   * (MCP) to authenticate without a cookie flow.
++   */
++  oauthConfiguration?: OAuthConfiguration;
+   /**
+    * Adopt an existing app that already lives in Cloudflare (matched by
+    * applicationId observation) instead of failing on conflict.
+@@ -159,6 +165,11 @@ export interface ApplicationProps {
+   adopt?: boolean;
+ }
+ 
++/** Referenced off the request type so it tracks spec regeneration. */
++export type OAuthConfiguration = NonNullable<
++  zeroTrust.UpdateAccessApplicationForAccountRequest["oauthConfiguration"]
++>;
++
+ /**
+  * Output attributes persisted between reconciles.
+  */
+@@ -404,6 +415,7 @@ export const ApplicationProvider = () =>
+             appLauncherVisible: body.appLauncherVisible,
+             tags: body.tags === undefined ? undefined : Array.from(body.tags),
+             policies: toRequestPolicies(body.policies),
++            oauthConfiguration: body.oauthConfiguration,
+             destinations:
+               body.destinations === undefined
+                 ? undefined
+@@ -454,6 +466,7 @@ export const ApplicationProvider = () =>
+             appLauncherVisible: body.appLauncherVisible,
+             tags: body.tags === undefined ? undefined : Array.from(body.tags),
+             policies: toRequestPolicies(body.policies),
++            oauthConfiguration: body.oauthConfiguration,
+             destinations:
+               body.destinations === undefined
+                 ? undefined
+@@ -638,6 +651,7 @@ interface ObservedApp {
+   readonly sessionDuration?: string;
+   readonly tags?: ReadonlyArray<string>;
+   readonly policies?: ReadonlyArray<ObservedPolicy>;
++  readonly oauthConfiguration?: OAuthConfiguration;
+   readonly createdAt?: string;
+   readonly updatedAt?: string;
+ }
+@@ -663,6 +677,7 @@ const narrowApp = (raw: {
+   sessionDuration?: string | null;
+   tags?: ReadonlyArray<string> | null;
+   policies?: ReadonlyArray<unknown> | null;
++  oauthConfiguration?: OAuthConfiguration | null;
+   createdAt?: string | null;
+   updatedAt?: string | null;
+ }): ObservedApp => ({
+@@ -684,6 +699,7 @@ const narrowApp = (raw: {
+     raw.policies == null
+       ? undefined
+       : (raw.policies as ReadonlyArray<ObservedPolicy>),
++  oauthConfiguration: undef(raw.oauthConfiguration),
+   createdAt: undef(raw.createdAt),
+   updatedAt: undef(raw.updatedAt),
+ });
+@@ -737,6 +753,7 @@ interface AppMutableBody {
+   appLauncherVisible?: boolean;
+   tags?: ReadonlyArray<string>;
+   policies?: ReadonlyArray<ResolvedPolicy>;
++  oauthConfiguration?: OAuthConfiguration;
+ }
+ 
+ const policyIdOf = (p: ResolvedPolicy): string =>
+@@ -831,6 +848,9 @@ const buildMutableBody = (
+   if (resolvedPolicies !== undefined) {
+     body.policies = resolvedPolicies;
+   }
++  if (news.oauthConfiguration !== undefined) {
++    body.oauthConfiguration = news.oauthConfiguration;
++  }
+   return body;
+ };
+ 
+@@ -869,6 +889,21 @@ const policiesEq = (
+   return true;
+ };
+ 
++/**
++ * Cloudflare echoes `oauth_configuration` back enriched with server-side
++ * defaults, so a whole-object compare would re-PUT on every reconcile. Every
++ * leaf the caller set must still be present and equal — which is what catches
++ * the field being silently wiped by an unrelated update.
++ */
++const oauthSubsetOf = (desired: unknown, observed: unknown): boolean => {
++  if (desired === null || typeof desired !== "object" || Array.isArray(desired))
++    return jsonEq(desired, observed);
++  if (observed === null || typeof observed !== "object") return false;
++  return Object.entries(desired).every(([key, value]) =>
++    oauthSubsetOf(value, (observed as Record<string, unknown>)[key]),
++  );
++};
++
+ const bodyEqualsObserved = (
+   desired: AppMutableBody,
+   observed: ObservedApp,
+@@ -924,5 +959,11 @@ const bodyEqualsObserved = (
+   if (!policiesEq(desired.policies, observed.policies)) {
+     return false;
+   }
++  if (
++    desired.oauthConfiguration !== undefined &&
++    !oauthSubsetOf(desired.oauthConfiguration, observed.oauthConfiguration)
++  ) {
++    return false;
++  }
+   return true;
+ };

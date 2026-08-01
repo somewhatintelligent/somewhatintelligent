@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [],
+  "ignorePatterns": ["chemistry/**", "dist/**", "design/**", "plugin/**"],
+  "boundaries": {},
+  "rules": {
+    "boundary-violation": "error",
+    "unused-exports": "error",
+    "unused-files": "error",
+    "unused-dependencies": "error"
+  },
+  "usedClassMembers": [
+    "list",
+    "get",
+    "versionOf",
+    "allocate",
+    "commit",
+    "update",
+    "remove",
+    "fetch",
+    "alarm"
+  ],
+  "ignoreDependencies": [
+    "@effect/platform-bun",
+    "@effect/platform-node",
+    "alchemy",
+    "effect",
+    "react",
+    "react-dom"
+  ]
+}
