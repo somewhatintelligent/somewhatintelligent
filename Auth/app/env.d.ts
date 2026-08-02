@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { AuthDefines } from "../surfaces.ts";
+import type { AuthDefines } from "../shared/surfaces.ts";
 import type { IdentityEnv } from "./identity-env.ts";
 
 /**
@@ -22,7 +22,7 @@ declare global {
  * `AUTH` is a bare `Service` stub. Its method shapes are recovered in exactly
  * one place — `lib/bae.server.ts` — by wrapping the stub with `toRpcAsync`
  * against the Worker class's own type, so calls are checked against what
- * `backend/worker.ts` implements rather than a re-declared interface.
+ * `api/worker.ts` implements rather than a re-declared interface.
  *
  * `@cloudflare/workers-types` must stay in `compilerOptions.types`: the binding
  * type intersects the ambient `Service`, and without the package the whole

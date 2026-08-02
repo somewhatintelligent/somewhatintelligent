@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./index.ts",
-    "./*": "./*.ts"
+    "./shared/*": "./shared/*.ts"
   },
   "scripts": {
     "deploy": "alchemy deploy",

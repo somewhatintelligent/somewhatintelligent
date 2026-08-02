@@ -3,7 +3,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import { makeEffectAuth } from "better-auth-effect";
 import * as Effect from "effect/Effect";
 
-import { ingress } from "../ingress.ts";
+import { ingress } from "../shared/ingress.ts";
 import { live } from "./capabilities.ts";
 import { authConfig } from "./config.ts";
 import { AUTH_COOKIE_DOMAIN, AUTH_ORIGIN } from "./origin.ts";

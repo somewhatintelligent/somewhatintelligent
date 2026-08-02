@@ -3,7 +3,7 @@
  * better-auth's stock admin plugin (roles `user`/`admin`, default `user`,
  * multi-role stored as csv). This list only controls what the pickers
  * offer: growing the real role set means wiring `admin.{adminRoles,ac,roles}`
- * in `backend/config.ts`; adding a role here alone would offer one the auth
+ * in `api/config.ts`; adding a role here alone would offer one the auth
  * layer grants no permissions for.
  */
 export const AVAILABLE_ROLES = ["user", "admin"] as const;

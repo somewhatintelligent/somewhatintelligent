@@ -8,8 +8,8 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "paths": {
-      "@/*": ["./src/*"],
-      "#/*": ["./src/*"]
+      "@/*": ["./app/*"],
+      "#/*": ["./app/*"]
     },
     "resolveJsonModule": true,
     "types": ["node", "@cloudflare/workers-types", "vite/client"],
@@ -25,14 +25,13 @@
   },
   "include": [
     "alchemy.run.ts",
-    "identity.ts",
     "index.ts",
-    "surfaces.ts",
-    "ingress.ts",
-    "stack.ts",
     "vite.config.ts",
-    "backend/**/*.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx"
+
+    "shared/**/*.ts",
+    "api/**/*.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "test/**/*.ts"
   ]
 }

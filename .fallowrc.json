@@ -2,11 +2,12 @@
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": [
     "**/alchemy.run.ts",
-    "**/backend/worker.ts",
-    "**/src/worker.ts",
-    "Auth/src/start.ts",
-    "Auth/src/routeTree.gen.ts",
-    "Auth/backend/schema.gen.ts",
+    "Auth/api/worker.ts",
+    "Auth/app/worker.ts",
+    "Auth/app/start.ts",
+    "Auth/app/routeTree.gen.ts",
+    "Auth/api/schema.gen.ts",
+    "Auth/test/**/*.test.ts",
     "packages/*/src/index.ts",
     "Apps/*/src/server/entry.ts",
     "Apps/*/src/shell/main.tsx",
@@ -16,9 +17,13 @@
   "ignorePatterns": ["dist/**", "design/**", "plugin/**", "**/scripts/**", "**/generated/**"],
   "boundaries": {
     "zones": [
-      { "name": "auth-server", "patterns": ["Auth/backend/**"] },
-      { "name": "auth-infra", "patterns": ["Auth/*.ts"] },
-      { "name": "auth-app", "patterns": ["Auth/src/**"] },
+      { "name": "auth-server", "patterns": ["Auth/api/**"] },
+      {
+        "name": "auth-infra",
+        "patterns": ["Auth/alchemy.run.ts", "Auth/index.ts"]
+      },
+      { "name": "auth-shared", "patterns": ["Auth/shared/**"] },
+      { "name": "auth-app", "patterns": ["Auth/app/**"] },
       { "name": "shared", "patterns": ["packages/*/src/**"] },
       { "name": "mezedes-core", "patterns": ["Apps/Mezedes/src/core/**"] },
       { "name": "mezedes-server", "patterns": ["Apps/Mezedes/src/server/**"] },
@@ -26,13 +31,14 @@
       { "name": "mezedes-infra", "patterns": ["Apps/Mezedes/alchemy.run.ts"] }
     ],
     "rules": [
-      { "from": "auth-infra", "allow": ["auth-server", "auth-app", "shared", "auth-infra"] },
-      { "from": "auth-server", "allow": ["auth-server", "shared", "auth-infra"] },
+      { "from": "auth-infra", "allow": ["auth-infra", "auth-server", "auth-shared", "shared"] },
+      { "from": "auth-server", "allow": ["auth-server", "auth-shared", "shared"] },
       {
         "from": "auth-app",
-        "allow": ["auth-app", "shared", "auth-infra"],
-        "allowTypeOnly": ["auth-server"]
+        "allow": ["auth-app", "auth-shared", "shared"],
+        "allowTypeOnly": ["auth-server", "auth-infra"]
       },
+      { "from": "auth-shared", "allow": ["auth-shared"], "allowTypeOnly": ["shared"] },
       { "from": "shared", "allow": ["shared"] },
       { "from": "mezedes-core", "allow": [] },
       { "from": "mezedes-server", "allow": ["mezedes-core"] },

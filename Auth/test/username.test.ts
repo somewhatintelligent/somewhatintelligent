@@ -9,11 +9,7 @@
 
 import { describe, expect, test } from "vite-plus/test";
 
-import {
-  allocateUsername,
-  usernameCandidates,
-  usernameFromEmail,
-} from "../../../backend/username.ts";
+import { allocateUsername, usernameCandidates, usernameFromEmail } from "../api/username.ts";
 
 describe("the username an address implies", () => {
   test.each([

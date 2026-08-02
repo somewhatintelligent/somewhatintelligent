@@ -15,7 +15,7 @@ import { username } from "better-auth/plugins/username";
 
 import * as Effect from "effect/Effect";
 
-import { AUTH_BASE_PATH } from "../ingress.ts";
+import { AUTH_BASE_PATH } from "../shared/ingress.ts";
 import { Signing } from "./capabilities.ts";
 import { Origin } from "./origin.ts";
 import { allocateUsername, USERNAME_LIMITS } from "./username.ts";
@@ -41,7 +41,7 @@ export const authConfig = Effect.gen(function* () {
   const { secret } = yield* Signing;
   const run = yield* makeRequestBoundary<never>();
   return yield* bae.configure({
-    /** See `backend/secret.ts` for what happens when this is omitted. */
+    /** See `api/secret.ts` for what happens when this is omitted. */
     secret,
     baseURL: origin,
     basePath: AUTH_BASE_PATH,

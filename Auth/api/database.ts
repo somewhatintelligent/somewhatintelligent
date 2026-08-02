@@ -3,9 +3,9 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Drizzle from "alchemy/Drizzle/Schema";
 import * as Effect from "effect/Effect";
 
-import { PRODUCTION_STAGE } from "../ingress.ts";
+import { PRODUCTION_STAGE } from "../shared/ingress.ts";
 
-export const schemaPath = "./backend/schema.gen.ts";
+export const schemaPath = "./api/schema.gen.ts";
 
 /**
  * The database production has always used, carried over from si's `guestlist`
@@ -33,7 +33,7 @@ export const AuthDatabase = Effect.gen(function* () {
 
   const migrations = yield* Drizzle.Schema("AuthMigrations", {
     schema: schemaPath,
-    out: "./backend/migrations",
+    out: "./api/migrations",
     dialect: "sqlite",
   });
 

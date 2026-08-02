@@ -2,7 +2,7 @@ import startEntry from "@tanstack/react-start/server-entry";
 import { toRpcAsync } from "alchemy/Cloudflare/Bridge";
 import type { IdentitySession } from "./lib/session";
 import type { IdentityEnv } from "./identity-env";
-import { AUTH_BASE_PATH, AVATAR_PREFIX } from "../ingress.ts";
+import { AUTH_BASE_PATH, AVATAR_PREFIX } from "../shared/ingress.ts";
 
 declare module "@tanstack/react-start" {
   interface Register {

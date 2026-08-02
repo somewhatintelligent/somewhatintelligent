@@ -2,7 +2,7 @@ import { Stack } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 
-import { workerSafeStage } from "../ingress.ts";
+import { workerSafeStage } from "../shared/ingress.ts";
 
 export const AvatarBucket = Effect.gen(function* () {
   const { stage } = yield* Stack;

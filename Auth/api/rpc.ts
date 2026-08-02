@@ -1,7 +1,7 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
 import type { AuthApiError } from "better-auth-effect";
-import { ALLOWED_AVATAR_TYPES, AVATAR_PREFIX, MAX_AVATAR_BYTES } from "../ingress.ts";
+import { ALLOWED_AVATAR_TYPES, AVATAR_PREFIX, MAX_AVATAR_BYTES } from "../shared/ingress.ts";
 import { AvatarBucket } from "./avatars.ts";
 import { AuthDatabase } from "./database.ts";
 import type { Auth } from "./config.ts";

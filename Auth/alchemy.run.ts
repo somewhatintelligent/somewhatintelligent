@@ -5,17 +5,48 @@ import * as Output from "alchemy/Output";
 import { Effect, Layer } from "effect";
 import * as Drizzle from "alchemy/Drizzle";
 
-import {
-  AuthDatabase,
-  PRODUCTION_DATABASE_ID,
-  PRODUCTION_DATABASE_NAME,
-} from "./backend/database.ts";
-import { authFeatures } from "./backend/options.ts";
-import { Identity } from "./identity.ts";
-import { ingress, PRODUCTION_STAGE } from "./ingress.ts";
-import { Auth, type AuthRouting } from "./stack.ts";
+import { AvatarBucket } from "./api/avatars.ts";
+import { AuthDatabase, PRODUCTION_DATABASE_ID, PRODUCTION_DATABASE_NAME } from "./api/database.ts";
+import { authFeatures } from "./api/options.ts";
+import AuthWorker from "./api/worker.ts";
+import { DEV_PORT, ingress, PRODUCTION_STAGE } from "./shared/ingress.ts";
+import { authDefines } from "./shared/surfaces.ts";
+import { Auth, type AuthRouting } from "./index.ts";
 
-import { AuthSchema } from "./backend/schema.ts";
+import { AuthSchema } from "./api/schema.ts";
+
+export class Identity extends Cloudflare.Website.Vite<Identity>()(
+  "SomewhatIntelligentAuthApp",
+  Effect.gen(function* () {
+    const { stage } = yield* Alchemy.Stack;
+    const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+    const { name, hostname } = ingress(stage, local);
+
+    return {
+      name,
+      main: "./app/worker.ts",
+      compatibility: { flags: ["nodejs_compat"] },
+      env: {
+        AUTH: AuthWorker,
+        AVATARS: yield* AvatarBucket,
+        // `VITE_` entries are inlined as `import.meta.env.*` literals before
+        // rolldown runs. Derived from the options the worker actually runs, so
+        // the app cannot advertise a flow the server would answer 404 for.
+        ...authDefines(yield* authFeatures),
+      },
+      dev: { port: DEV_PORT, strictPort: true },
+      /**
+       * The claimed hostname, and its inverse: a stage that claims a domain
+       * does not also answer on workers.dev, because a second public address
+       * for the login is a second origin the cookie is not scoped to.
+       */
+      ...(hostname === null ? {} : { domain: [hostname] }),
+      url: hostname === null,
+    };
+  }),
+) {}
+
+export type IdentityEnv = Cloudflare.Workers.InferEnv<Identity>;
 
 export default Auth.make(
   {

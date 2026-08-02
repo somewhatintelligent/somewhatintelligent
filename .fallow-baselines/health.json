@@ -1,0 +1,556 @@
+{
+  "finding_counts": {
+    "Apps/Mezedes/src/server/api.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "Apps/Mezedes/src/server/auth.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/server/diagnose.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/server/owner.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/server/tools.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/CodeView.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/Collection.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/Header.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/Mezes.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/Preview.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/Settings.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/api.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Apps/Mezedes/src/shell/components/artwork.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Apps/Mezedes/src/shell/components/format.ts": {
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "Apps/Mezedes/src/shell/components/highlight.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Apps/Mezedes/src/shell/components/router.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/api/drizzle-v1.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/api/rpc.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "Auth/app/components/account/avatar-upload-dialog.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/account/identity-card.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/app/components/account/two-factor-dialog.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/admin/add-member-modal.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/admin/add-user-modal.tsx": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      }
+    },
+    "Auth/app/components/admin/edit-org-dialog.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/admin/edit-user-dialog.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/admin/invite-member-modal.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/admin/set-password-dialog.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/admin/user-role-dialog.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/auth/awaiting-verification.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/auth/consent-actions.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/auth/sign-in-form.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 4
+      }
+    },
+    "Auth/app/components/auth/sign-up-form.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/auth/social-sign-in-buttons.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/auth/verify-email-handler.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/dashboard/app-sidebar.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/header/org-switcher.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/orgs/invitation-accept-card.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "Auth/app/components/platform-nav.tsx": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/app/components/status-page.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/lib/admin-clients.functions.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/app/lib/analytics-surface.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/lib/invitation.functions.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/app/lib/normalize.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/lib/org-admin.functions.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/app/lib/relative-time.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_auth/sign-up.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_auth/two-factor.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_auth/verify-email.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/account/api-keys.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/account/index.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/account/passkeys.tsx": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/app/routes/_dashboard/account/providers.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/account/sessions.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/admin/api-keys.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/admin/clients/$id.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/admin/orgs/$id.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "Auth/app/routes/_dashboard/admin/orgs/new.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/admin/sessions.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/_dashboard/admin/users.tsx": {
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "Auth/app/routes/orgs/accept/$invitationId.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "Auth/app/routes/welcome.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "Auth/app/worker.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/checkbox-field.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/email-field.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/input-group-field.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/password-field.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/radio-field.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/select-field.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/slider-field.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/switch-field.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/text-field.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/form/textarea-field.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/autosave-indicator.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/editor/editor-commands.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "packages/ui/src/components/ui/editor/editor-toolbar.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/editor/markdown-editor.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/editor/use-markdown-editor.client.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/field.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/image-cropper.tsx": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/markdown-field.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/search-combobox.tsx": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/sidebar.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/tag-input.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/theme-toggle.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/components/ui/toggle-group.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "packages/ui/src/lib/markdown-render.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": [
+    "Apps/Mezedes/src/shell/components/router.ts:high impact",
+    "Apps/Mezedes/src/shell/components/format.ts:untested risk",
+    "packages/ui/src/components/ui/editor/markdown-editor.tsx:complexity",
+    "Apps/Mezedes/src/shell/components/theme.ts:high impact",
+    "Auth/app/lib/relative-time.ts:untested risk"
+  ]
+}

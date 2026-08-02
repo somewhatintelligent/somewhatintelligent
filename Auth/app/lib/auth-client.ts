@@ -1,7 +1,7 @@
 /**
  * The browser's Better Auth client.
  *
- * The plugin list mirrors `backend/config.ts` and has to: a client plugin is
+ * The plugin list mirrors `api/config.ts` and has to: a client plugin is
  * what adds its endpoints, so dropping `passkeyClient` means `signIn.passkey`
  * simply does not exist. There is no error at the seam — the method is absent.
  * `bearer` adds no client surface and organization admin is not ported, so
@@ -9,7 +9,7 @@
  *
  * `baseURL` is this app's own origin, not the auth server's: the auth server is
  * `url: false` and reachable only over the service binding, which
- * `src/worker.ts` proxies `/api/auth/*` across.
+ * `app/worker.ts` proxies `/api/auth/*` across.
  */
 import { apiKeyClient } from "@better-auth/api-key/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";

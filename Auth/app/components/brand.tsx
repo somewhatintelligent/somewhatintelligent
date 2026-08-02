@@ -1,13 +1,13 @@
 // The platform lockup (mark + wordmark), driven entirely by
 // `appConfig.brand` — forks get their own wordmark by editing
-// `src/app.config.ts`, no change needed here.
+// `app/app.config.ts`, no change needed here.
 // Mirrors the satori-safe `<OgBrand>` (og/_brand.tsx) so the in-app and
 // OG-image renders share one mark.
 import { LogoIcon } from "@si/design/logo";
 import { appConfig } from "@/app.config";
 
 // Per-app product name. Each app in the workspace declares its own —
-// see `src/app-brand.ts` (this is the identity app's value).
+// see `app/app-brand.ts` (this is the identity app's value).
 import { APP_PRODUCT_NAME } from "#/app-brand";
 
 export function Brand({ className, size = 64 }: { className?: string; size?: number }) {

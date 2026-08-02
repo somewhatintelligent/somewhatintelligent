@@ -11,7 +11,7 @@
  */
 import { describe, expect, test } from "vite-plus/test";
 
-import { APEX, decodeReturnTo, isPlatformHost, resolveReturnTo } from "../return-to.ts";
+import { APEX, decodeReturnTo, isPlatformHost, resolveReturnTo } from "../app/lib/return-to.ts";
 
 const PROD = "somewhatintelligent.ca";
 /** With the leading dot, the cookie-domain spelling. Must behave identically. */

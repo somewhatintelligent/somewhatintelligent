@@ -18,8 +18,22 @@ export default defineConfig({
        * made. The default base is the merge-base against the upstream, which
        * would re-judge every commit not yet pushed and fail this one for a
        * finding an earlier one introduced.
+       *
+       * The BASELINES are what make that promise survive a rename. `audit`
+       * attributes a finding to the changeset by FILE PATH, so moving a file
+       * gives every finding in it a path the base snapshot never had and the
+       * whole standing backlog reads as introduced here. A baseline matches on
+       * the finding instead, so only genuinely new duplication and complexity
+       * gate a commit.
+       *
+       * Re-save them (`fallow dupes|health --save-baseline <path>`) when the
+       * backlog SHRINKS — they are a floor, not a target, and a stale one
+       * silently forgives a regression back up to it.
        */
-      () => "bunx fallow audit --base HEAD",
+      () =>
+        "bunx fallow audit --base HEAD" +
+        " --dupes-baseline .fallow-baselines/dupes.json" +
+        " --health-baseline .fallow-baselines/health.json",
     ],
   },
   fmt: {

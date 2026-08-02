@@ -1,10 +1,10 @@
-export const ACCOUNT_SUBDOMAIN = "apostoli-geyer";
+const ACCOUNT_SUBDOMAIN = "apostoli-geyer";
 
 export const PRODUCTION_ZONE = "somewhatintelligent.ca";
 
 export const PRODUCTION_STAGE = "prod";
 
-export const AUTH_SUBDOMAIN = "accounts";
+const AUTH_SUBDOMAIN = "accounts";
 
 export const AUTH_BASE_PATH = "/api/auth";
 

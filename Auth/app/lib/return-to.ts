@@ -11,14 +11,21 @@
  * by construction.
  */
 
+import { PRODUCTION_ZONE } from "../../shared/ingress.ts";
+
 /**
  * The apex, WITHOUT a leading dot.
  *
- * A literal rather than an env read: a redirect guard that can be misconfigured
- * is one that can be turned off. Reading it from a build-time define means an
- * unset var silently rejects every returnTo — the safe direction, but silently.
+ * Still a compile-time constant rather than an env read: a redirect guard that
+ * can be misconfigured is one that can be turned off. Reading it from a
+ * build-time define means an unset var silently rejects every returnTo — the
+ * safe direction, but silently.
+ *
+ * Taken from `shared/`, which is what the directory is for: the zone this guard
+ * trusts and the zone the deploy claims a hostname in have to be the same
+ * string, and a second literal here could drift from it without failing a build.
  */
-export const APEX = "somewhatintelligent.ca";
+export const APEX = PRODUCTION_ZONE;
 
 /**
  * Is `host` the apex or any subdomain of it, at any depth?

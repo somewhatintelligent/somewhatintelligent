@@ -11,8 +11,8 @@ import { deriveFeatures } from "better-auth-manifest";
 import * as Effect from "effect/Effect";
 import { describe, expect, test } from "vite-plus/test";
 
-import { authOptions } from "../../../backend/options.ts";
-import { authDefines, SURFACES } from "../../../surfaces.ts";
+import { authOptions } from "../api/options.ts";
+import { authDefines, SURFACES } from "../shared/surfaces.ts";
 
 const options = await Effect.runPromise(authOptions);
 const features = deriveFeatures(options);

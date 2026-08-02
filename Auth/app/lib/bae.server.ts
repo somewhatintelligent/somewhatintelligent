@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { createServerOnlyFn } from "@tanstack/react-start";
 import { toRpcAsync } from "alchemy/Cloudflare/Bridge";
 
-import type AuthWorker from "../../backend/worker.ts";
+import type AuthWorker from "../../api/worker.ts";
 import type { IdentitySession } from "./session.ts";
 
 export const baeClient = createServerOnlyFn(function baeClient() {

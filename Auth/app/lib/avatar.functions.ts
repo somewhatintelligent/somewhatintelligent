@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { baeClient } from "@/lib/bae.server";
 import { requireUser } from "@/lib/server-fn-actor";
-import type { AvatarContentType } from "../../ingress.ts";
+import type { AvatarContentType } from "../../shared/ingress.ts";
 
 export const uploadAvatar = createServerFn({ method: "POST" })
   .middleware([requireUser])

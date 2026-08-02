@@ -8,7 +8,7 @@ import type { AuthFeatures } from "better-auth-manifest";
  * The key IS the define suffix, so `VITE_AUTH_TWO_FACTOR` is derivable from the
  * entry rather than written beside it. The value is the plugin's own Better
  * Auth id — `two-factor`, not `twoFactor` — and nothing checks that at compile
- * time, so `src/lib/__tests__/surfaces.test.ts` pins every one of them against
+ * time, so `test/surfaces.test.ts` pins every one of them against
  * the real configuration.
  *
  * `jwt` and `bearer` are deliberately absent: they mount no UI, so there is
