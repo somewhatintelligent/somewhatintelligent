@@ -9,10 +9,10 @@
     "Auth/api/schema.gen.ts",
     "Auth/test/**/*.test.ts",
     "packages/*/src/index.ts",
-    "Apps/*/src/server/entry.ts",
-    "Apps/*/src/shell/main.tsx",
-    "Apps/*/test/**/*.test.ts",
-    "Apps/*/integ/**/*.test.ts"
+    "apps/*/src/server/entry.ts",
+    "apps/*/src/shell/main.tsx",
+    "apps/*/test/**/*.test.ts",
+    "apps/*/integ/**/*.test.ts"
   ],
   "ignorePatterns": ["dist/**", "design/**", "plugin/**", "**/scripts/**", "**/generated/**"],
   "boundaries": {
@@ -25,10 +25,10 @@
       { "name": "auth-shared", "patterns": ["Auth/shared/**"] },
       { "name": "auth-app", "patterns": ["Auth/app/**"] },
       { "name": "shared", "patterns": ["packages/*/src/**"] },
-      { "name": "mezedes-core", "patterns": ["Apps/Mezedes/src/core/**"] },
-      { "name": "mezedes-server", "patterns": ["Apps/Mezedes/src/server/**"] },
-      { "name": "mezedes-shell", "patterns": ["Apps/Mezedes/src/shell/**"] },
-      { "name": "mezedes-infra", "patterns": ["Apps/Mezedes/alchemy.run.ts"] }
+      { "name": "mezedes-core", "patterns": ["apps/mezedes/src/core/**"] },
+      { "name": "mezedes-server", "patterns": ["apps/mezedes/src/server/**"] },
+      { "name": "mezedes-shell", "patterns": ["apps/mezedes/src/shell/**"] },
+      { "name": "mezedes-infra", "patterns": ["apps/mezedes/alchemy.run.ts"] }
     ],
     "rules": [
       { "from": "auth-infra", "allow": ["auth-infra", "auth-server", "auth-shared", "shared"] },

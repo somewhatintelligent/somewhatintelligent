@@ -4,13 +4,13 @@ Captured at commit 1, before anything moved. These are the "before" side of
 every verification in the runbook. A reading that differs from these after a
 move is either a bug or a fix, and you should be able to say which.
 
-| file                      | oracle                               | reading at capture               |
-| ------------------------- | ------------------------------------ | -------------------------------- |
-| `before-check.txt`        | A · `vp check`                       | 0 errors, 15 warnings, 293 files |
-| `before-test.txt`         | B · `vp run -r test`                 | 91 tests, 0 fail, 5 packages     |
-| `before-graph.txt`        | C · `bunx fallow dead-code`          | 0 findings, 141 entry points     |
-| `before-plan-auth.txt`    | D · `alchemy plan --stage dev_stoli` | **8 to noop**                    |
-| `before-plan-mezedes.txt` | D · same, from Apps/Mezedes          | 1 to update, 3 to noop           |
+| file                      | oracle                               | reading at capture                                                |
+| ------------------------- | ------------------------------------ | ----------------------------------------------------------------- |
+| `before-check.txt`        | A · `vp check`                       | 0 errors, 15 warnings, 293 files                                  |
+| `before-test.txt`         | B · `vp run -r test`                 | 307 tests, 0 fail, 5 packages (9+191+16+41+50 across two runners) |
+| `before-graph.txt`        | C · `bunx fallow dead-code`          | 0 findings, 141 entry points                                      |
+| `before-plan-auth.txt`    | D · `alchemy plan --stage dev_stoli` | **8 to noop**                                                     |
+| `before-plan-mezedes.txt` | D · same, from Apps/Mezedes          | 1 to update, 3 to noop                                            |
 
 ## The twelve logical ids that must survive
 

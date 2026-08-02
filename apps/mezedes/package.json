@@ -1,5 +1,5 @@
 {
-  "name": "@platform/mezedes",
+  "name": "mezedes",
   "private": true,
   "type": "module",
   "scripts": {
