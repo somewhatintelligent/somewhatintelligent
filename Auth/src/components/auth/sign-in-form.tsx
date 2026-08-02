@@ -8,7 +8,7 @@ import { Button } from "@si/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
 import { Alert } from "@si/ui/components/alert";
 import { Separator } from "@si/ui/components/separator";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import type { SocialProviders } from "@/lib/providers.functions";
 import { SocialSignInButtons } from "./social-sign-in-buttons";
@@ -217,7 +217,7 @@ export function SignInForm({
   if (mode === "sent") {
     return (
       <>
-        <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+        <Brand className="mb-section flex flex-col items-center text-center" />
 
         <Card className="p-page" style={{ viewTransitionName: "auth-card" }}>
           <CardHeader>
@@ -248,7 +248,7 @@ export function SignInForm({
 
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
       {clientName ? (
         <div className="mb-section -mt-4 text-center type-editorial-lede text-muted-foreground">
           continue to <strong className="text-foreground">{clientName}</strong>

@@ -5,7 +5,7 @@ import { useCapture } from "@/lib/analytics";
 import { useAppForm } from "@si/ui/hooks/use-app-form";
 import { Card, CardContent } from "@si/ui/components/card";
 import { Alert } from "@si/ui/components/alert";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import type { SocialProviders } from "@/lib/providers.functions";
 import { SocialSignInButtons } from "./social-sign-in-buttons";
@@ -68,7 +68,7 @@ export function SignUpForm({
 
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
       <div className="mb-section -mt-4 text-center type-editorial-lede text-muted-foreground">
         create an account
       </div>

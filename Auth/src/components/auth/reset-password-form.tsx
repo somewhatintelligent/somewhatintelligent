@@ -5,7 +5,7 @@ import { useAppForm } from "@si/ui/hooks/use-app-form";
 import { Button } from "@si/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@si/ui/components/card";
 import { Alert } from "@si/ui/components/alert";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 
 export function ResetPasswordForm({ token }: { token?: string }) {
@@ -42,7 +42,7 @@ function RequestReset() {
 
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
       <div className="mb-section -mt-4 text-center type-editorial-lede text-muted-foreground">
         reset password
       </div>
@@ -144,7 +144,7 @@ function SetNewPassword({ token }: { token: string }) {
 
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
       <div className="mb-section -mt-4 text-center type-editorial-lede text-muted-foreground">
         new password
       </div>

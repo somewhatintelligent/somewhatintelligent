@@ -4,18 +4,20 @@ import { getRequest, getRequestHeaders } from "@tanstack/react-start/server";
 import { getSession } from "@/lib/bae.server";
 
 /**
- * Server-fn wrappers for BA's `/api/auth/organization/*` invitation
- * endpoints. We call the guestlist service binding directly with the
- * inbound request's cookies + origin so BA can resolve the session and
- * pass its CSRF check.
+ * Server-fn wrappers for Better Auth's `/api/auth/organization/*` invitation
+ * endpoints. These fetch the auth server over its service binding with the
+ * inbound request's cookies and origin, so Better Auth can resolve the session
+ * and pass its CSRF check.
  *
- * We deliberately do NOT route through the auth client here: the
- * `organizationClient()` plugin isn't registered in
- * `@somewhatintelligent/guestlist`'s `src/client/plugins.ts`. Server-side
- * fetch against the service binding is the equivalent path.
+ * Deliberately not routed through the auth client: `organizationClient()` is
+ * not mounted in `lib/auth-client.ts`, and a server-side fetch against the
+ * binding is the equivalent path.
+ *
+ * The host below is arbitrary — a service binding routes by path and ignores
+ * it — but a URL has to parse.
  */
 
-const GUESTLIST_INTERNAL = "http://guestlist.internal";
+const AUTH_INTERNAL = "http://auth.internal";
 
 export interface InvitationSummary {
   id: string;
@@ -69,7 +71,7 @@ export const getInvitationForAccept = createServerFn({ method: "GET" })
 
     const sessionUserEmail = session.user.email;
 
-    const url = new URL("/api/auth/organization/get-invitation", GUESTLIST_INTERNAL);
+    const url = new URL("/api/auth/organization/get-invitation", AUTH_INTERNAL);
     url.searchParams.set("id", data.invitationId);
     const res = await baeClient().fetch(
       new Request(url.toString(), { method: "GET", headers: forwardHeaders() }),
@@ -145,7 +147,7 @@ export const acceptInvitation = createServerFn({ method: "POST" })
   .validator((data: { invitationId: string }) => data)
   .handler(async ({ data }): Promise<AcceptInvitationResult> => {
     const res = await baeClient().fetch(
-      new Request(`${GUESTLIST_INTERNAL}/api/auth/organization/accept-invitation`, {
+      new Request(`${AUTH_INTERNAL}/api/auth/organization/accept-invitation`, {
         method: "POST",
         headers: { ...forwardHeaders(), "content-type": "application/json" },
         body: JSON.stringify({ invitationId: data.invitationId }),
@@ -185,7 +187,7 @@ export const rejectInvitation = createServerFn({ method: "POST" })
   .validator((data: { invitationId: string }) => data)
   .handler(async ({ data }): Promise<RejectInvitationResult> => {
     const res = await baeClient().fetch(
-      new Request(`${GUESTLIST_INTERNAL}/api/auth/organization/reject-invitation`, {
+      new Request(`${AUTH_INTERNAL}/api/auth/organization/reject-invitation`, {
         method: "POST",
         headers: { ...forwardHeaders(), "content-type": "application/json" },
         body: JSON.stringify({ invitationId: data.invitationId }),

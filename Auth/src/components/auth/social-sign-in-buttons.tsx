@@ -31,11 +31,10 @@ export function SocialSignInButtons({
 
   async function handle(provider: Provider) {
     onStart?.();
-    // BA emits the final post-callback redirect verbatim in the Location
-    // header, which the browser resolves against the current origin
-    // (guestlist's domain after the OAuth callback). A relative path would
-    // land users on guestlist.platform.example/account instead of
-    // identity.platform.example/account — anchor to identity's origin.
+    // Better Auth emits the post-callback redirect verbatim in the Location
+    // header and the browser resolves it against whatever origin it is on at
+    // that point, so anchor it to this app's origin rather than passing a
+    // relative path.
     const target = callbackURL ?? "/account";
     const absoluteCallback = new URL(target, window.location.origin).toString();
     const result = await authClient.signIn.social({

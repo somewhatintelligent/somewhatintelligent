@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@si/ui/components/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@si/ui/components/card";
 import { Alert } from "@si/ui/components/alert";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 
 const RESEND_COOLDOWN = 60;
@@ -58,7 +58,7 @@ export function AwaitingVerification({
 
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
 
       <Card className="p-page" style={{ viewTransitionName: "auth-card" }}>
         <CardHeader>

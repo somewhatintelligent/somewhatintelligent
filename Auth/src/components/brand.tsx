@@ -10,11 +10,11 @@ import { appConfig } from "@/app.config";
 // see `src/app-brand.ts` (this is the identity app's value).
 import { APP_PRODUCT_NAME } from "#/app-brand";
 
-export function GuestlistBrand({ className, size = 64 }: { className?: string; size?: number }) {
+export function Brand({ className, size = 64 }: { className?: string; size?: number }) {
   const subtitleSize = Math.max(7, size * 0.15);
   return (
     <div className={className}>
-      <div className="flex flex-col items-center" style={{ viewTransitionName: "guestlist-brand" }}>
+      <div className="flex flex-col items-center" style={{ viewTransitionName: "brand" }}>
         <LogoIcon colorScheme="light" size={size} />
         <span className="mt-1 font-medium" style={{ fontSize: size * 0.28 }}>
           {appConfig.brand.name}

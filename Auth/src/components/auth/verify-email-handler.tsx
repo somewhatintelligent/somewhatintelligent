@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@si/ui/components/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@si/ui/components/card";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 
 export function VerifyEmailHandler({ token, returnTo }: { token: string; returnTo?: string }) {
@@ -16,7 +16,7 @@ export function VerifyEmailHandler({ token, returnTo }: { token: string; returnT
 
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
 
       <Card className="p-page" style={{ viewTransitionName: "auth-card" }}>
         {status === "loading" && (

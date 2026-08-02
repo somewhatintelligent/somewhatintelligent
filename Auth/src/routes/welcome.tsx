@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@si/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
 import { Alert } from "@si/ui/components/alert";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import { publicIdentityHref } from "@/lib/public-url";
 
@@ -75,7 +75,7 @@ function WelcomePage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-page">
       <div className="w-full max-w-[560px]">
-        <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+        <Brand className="mb-section flex flex-col items-center text-center" />
 
         <Card className="p-page" style={{ viewTransitionName: "auth-card" }}>
           {step === "choose" && (

@@ -62,10 +62,10 @@ export interface UserSearchHit {
 type OrgRole = "owner" | "admin" | "member";
 
 // ------------------------------------------------------------------
-// Server functions — each one wraps a single guestlist operator RPC
-// method on the GUESTLIST WorkerEntrypoint. The inbound Cookie is the
-// sole credential (threaded explicitly); the admin gate runs both in
-// middleware here AND inside the entrypoint's own `#admin` check.
+// Server functions — each one wraps a single RPC method on the auth
+// worker. The inbound Cookie is the sole credential (threaded explicitly);
+// the admin gate runs both in middleware here AND inside the worker's own
+// check.
 // ------------------------------------------------------------------
 
 export const listOrgsForAdmin = createServerFn({ method: "GET" })
@@ -252,10 +252,10 @@ export const createOrgInvitation = createServerFn({ method: "POST" })
     if (!res.ok) throw new Error(rpcErrorMessage(res));
     const inv = res.invitation as { id: string } | undefined;
     if (!inv) throw new Error("No invitation returned from server");
-    // guestlist's operator-issued invitations never send email (see
-    // adminCreateOrgInvitation / ops/orgs.ts createInvitation) — emailSent is
-    // always false. Kept as a real field so the UI's "email sent" branch is
-    // ready the moment guestlist adds delivery.
+    // Operator-issued invitations never send email (see
+    // adminCreateOrgInvitation) — emailSent is always false. Kept as a real
+    // field so the UI's "email sent" branch is ready the moment the auth
+    // server adds delivery.
     return { invitationId: inv.id, emailSent: false };
   });
 

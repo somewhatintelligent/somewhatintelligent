@@ -1,11 +1,10 @@
 /**
- * Identity's PUBLIC address for `path`, mount included.
+ * This app's PUBLIC address for `path`.
  *
- * Better-auth's email flows (magic-link verify, reset-password callback)
- * redirect from GUESTLIST — a passthrough mount, so bouncer never rewrites
- * the Location header. Any callback/redirect URL handed to those flows must
- * therefore already be identity's public URL including its `/account` vmf
- * mount (`IDENTITY_URL`), never a path anchored at the bare origin.
+ * Better Auth's email flows (magic-link verify, reset-password callback) emit
+ * the redirect verbatim, so any callback URL handed to them has to be absolute
+ * rather than a path. The app is served at its own origin, so the origin is
+ * the answer.
  */
 export function publicIdentityHref(path: string): string {
   const base = import.meta.env.IDENTITY_URL || window.location.origin;

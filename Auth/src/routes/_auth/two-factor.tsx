@@ -6,7 +6,7 @@ import { Card, CardContent } from "@si/ui/components/card";
 import { Checkbox } from "@si/ui/components/checkbox";
 import { Field, FieldLabel } from "@si/ui/components/field";
 import { Input } from "@si/ui/components/input";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import { decodeReturnTo } from "@/lib/return-to";
 
@@ -63,7 +63,7 @@ function TwoFactorPage() {
 
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
       <div className="mb-section -mt-4 text-center type-editorial-lede text-muted-foreground">
         {isBackup
           ? "enter one of your backup codes"

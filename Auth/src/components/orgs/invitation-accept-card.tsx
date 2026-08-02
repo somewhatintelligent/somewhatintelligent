@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@si/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
 import { Alert } from "@si/ui/components/alert";
-import { GuestlistBrand } from "@/components/guestlist-brand";
+import { Brand } from "@/components/brand";
 
 /**
  * Visual states the `/orgs/accept/:invitationId` route can render.
@@ -54,7 +54,7 @@ export function InvitationAcceptCard({
 }: InvitationAcceptCardProps) {
   return (
     <>
-      <GuestlistBrand className="mb-section flex flex-col items-center text-center" />
+      <Brand className="mb-section flex flex-col items-center text-center" />
       <Card className="p-page" style={{ viewTransitionName: "auth-card" }}>
         <CardBody
           state={state}

@@ -64,8 +64,8 @@ function ProvidersPage() {
 
   function handleLink(provider: string) {
     startTransition(async () => {
-      // Anchor to identity's origin — BA emits the post-callback redirect
-      // verbatim and the browser resolves it against guestlist's domain.
+      // Anchor to this app's origin — Better Auth emits the post-callback
+      // redirect verbatim and the browser resolves it wherever it lands.
       const callbackURL = new URL("/account/providers", window.location.origin).toString();
       const result = await authClient.linkSocial({
         provider: provider as "google" | "microsoft" | "facebook" | "linkedin",
