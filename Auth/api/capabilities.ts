@@ -1,4 +1,4 @@
-import { RuntimeContext } from "alchemy";
+import { ALCHEMY_DEV, RuntimeContext } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Database } from "better-auth-effect";
 import * as Context from "effect/Context";
@@ -40,13 +40,23 @@ export const live = Layer.mergeAll(
     Signing,
     Effect.gen(function* () {
       /**
-       * `ReadSecret` is what DECLARES the binding, and it does so only on the
-       * deploy host — so it has to be called before the guard, in both phases.
-       * Reading the value is the runtime-only half: at plan time there is no
-       * store behind the binding and `.get()` would run on `undefined`.
+       * `ReadSecret` DECLARES the binding, on the deploy host only. Local dev
+       * declares none and signs with the stand-in — workerd rejects a
+       * `secrets_store_secret` binding outright — but still yields `AuthSecret`
+       * so the shared, account-level secret stays in the graph rather than
+       * being deleted as an orphan.
        */
+      if (!globalThis.__ALCHEMY_RUNTIME__) {
+        if (yield* Effect.orDie(ALCHEMY_DEV)) return yield* Effect.as(AuthSecret, UNSIGNED);
+        yield* Cloudflare.SecretsStore.ReadSecret(AuthSecret);
+        return UNSIGNED;
+      }
+
+      const secret = yield* AuthSecret;
+      const env = yield* Cloudflare.Workers.WorkerEnvironment;
+      if (env[secret.LogicalId] === undefined) return UNSIGNED;
+
       const read = yield* Cloudflare.SecretsStore.ReadSecret(AuthSecret);
-      if (!globalThis.__ALCHEMY_RUNTIME__) return UNSIGNED;
       return { secret: Redacted.value(yield* uncoloured(Effect.orDie(read))) };
     }),
   ),
