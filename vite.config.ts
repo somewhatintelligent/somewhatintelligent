@@ -2,18 +2,24 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   staged: {
-    "*": ["vp check --fix"],
-    /**
-     * `audit` rather than `dead-code`: it reviews only the CHANGED files, so a
-     * commit is gated on what it introduced rather than the standing backlog.
-     *
-     * `sh -c ... --` so lint-staged's filenames land as ignored positional
-     * args — `audit` derives the changed set from git itself and rejects paths.
-     * `FALLOW_AUDIT_BASE` because the base is otherwise a merge-base against an
-     * upstream `trunk` does not have, and unset it errors out instead of
-     * gating, which reads as passing.
-     */
-    "**/*.{ts,tsx}": ["sh -c 'FALLOW_AUDIT_BASE=HEAD bunx fallow audit' --"],
+    "*": [
+      "vp check --fix",
+      /**
+       * `audit` rather than `dead-code`: it reviews only the CHANGED files, so
+       * a commit is gated on what it introduced rather than the standing
+       * backlog.
+       *
+       * A FUNCTION task, because `staged` appends the staged paths to every
+       * string command and `audit` takes no positional arguments — it derives
+       * the changed set from git itself. Returning the command from a function
+       * is what suppresses the append.
+       *
+       * `--base HEAD` because the default is a merge-base against an upstream
+       * `trunk` does not have; unset, the command errors out instead of
+       * gating, which reads as passing.
+       */
+      () => "bunx fallow audit --base HEAD",
+    ],
   },
   fmt: {
     ignorePatterns: [
