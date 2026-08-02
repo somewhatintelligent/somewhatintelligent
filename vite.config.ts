@@ -6,7 +6,6 @@ export default defineConfig({
   },
   fmt: {
     ignorePatterns: [
-      "chemistry/**",
       "**/dist/**",
       "**/design/**",
       "**/.alchemy/**",
@@ -17,7 +16,6 @@ export default defineConfig({
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     ignorePatterns: [
-      "chemistry/**",
       "**/dist/**",
       "**/design/**",
       "**/.alchemy/**",

@@ -1,0 +1,303 @@
+/* ═══════════════════════════════════════
+   @si/design — Full Theme Entry Point
+   Import this single file in any app to get:
+   - Tailwind v4
+   - Design tokens (light + dark)
+   - Tailwind theme mapping
+   - Custom fonts (@font-face)
+   - shadcn compatibility layer
+   - tw-animate-css
+   - Typography utilities (type-hero, type-page-title, etc.)
+   - prose-platform utility
+   ═══════════════════════════════════════ */
+
+@import "tailwindcss";
+@import "../generated/css/tokens.css";
+@import "../generated/css/tailwind-theme.css";
+@import "../generated/css/utilities.css";
+@import "./fonts.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+@theme inline {
+  /* Tailwind's own font-family keys (font-sans, font-heading, …) bridged
+     onto our named stacks. The full semantic color contract (background,
+     foreground, primary, destructive, …) is registered generically by
+     generated/css/tailwind-theme.css — do not re-declare color vars here,
+     a literal entry parsed after the generated block would win (last-wins)
+     and silently defeat retinting via src/tokens/brand.ts. */
+  --font-heading: var(--font-display);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+  --font-accent: var(--font-accent);
+
+  /* Radius — the full scale (xs/sm/md/lg/xl/full) is generated in
+     tailwind-theme.css as `--radius-*: var(--radius-*)` ALIASES bound to
+     tokens.css, so every `rounded-*` utility resolves through a runtime
+     custom property and a tenant can retune it.
+     DO NOT redefine sm/md/lg/xl here: a literal `@theme inline` entry parsed
+     after the generated block re-bakes the utility to a fixed pixel value
+     (last-wins), silently defeating per-brand radius theming. Only --radius-2xl
+     is genuinely absent from the scale — keep it for shadcn's internal
+     --radius-2xl reference (not tenant-exposed, so a literal is fine). */
+  --radius-2xl: 36px;
+
+  /* Brand emphasis — a hard offset line. NO glow, NO blur: this system
+     draws depth, it never diffuses it (see src/tokens/shadows.ts). */
+  --shadow-brand: var(--brutal-md);
+
+  /* Shadows + Blur — generated in tailwind-theme.css, no need to duplicate here */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+/* ═══════════════════════════════════════
+   glass — frosted translucent surface
+   ═══════════════════════════════════════ */
+@utility glass {
+  /* LEGACY NAME — renders as an opaque sheet with a solid rule. No
+     translucency, no backdrop-filter: this system is deliberately flat. */
+  background: var(--glass-bg);
+  box-shadow: 0 0 0 1px var(--glass-border);
+}
+
+/* ═══════════════════════════════════════
+   press-in — shared active/click state
+   ═══════════════════════════════════════ */
+@utility press-in {
+  transform: scale(0.97);
+}
+
+/* ═══════════════════════════════════════
+   prose-platform — editorial content styling
+   ═══════════════════════════════════════ */
+@utility prose-platform {
+  /* No "tertiary text" slot in the semantic contract (see
+     src/tokens/colors.ts) — derive a dimmer caption tone from
+     muted-foreground instead of inventing a one-off token. */
+  --prose-caption: color-mix(in oklch, var(--color-muted-foreground) 75%, transparent);
+
+  --tw-prose-body: var(--color-muted-foreground);
+  --tw-prose-headings: var(--color-foreground);
+  --tw-prose-lead: var(--color-warning);
+  --tw-prose-links: var(--color-primary);
+  --tw-prose-bold: var(--color-foreground);
+  --tw-prose-counters: var(--prose-caption);
+  --tw-prose-bullets: var(--prose-caption);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-quotes: var(--color-primary);
+  --tw-prose-quote-borders: var(--color-primary);
+  --tw-prose-captions: var(--prose-caption);
+  --tw-prose-code: var(--color-primary);
+  --tw-prose-pre-code: var(--color-foreground);
+  --tw-prose-pre-bg: var(--color-surface-sunken);
+  --tw-prose-th-borders: var(--color-border-strong);
+  --tw-prose-td-borders: var(--color-border);
+
+  --tw-prose-invert-body: var(--color-muted-foreground);
+  --tw-prose-invert-headings: var(--color-foreground);
+  --tw-prose-invert-lead: var(--color-primary);
+  --tw-prose-invert-links: var(--color-primary);
+  --tw-prose-invert-bold: var(--color-foreground);
+  --tw-prose-invert-counters: var(--prose-caption);
+  --tw-prose-invert-bullets: var(--prose-caption);
+  --tw-prose-invert-hr: var(--color-border);
+  --tw-prose-invert-quotes: var(--color-primary);
+  --tw-prose-invert-quote-borders: var(--color-primary);
+  --tw-prose-invert-captions: var(--prose-caption);
+  --tw-prose-invert-code: var(--color-primary);
+  --tw-prose-invert-pre-code: var(--color-foreground);
+  --tw-prose-invert-pre-bg: var(--color-surface-sunken);
+  --tw-prose-invert-th-borders: var(--color-border-strong);
+  --tw-prose-invert-td-borders: var(--color-border);
+
+  font-family: var(--font-editorial);
+
+  & :is(.lead):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: var(--text-editorial-lede);
+    line-height: var(--text-editorial-lede--line-height);
+    font-style: italic;
+  }
+
+  & :is(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-family: var(--font-editorial-display);
+    font-weight: 300;
+    letter-spacing: var(--tracking-display-tight);
+    color: var(--color-foreground);
+    margin-top: 1.2em;
+    margin-bottom: 0.4em;
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  & :is(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: var(--text-editorial-h1);
+    line-height: var(--text-editorial-h1--line-height);
+  }
+
+  & :is(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: var(--text-editorial-h2);
+    line-height: var(--text-editorial-h2--line-height);
+  }
+
+  & :is(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: var(--text-editorial-h3);
+    line-height: var(--text-editorial-h3--line-height);
+  }
+
+  & :is(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-family: var(--font-editorial-display);
+    font-weight: 200;
+    font-style: italic;
+    font-size: var(--text-pullquote);
+    line-height: var(--text-pullquote--line-height);
+    color: var(--color-primary);
+    border-left-width: 4px;
+    border-left-color: var(--color-primary);
+    padding-left: 1em;
+  }
+
+  & :is(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-family: var(--font-mono);
+    background-color: var(--color-surface-sunken);
+    color: var(--color-primary);
+    padding: 0.15em 0.4em;
+    border-radius: 2px;
+    font-size: 0.85em;
+    &::before,
+    &::after {
+      content: none;
+    }
+  }
+
+  & :is(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-family: var(--font-mono);
+    background-color: var(--color-surface-sunken);
+    color: var(--color-foreground);
+    border: 2px solid var(--color-border);
+    border-radius: 2px;
+    padding: 0.75em 1em;
+    overflow: auto;
+  }
+
+  /* Code inside a pre block should inherit the pre's color + reset its
+     own background since the pre already provides the chip. */
+  & :is(pre code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+  }
+
+  & :is(a):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+    border-bottom: 1px solid color-mix(in oklch, var(--color-primary) 40%, transparent);
+    &:hover {
+      border-bottom-color: var(--color-primary);
+    }
+  }
+
+  & :is(strong):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--color-foreground);
+    font-weight: 600;
+  }
+
+  & :is(em):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: inherit;
+  }
+
+  & :is(hr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    margin: 2em 0;
+  }
+
+  /* Tables */
+  & :is(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--color-foreground);
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5em 0;
+  }
+
+  & :is(th):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--color-foreground);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.5em 0.75em;
+    border-bottom: 2px solid var(--color-border-strong);
+  }
+
+  & :is(td):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--color-muted-foreground);
+    padding: 0.5em 0.75em;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* KaTeX — its own stylesheet hardcodes color: inherit, but several
+     helper spans can leak through with browser defaults. Force every
+     KaTeX descendant to sit on the prose text color so formulas stay
+     readable in both light and dark modes. */
+  & :is(.katex, .katex *):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--color-foreground);
+  }
+  & :is(.katex-display):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin: 1.2em 0;
+    overflow-x: auto;
+  }
+
+  /* Body copy — paragraphs and lists. */
+  & :is(p, li):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-family: var(--font-editorial);
+    font-size: clamp(16px, 2vw, 19px);
+    font-weight: 400;
+    line-height: 1.75;
+    color: var(--color-muted-foreground);
+  }
+
+  & :is(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin: 1em 0;
+  }
+
+  & :is(ul):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin: 1em 0;
+    padding-left: 1.4em;
+    list-style: square;
+  }
+
+  & :is(ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin: 1em 0;
+    padding-left: 1.4em;
+    list-style: decimal;
+  }
+
+  & :is(li):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-bottom: 0.4em;
+  }
+
+  & :is(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin: 1.2em 0;
+    padding-left: 1em;
+  }
+
+  & :is(h1, h2, h3):has(+ p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    /* tighter heading→paragraph spacing */
+  }
+  & :is(h1, h2, h3) + p:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 0.4em;
+  }
+}

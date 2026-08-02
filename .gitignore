@@ -31,3 +31,11 @@ dist-ssr
 
 # AI agent worktrees
 .claude/worktrees/
+
+# Alchemy local state, bundles and logs
+.alchemy
+
+# TanStack Start / router generated dev artefacts
+.tanstack
+.wrangler
+.output

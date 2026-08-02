@@ -1,0 +1,96 @@
+/* FONT SURFACE — consumer-swappable (see src/tokens/typography.ts).
+   Barlow Condensed makes public claims; Source Serif 4 carries prose and
+   interface copy; Iosevka remains the evidence/state voice. */
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("./fonts/barlow-condensed/BarlowCondensed-ExtraLight.ttf") format("truetype");
+  font-weight: 200;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("./fonts/barlow-condensed/BarlowCondensed-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("./fonts/barlow-condensed/BarlowCondensed-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("./fonts/barlow-condensed/BarlowCondensed-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("./fonts/barlow-condensed/BarlowCondensed-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Source Serif 4";
+  src: url("./fonts/source-serif-4/SourceSerif4-Variable.ttf") format("truetype");
+  font-weight: 200 900;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Source Serif 4";
+  src: url("./fonts/source-serif-4/SourceSerif4-Italic-Variable.ttf") format("truetype");
+  font-weight: 200 900;
+  font-display: swap;
+  font-style: italic;
+}
+
+/* Iosevka — monospace (code, IDs, timestamps, technical metadata). */
+@font-face {
+  font-family: "Iosevka";
+  src: url("./fonts/iosevka/Iosevka-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Iosevka";
+  src: url("./fonts/iosevka/Iosevka-LightItalic.woff2") format("woff2");
+  font-weight: 300;
+  font-display: swap;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Iosevka";
+  src: url("./fonts/iosevka/Iosevka-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Iosevka";
+  src: url("./fonts/iosevka/Iosevka-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Iosevka";
+  src: url("./fonts/iosevka/Iosevka-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Iosevka";
+  src: url("./fonts/iosevka/Iosevka-BoldItalic.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+  font-style: italic;
+}

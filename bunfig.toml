@@ -1,0 +1,4 @@
+[install]
+linker = "hoisted"
+peer = true
+optional = true

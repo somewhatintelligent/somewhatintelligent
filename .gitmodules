@@ -1,4 +1,0 @@
-[submodule "chemistry"]
-	path = chemistry
-	url = https://github.com/apostolos-geyer/chemistry.git
-	branch = trunk

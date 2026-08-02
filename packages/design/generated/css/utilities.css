@@ -1,0 +1,104 @@
+/* ═══════════════════════════════════════════════════
+   GENERATED — do not edit. Source: src/tokens/typography.ts
+   Run: bun run codegen
+   ═══════════════════════════════════════════════════ */
+
+@utility type-hero {
+  font-family: var(--font-display);
+  font-size: clamp(80px, 14vw, 200px);
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.035em;
+}
+
+@utility type-page-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 700;
+  line-height: 0.88;
+  letter-spacing: -0.025em;
+}
+
+@utility type-stat {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 0.9;
+}
+
+@utility type-display-title {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.015em;
+}
+
+@utility type-editorial-h1 {
+  font-family: var(--font-editorial-display);
+  font-size: clamp(36px, 7vw, 72px);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+}
+
+@utility type-editorial-h2 {
+  font-family: var(--font-editorial-display);
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+@utility type-editorial-h3 {
+  font-family: var(--font-editorial-display);
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+@utility type-editorial-body {
+  font-family: var(--font-editorial);
+  font-size: clamp(16px, 2vw, 19px);
+  font-weight: 400;
+  line-height: 1.75;
+}
+
+@utility type-editorial-lede {
+  font-family: var(--font-editorial);
+  font-size: clamp(18px, 2.5vw, 22px);
+  font-weight: 400;
+  line-height: 1.7;
+  font-style: italic;
+}
+
+@utility type-pullquote {
+  font-family: var(--font-editorial);
+  font-size: clamp(24px, 4vw, 40px);
+  font-weight: 400;
+  line-height: 1.32;
+  font-style: italic;
+}
+
+@utility type-mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@utility type-code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+@utility type-section-label {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}

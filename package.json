@@ -5,8 +5,7 @@
   "workspaces": [
     "Auth/",
     "packages/*",
-    "tools/*",
-    "chemistry/packages/*"
+    "tools/*"
   ],
   "type": "module",
   "scripts": {

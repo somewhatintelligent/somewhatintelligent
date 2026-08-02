@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
-  "entry": [],
-  "ignorePatterns": ["chemistry/**", "dist/**", "design/**", "plugin/**"],
+  "entry": ["**/alchemy.run.ts", "**/backend/worker.ts", "**/src/worker.ts"],
+  "ignorePatterns": ["dist/**", "design/**", "plugin/**"],
   "boundaries": {},
   "rules": {
     "boundary-violation": "error",
