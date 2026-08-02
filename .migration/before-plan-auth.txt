@@ -1,0 +1,9 @@
+Plan: 8 to noop
+[AuthAvatars] noop
+[AuthDatabase] noop
+[AuthMigrations] noop
+[AuthSecrets] noop
+[AuthWorker] noop
+[BetterAuthSecret] noop
+[BetterAuthSecretValue] noop
+[SomewhatIntelligentAuthApp] noop

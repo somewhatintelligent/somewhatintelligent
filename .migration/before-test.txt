@@ -1,0 +1,369 @@
+~/Apps/Mezedes$ bun test ./test/
+~/packages/design$ bun test scripts ○ cache miss: '.fallow-baselines' added in workspace root, executing
+~/packages/better-auth-manifest$ vp test ○ cache miss: 'jose' added in 'node_modules/better-auth/node_modules', executing
+~/packages/better-auth-effect$ bun test ○ cache miss: 'node_modules/jose/dist/webapi/lib/jwe_encrypt.js' modified, executing
+bun test v1.3.14 (0d9b296a)
+bun test v1.3.14 (0d9b296a)
+bun test v1.3.14 (0d9b296a)
+
+scripts/brand-lint.test.ts:
+
+test/merge.test.ts:
+
+test/base.test.ts:
+✓ mergeFiles > the worked example: supplied wins, removed disappears, untouched carries over [1.95ms]
+✓ mergeFiles > the base is left intact, so v3 stays serveable [0.05ms]
+✓ mergeFiles > a path supplied and removed in the same call is removed [0.02ms]
+✓ mergeFiles > removing a path that is not there is a no-op [0.01ms]
+✓ mergeFiles > supplying nothing leaves the base alone — omission is not removal [0.02ms]
+✓ mergeFiles > an empty base is a first version [0.03ms]
+✓ mergeFiles > the same bytes at a new path are one entry each, not a move [0.02ms]
+✓ mergeFiles > the result is a fresh object, not the base [0.02ms]
+
+test/auth.test.ts:
+✓ ownerKey > is the sha-256 of the identity, first 16 hex chars [4.22ms]
+✓ ownerKey > is 16 lowercase hex characters [0.46ms]
+✓ ownerKey > is stable across calls [0.11ms]
+✓ ownerKey > separates distinct identities, including by case [0.11ms]
+
+test/react-lib.test.ts:
+✓ extractPaletteTokenNames > extracts ramp step names as kebab-case tokens [0.57ms]
+✓ lintTree > flags a hex literal outside the brand surface [2.39ms]
+✓ lintTree > does not flag hex literals inside the brand surface allowlist [0.27ms]
+✓ lintTree > --allow can widen the hex-literal allowlist [0.54ms]
+✓ lintTree > flags an undeclared, non-semantic Tailwind color utility [0.54ms]
+✓ lintTree > legal utilities (semantic + declared palette tokens) pass clean [0.52ms]
+✓ lintTree > --strict-semantic rejects a declared custom palette token [0.22ms]
+✓ lintTree > --brand-word flags a known brand string [0.63ms]
+✓ lintTree > no brand words configured means no brand-word violations [0.47ms]
+
+ 9 pass
+ 0 fail
+ 11 expect() calls
+Ran 9 tests across 1 file. [115.00ms]
+
+~/packages/ui$ vp test run ○ cache miss: 'package.json' modified, executing
+
+ RUN  v4.1.10 /Users/stoli/Desktop/devel/somewhatintelligent/platform/packages/better-auth-manifest
+
+✓ the fallback React declarations > clear every idiomatic pattern with no diagnostics at all [0.08ms]
+✓ the fallback React declarations > still catch TS2322 — an assignment of the wrong type [0.03ms]
+✓ the fallback React declarations > still catch TS2339 — a property that does not exist
+✓ the fallback React declarations > still catch TS2345 — an argument of the wrong type
+✓ the fallback React declarations > are checked against all eleven patterns, one file each [0.01ms]
+
+test/keys.test.ts:
+✓ R2 key layout > blobs are owner-scoped and content-addressed [0.05ms]
+✓ R2 key layout > assets are owner-scoped and etag-addressed [0.01ms]
+✓ R2 key layout > a manifest is keyed by slug and version [0.01ms]
+✓ R2 key layout > live.json is keyed by slug alone
+✓ R2 key layout > the mezes prefix covers every published object for a slug [0.02ms]
+✓ R2 key layout > the published prefix carries no identity — the origin resolves it from a hostname [0.05ms]
+✓ R2 key layout > two owners never collide on the same content [0.03ms]
+✓ R2 key layout > two versions of a slug never share a manifest key
+
+test/entry.test.ts:
+✓ routing order > an artifact host answers with the gate never consulted, even when it would refuse [0.93ms]
+✓ routing order > the artifact origin owns every path on its host, including /mcp [1.33ms]
+✓ routing order > a host that is not an artifact falls through to the gate [0.28ms]
+✓ the gate > AUTH=none composes it out of the request path entirely [0.40ms]
+✓ the gate > a refusal stops the request before anything is routed [0.19ms]
+✓ the gate > the 401 describes our configuration, and never carries the token [0.13ms]
+✓ the gate > the header names are listed even when there are none to list [0.05ms]
+✓ the Worker module surface > the default export is the fetch handler
+
+test/names.test.ts:
+✓ Bae > supplies the boilerplate, and Better Auth actually runs on it [79.44ms]
+✓ isSlug > accepts "signal-garden" [0.06ms]
+✓ isSlug > accepts "a"
+✓ isSlug > accepts "0"
+✓ isSlug > accepts "a1-b2-c3"
+✓ isSlug > accepts "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+✓ isSlug > accepts "chart-v"
+✓ isSlug > accepts "v2"
+✓ isSlug > refuses "" (empty)
+✓ isSlug > refuses "-leading" (leading dash)
+✓ isSlug > refuses "trailing-" (trailing dash)
+✓ isSlug > refuses "double--dash" (empty label)
+✓ isSlug > refuses "Signal-Garden" (uppercase)
+✓ isSlug > refuses "under_score" (underscore)
+✓ isSlug > refuses "dotted.name" (dot)
+✓ isSlug > refuses "spaced name" (space)
+✓ isSlug > refuses "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" (too long)
+✓ isSlug > refuses "chart-v2" (reserved version selector)
+✓ assertSlug > returns the value it accepted [0.02ms]
+✓ assertSlug > throws InvalidName naming the value and the rule [0.60ms]
+✓ assertSlug > refuses a slug that would be read as a version selector [0.07ms]
+✓ Bae > providing SecondaryStore makes the key appear, without entering R [0.85ms]
+✓ slugify > "Signal Garden" → "signal-garden" [0.07ms]
+✓ slugify > "  Signal  Garden  " → "signal-garden"
+✓ slugify > "Café" → "cafe" [0.04ms]
+✓ slugify > "signal_garden" → "signal-garden"
+✓ slugify > "Chart / v2 …" → "chart-v2-x" [0.01ms]
+✓ slugify > "" → "mezes"
+✓ slugify > "***" → "mezes"
+✓ slugify > "---" → "mezes"
+✓ slugify > clamps to 40 characters without leaving a trailing dash [0.02ms]
+✓ slugify > everything it returns is a slug [0.03ms]
+✓ parseArtifactHost > a bare label is the live version [0.11ms]
+✓ parseArtifactHost > a -v<n> label pins a version [0.02ms]
+✓ parseArtifactHost > the hostname is matched case-insensitively [0.01ms]
+✓ parseArtifactHost > refuses "mezedes.example.com" (the shell host) [0.02ms]
+✓ parseArtifactHost > refuses "a.example.com" (the suffix itself, with no label)
+✓ parseArtifactHost > refuses ".a.example.com" (an empty label)
+✓ parseArtifactHost > refuses "deep.sub.a.example.com" (more than one label)
+✓ parseArtifactHost > refuses "fooa.example.com" (a suffix that is not on a label boundary)
+✓ parseArtifactHost > refuses "a.example.com.evil.com" (the suffix in the middle)
+✓ parseArtifactHost > refuses "Signal_Garden.a.example.com" (an illegal character)
+✓ parseArtifactHost > refuses "-v3.a.example.com" (a version selector with no slug)
+✓ parseArtifactHost > refuses "signal-garden-v3-v4.a.example.com" (two version selectors)
+✓ parseArtifactHost > refuses "signal-garden-v0.a.example.com" (version zero)
+✓ parseArtifactHost > refuses "signal-garden-v99999999999999999999.a.example.com" (a version past the safe integer range)
+✓ parseArtifactHost > refuses "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.a.example.com" (an over-long slug)
+✓ parseArtifactHost > refuses "" (an empty hostname)
+✓ parseArtifactHost > a label ending in -v with no digits is an ordinary slug [0.01ms]
+✓ parseArtifactHost > it runs ahead of the auth gate, so nothing makes it throw [0.06ms]
+✓ artifactUrl > no version is the live URL [0.02ms]
+✓ artifactUrl > a version pins the label
+✓ Captcha auto-wires through serviceOption > no Captcha Layer means no captcha plugin, and it is not required [0.47ms]
+✓ artifactUrl > what it prints, parseArtifactHost reads back [0.05ms]
+✓ preview hosts > a preview host yields its token [0.04ms]
+✓ preview hosts > round-trips through previewOrigin [0.02ms]
+✓ preview hosts > an artifact host is not a preview host, and vice versa [0.01ms]
+✓ preview hosts > the p-- prefix cannot be spelled by a slug
+✓ preview hosts > a malformed or truncated token is not a token [0.02ms]
+✓ preview hosts > a host outside the artifact suffix is never a preview
+
+test/serve.test.ts:
+✓ Captcha auto-wires through serviceOption > providing one puts the real plugin in, ahead of the caller's [0.33ms]
+✓ Captcha auto-wires through serviceOption > the auto-wired plugin is configured from the service, not from defaults [0.29ms]
+✓ Captcha auto-wires through serviceOption > passing the same plugin by hand is refused rather than run twice [0.45ms]
+✓ Captcha auto-wires through serviceOption > …and is accepted when no Captcha Layer is in scope [0.28ms]
+✓ Captcha auto-wires through serviceOption > Captcha never enters the requirement channel
+✓ host matching > a host that is not an artifact host falls through [0.26ms]
+✓ host matching > a slug with no live.json is not found [0.22ms]
+✓ host matching > a private mezes answers exactly as one that does not exist [0.18ms]
+✓ static artifacts > the live host serves index.html and hardens it [0.90ms]
+✓ static artifacts > the live host is cached briefly, because publishing changes what it means [0.12ms]
+✓ static artifacts > a pinned version is immutable and never reads live.json [0.09ms]
+✓ static artifacts > a subresource is served with its content type [0.10ms]
+✓ static artifacts > a client route survives a refresh — the navigate falls back to index.html [0.14ms]
+✓ static artifacts > a missing subresource still gets an honest 404, not the shell [0.08ms]
+✓ static artifacts > a fetch that misses is a 404 even from the same page as the route that resolves [0.07ms]
+✓ the edge cache > a hit answers with no storage operation at all [0.06ms]
+✓ the edge cache > a served 200 is put back [0.07ms]
+✓ the edge cache > a 404 is not put back [0.06ms]
+✓ the edge cache > a HEAD is not put back [0.07ms]
+✓ artifacts with a server entry > an asset wins before any isolate is loaded [0.13ms]
+✓ artifacts with a server entry > a route the authored server owns reaches it, not the single-page fallback [0.12ms]
+✓ artifacts with a server entry > the isolate is pinned to the version and given nothing [0.42ms]
+✓ artifacts with a server entry > an isolate response is hardened and never cached — it may vary per request [0.19ms]
+✓ artifacts with a server entry > an isolate 404 hands the navigate back to the single-page fallback [0.11ms]
+✓ artifacts with a server entry > an isolate 404 on a subresource stays a 404 [0.08ms]
+✓ artifacts with a server entry > with no server entry nothing loads an isolate at all [0.09ms]
+✓ preview origins > a PRIVATE mezes serves through its token [0.19ms]
+✓ preview origins > its module script serves too — the request that used to 401 [0.08ms]
+✓ preview origins > the same mezes is still 404 on its public host [0.11ms]
+✓ preview origins > an unknown token is the same 404 as a made-up hostname [0.25ms]
+✓ preview origins > a preview is never cached — these bytes may be private [0.18ms]
+✓ preview origins > the sandbox directive rides in the same header as frame-ancestors [0.20ms]
+✓ indexing > every artifact response refuses indexing [0.25ms]
+
+test/bundle-output.test.ts:
+✓ undeclaredImports > a typo'd package is caught before anything is built [0.36ms]
+✓ undeclaredImports > a declared package is fine, in any dependency field [0.05ms]
+✓ undeclaredImports > relative, node:, cloudflare:, bun:, data: and http specifiers are not packages [0.05ms]
+✓ undeclaredImports > every import form is read, including multi-line and dynamic ones [0.07ms]
+✓ undeclaredImports > a commented-out import is not an import [0.02ms]
+✓ undeclaredImports > only source files are scanned [0.01ms]
+✓ undeclaredImports > a subpath is reported as the package that would be installed [0.04ms]
+✓ undeclaredImports > one diagnostic per package, naming the first file that imports it [0.03ms]
+✓ undeclaredImports > no package.json declares nothing [0.06ms]
+✓ undeclaredImports > a package.json that does not parse declares nothing rather than throwing [0.02ms]
+✓ packageOf > "react" → "react"
+✓ packageOf > "react-dom/client" → "react-dom"
+✓ packageOf > "@scope/pkg" → "@scope/pkg"
+✓ packageOf > "@scope/pkg/sub/deep" → "@scope/pkg"
+✓ withServerEntry > a tree with no server entry gets a synthetic one and reports authored: false [0.03ms]
+✓ withServerEntry > an authored server entry is left exactly as written [0.01ms]
+✓ withServerEntry > the synthetic entry answers 404 so the asset fallback still runs
+✓ INSTALL_FAILURE > "failed to install chartz@1.0.0" is an install failure [0.02ms]
+✓ INSTALL_FAILURE > "Registry returned 404 for chartz" is an install failure
+✓ INSTALL_FAILURE > "could not resolve version for d3@^99" is an install failure
+✓ INSTALL_FAILURE > "version 99.0.0 not found for d3" is an install failure
+✓ INSTALL_FAILURE > "Some files were minified" is an ordinary warning
+✓ INSTALL_FAILURE > "the package failed to install later on" is an ordinary warning
+✓ fromThrown > an esbuild BuildFailure decodes to one diagnostic per error, columns 1-based [0.14ms]
+✓ fromThrown > an error with no location still names the submission [0.02ms]
+✓ fromThrown > virtual-fs cannot find a file the tree does not have — that is resolution, not bad code [0.01ms]
+✓ fromThrown > any other virtual-fs message is classified on its text like the rest [0.01ms]
+✓ fromThrown > a BuildFailure carrying no errors is internal, not a silent success [0.02ms]
+✓ fromThrown > the bundler refusing its host is internal — nothing the model wrote can fix it [0.01ms]
+✓ fromThrown > a plain Error is classified on its message [0.03ms]
+✓ fromThrown > something thrown that is not an Error is still a diagnostic
+
+test/boundaries.test.ts:
+✓ src/core is pure > there is something to check [0.03ms]
+✓ src/core is pure > nothing in core imports from server — the dependency only runs one way [0.49ms]
+✓ src/core is pure > nothing in core imports a cloudflare: module — core runs anywhere [0.27ms]
+✓ src/core is pure > core never names R2Bucket — a binding type has no business in the pure layer [0.14ms]
+✓ the R2 bucket type stays in one place > there is something to check
+✓ the R2 bucket type stays in one place > no other module in server names R2Bucket [0.19ms]
+✓ the R2 bucket type stays in one place > env.ts names it only to declare the binding [0.04ms]
+
+test/diagnostics.test.ts:
+✓ classify > TS2307 means the module is missing, not that the code is wrong [0.02ms]
+✓ classify > TS2792 means the module is missing, not that the code is wrong
+✓ classify > TS2688 means the module is missing, not that the code is wrong
+✓ classify > TS6053 means the module is missing, not that the code is wrong
+✓ classify > TS2691 means the module is missing, not that the code is wrong
+✓ classify > "Could not resolve \"lodash\"" is a resolution failure — change approach
+✓ classify > "Cannot find module 'react-dom/client'" is a resolution failure — change approach
+✓ classify > "Module not found: chartz" is a resolution failure — change approach
+✓ classify > "Failed to resolve entry for package" is a resolution failure — change approach
+✓ classify > "No matching version found for d3@^99.0.0" is a resolution failure — change approach
+✓ classify > "version not found for chartz@1.0.0" is a resolution failure — change approach
+✓ classify > "registry returned 404 Not Found" is a resolution failure — change approach
+✓ classify > "chartz is not in this registry" is a resolution failure — change approach
+✓ classify > "ENOTFOUND registry.npmjs.org" is a resolution failure — change approach
+✓ classify > "ETARGET no such version" is a resolution failure — change approach
+✓ classify > "package chartz does not exist" is a resolution failure — change approach
+✓ classify > "Internal error while linking" is internal — stop and tell the human
+✓ classify > "Unexpected token in bundler output" is internal — stop and tell the human
+✓ classify > "panic: runtime error" is internal — stop and tell the human
+✓ classify > "JavaScript heap out of memory" is internal — stop and tell the human
+✓ classify > "Worker exceeded CPU time limit" is internal — stop and tell the human
+✓ classify > "Assertion failed: manifest present" is internal — stop and tell the human
+✓ classify > "Type 'string' is not assignable to type 'number'." is semantic — fix and retry
+✓ classify > "Property 'age' does not exist on type '{ name: string; }'." is semantic — fix and retry
+✓ classify > "Expected 1 arguments, but got 2." is semantic — fix and retry
+✓ classify > "" is semantic — fix and retry
+✓ classify > semantic is the default, so an unrecognised failure is still actionable
+✓ classify > a resolution code outranks the message text [0.03ms]
+✓ classify > resolution outranks internal in the text, so a retry is not proposed for a missing package [0.02ms]
+✓ classify > a code outside the resolution set leaves the text to decide [0.02ms]
+✓ diagnostic > classifies from the message when no kind is given [0.02ms]
+✓ diagnostic > an explicit kind is not second-guessed
+✓ diagnostic > position defaults name the whole submission rather than a wrong line [0.01ms]
+✓ diagnostic > the code key is absent rather than undefined [0.02ms]
+✓ diagnostic > a supplied position is carried through [0.01ms]
+
+ 191 pass
+ 0 fail
+ 295 expect() calls
+Ran 191 tests across 10 files. [357.00ms]
+
+[23:26:42.674] ERROR (#86): bae: a Better Auth background task rejected 277 |       Effect.runPromise(
+278 |         Effect.scoped(
+279 |           Effect.gen(function* () {
+280 |             const run = yield* makeRequestBoundary<Scope.Scope>();
+281 |             const handler = waitUntil(run);
+282 |             yield* enterRequest(async () => handler(Promise.reject(new Error("send failed"))));
+                                                                             ^
+error: send failed
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/packages/better-auth-effect/test/base.test.ts:282:72)
+      at run (node:async_hooks:62:22)
+      at ~effect/Utils/internal (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/Utils.js:89:16)
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/internal/effect.js:735:3)
+      at ~effect/Effect/evaluate (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/internal/effect.js:770:22)
+      at runLoop (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/internal/effect.js:461:98)
+      at evaluate (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/internal/effect.js:421:23)
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/internal/effect.js:2230:9)
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/internal/effect.js:2282:19)
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/effect/dist/internal/effect.js:2293:31)
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/packages/better-auth-effect/test/base.test.ts:277:14)
+
+✓ deferred work is an ordinary option, written on the request scope > closing the scope waits for work Better Auth handed over [33.74ms]
+✓ deferred work is an ordinary option, written on the request scope > configure supplies no `advanced` at all — it is yours, untouched [0.35ms]
+✓ RateLimitStorage wires customStorage, and the conflict is refused > no Layer means no customStorage, and Better Auth keeps its own default [0.28ms]
+✓ RateLimitStorage wires customStorage, and the conflict is refused > a Layer lands on rateLimit.customStorage, adapted to promises [0.70ms]
+✓ RateLimitStorage wires customStorage, and the conflict is refused > a backing without consume produces a customStorage without the key [0.65ms]
+✓ RateLimitStorage wires customStorage, and the conflict is refused > writing rateLimit.storage as well is refused, naming the value [0.39ms]
+✓ RateLimitStorage wires customStorage, and the conflict is refused > …and is accepted with no Layer, or with no storage written [0.41ms]
+✓ RateLimitStorage wires customStorage, and the conflict is refused > policy stays the caller's, and rides alongside the capability [0.25ms]
+✓ RateLimitStorage wires customStorage, and the conflict is refused > RateLimitStorage stays out of the requirement channel
+
+test/request-context.test.ts:
+2026-08-02T23:26:42.684Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+ RUN  v4.1.10 /Users/stoli/Desktop/devel/somewhatintelligent/platform/packages/ui
+
+✓ a request-boundary callback must reach its declared services > makeBoundary reaches Mail from a detached request fiber [44.96ms]
+2026-08-02T23:26:42.728Z WARN [Better Auth]: [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+ ✓ src/__tests__/features.test.ts (10 tests) 3ms
+✓ a request-boundary callback must reach its declared services > makeRequestBoundary<Mail> does too [49.01ms]
+
+test/types.test.ts:
+✓ type helpers > the file typechecks, which is the whole assertion [0.02ms]
+✓ type helpers > SessionOf resolves to something with a token, at runtime shape [0.02ms]
+
+test/boundary.test.ts:
+✓ the boundary primitive, at every shape Better Auth uses > arity-2 async sender reaches the service [0.30ms]
+✓ the boundary primitive, at every shape Better Auth uses > a returned value flows back to Better Auth [0.49ms]
+✓ the boundary primitive, at every shape Better Auth uses > a boolean control-flow return works [0.10ms]
+✓ the boundary primitive, at every shape Better Auth uses > SYNC positions return a value with no await at all [0.12ms]
+✓ the boundary primitive, at every shape Better Auth uses > fnVoid forks and the task still runs [21.46ms]
+✓ the boundary primitive, at every shape Better Auth uses > sms sender [0.78ms]
+✓ the boundary primitive, at every shape Better Auth uses > a failed Effect REJECTS, preserving the Error (Better Auth turns it into an API error) [0.32ms]
+✓ the boundary primitive, at every shape Better Auth uses > a suspending Effect in a sync position throws loudly rather than lying [0.61ms]
+✓ request scope > refuses outside a request rather than answering with a stale context [1.33ms]
+✓ request scope > resolves inside a request, and propagates across awaits [1.62ms]
+✓ request scope > two concurrent requests do not read each other's context [5.83ms]
+
+test/live.test.ts:
+ ✓ src/__tests__/plugin.test.ts (6 tests) 35ms
+
+ Test Files  2 passed (2)
+      Tests  16 passed (16)
+   Start at  19:26:42
+   Duration  399ms (transform 46ms, setup 0ms, import 453ms, tests 37ms, environment 0ms)
+
+ ✓  unit  src/hooks/__tests__/wikilink-detect.test.ts (8 tests) 2ms
+
+✓ Better Auth, live, through bae > signs up and signs in, and the rows prove both boundaries were crossed [100.62ms]
+ ✓  unit  src/lib/__tests__/markdown-render.test.ts (13 tests) 7ms
+2026-08-02T23:26:43.038Z WARN [Better Auth]: User not found
+✓ Better Auth, live, through bae > the instance is built once, however many requests arrive [122.18ms]
+✓ Better Auth, live, through bae > init failures are values, and a transient one is not cached [2.50ms]
+2026-08-02T23:26:43.081Z ERROR [Better Auth]: Failed to create user 195 |         );
+196 |         if (Exit.isSuccess(exit)) return exit.value;
+197 |         // Effect 4 reports "ran an async Effect with runSync" as an AsyncFiberError
+198 |         // defect: a config error, not a delivery failure, so it gets its own type.
+199 |         if (Cause.isAsyncFiberError(Cause.squash(exit.cause))) {
+200 |           throw new SuspendedInSyncPosition();
+                      ^
+error: A Better Auth callback that is called synchronously was given an Effect that suspends. Sync positions (advanced.database.generateId, session.cookieCache.version, logger.log) may only use services that answer without async work.
+ _tag: "SuspendedInSyncPosition",
+
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/packages/better-auth-effect/src/Boundary.ts:200:17)
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/@better-auth/core/dist/db/adapter/factory.mjs:123:19)
+      at <anonymous> (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/@better-auth/core/dist/db/adapter/factory.mjs:428:52)
+      at createWithHooks (/Users/stoli/Desktop/devel/somewhatintelligent/platform/node_modules/better-auth/dist/db/with-hooks.mjs:25:107)
+
+✓ Better Auth, live, through bae > an id generator that suspends refuses the write rather than inventing an id [39.78ms]
+
+test/api.test.ts:
+✓ an APIError is an answer, not a defect > a rejected call FAILS with AuthApiError carrying its status [1.87ms]
+✓ an APIError is an answer, not a defect > a malformed call is a DEFECT — it never reached an endpoint [0.91ms]
+✓ an APIError is an answer, not a defect > `status` is the NUMBER, so a caller can compare without knowing the name [0.03ms]
+✓ what the mirror refuses > an endpoint that does not exist on this configuration is a defect, not a 404 [0.45ms]
+✓ what the mirror refuses > `then` is refused, so the mirror is never mistaken for a thenable [0.14ms]
+
+ 41 pass
+ 0 fail
+ 92 expect() calls
+Ran 41 tests across 6 files. [789.00ms]
+
+ ✓  dom  src/hooks/__tests__/use-autosave.dom.test.tsx (5 tests) 25ms
+ ✓  dom  src/components/ui/__tests__/markdown-field.dom.test.tsx (5 tests) 108ms
+ ✓  dom  src/components/ui/__tests__/tag-input.dom.test.tsx (10 tests) 189ms
+ ✓  dom  src/components/ui/__tests__/search-combobox.dom.test.tsx (9 tests) 209ms
+
+ Test Files  6 passed (6)
+      Tests  50 passed (50)
+   Start at  19:26:42
+   Duration  941ms (transform 374ms, setup 539ms, import 455ms, tests 541ms, environment 1.41s)
+
+
+---
+vp run: 0/5 cache hit (0%). (Run `vp run --last-details` for full details)
