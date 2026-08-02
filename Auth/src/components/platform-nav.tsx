@@ -9,7 +9,7 @@ import { CheckIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@si/ui/lib/utils";
-import { LogoIcon } from "@si/ui/components/logo";
+import { LogoIcon } from "@si/design/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,

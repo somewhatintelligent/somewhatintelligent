@@ -83,17 +83,6 @@ export {
   type MarkdownFieldProps,
   type MarkdownFieldStats,
 } from "./ui/markdown-field";
-export { Logo, LogoIcon, LogoAnimated } from "./ui/logo";
-export type { LogoAnimation } from "./ui/logo";
-export type {
-  LogoProps,
-  LogoIconProps,
-  LogoAngle,
-  LogoWeight,
-  LogoDetail,
-  LogoColorScheme,
-  LogoLayout,
-} from "./ui/logo";
 export {
   Popover,
   PopoverContent,

@@ -1,6 +1,6 @@
 # @si/ui
 
-Component library for the platform, built on [Base UI](https://base-ui.com) primitives and styled per the design system in `templates/design/DESIGN_SYSTEM.md`.
+Component library for the platform, built on [Base UI](https://base-ui.com) primitives and styled per the design system in `packages/design/DESIGN_SYSTEM.md`.
 
 ## Quick start
 
@@ -38,7 +38,7 @@ Stories live next to their components (`*.stories.tsx`).
 
 ## Design system
 
-Every component follows the design system defined in `templates/design/DESIGN_SYSTEM.md`. The key principles:
+Every component follows the design system defined in `packages/design/DESIGN_SYSTEM.md`. The key principles:
 
 - **Cold paper / garment black** — a near-achromatic system with signal pink reserved for primary action and authorial correction
 - **No soft shadows, no blur** — depth is drawn with border treatment and hard-offset lines, never a diffused shadow or `backdrop-filter`

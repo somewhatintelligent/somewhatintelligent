@@ -1,29 +1,32 @@
-import type { LogoColorScheme } from "./types";
-
 /**
- * ── Consumer-edited brand surface ──
+ * The brand surface: the ONE file to edit to reskin the mark. Nothing else
+ * under `./logo` carries brand text, geometry or a hex value.
  *
- * This is the ONE file a downstream consumer edits to reskin the logo:
- * wordmark strings, the accessible name, and the mark's geometry/colors.
- * Every other file under `./logo/*` reads only from here — no brand text,
- * shape, or hex belongs anywhere else in this directory.
- *
- * `ogColors` MUST stay literal hex (not a CSS custom property): satori
- * (used for OG image generation) cannot resolve `var(--color-*)`.
+ * `ogColors` must stay literal hex rather than a CSS custom property: satori,
+ * which renders the OG images, cannot resolve `var(--color-*)`.
  */
+
+/** Which surface the mark is drawn on, which is what picks its stroke. */
+export type LogoColorScheme =
+  | "primary"
+  | "light"
+  | "mono-light"
+  | "mono-dark"
+  | "on-destructive"
+  | "on-success";
+
 export interface LogoBrand {
-  /** Full wordmark — `horizontal` and `compact` layouts. */
+  /** Full wordmark. */
   wordmarkFull: string;
-  /** Short wordmark (initials/abbreviation) — the `stacked` layout. */
+  /** Short wordmark (initials/abbreviation). */
   wordmarkShort: string;
   /** Accessible name for the icon mark (`aria-label`). */
   ariaLabel: string;
-  /** Literal hex stroke colors the mark renders with on light vs. dark
-   *  surfaces. Every `LogoColorScheme` combination derives from these two. */
+  /** The two literal stroke colors every scheme below derives from. */
   ogColors: {
-    /** Stroke color for dark/filled surfaces. */
+    /** Stroke for dark/filled surfaces. */
     primary: string;
-    /** Stroke color for light surfaces. */
+    /** Stroke for light surfaces. */
     light: string;
   };
 }
@@ -38,7 +41,7 @@ export const brand: LogoBrand = {
   },
 };
 
-/** Mark stroke color per `LogoColorScheme`, derived from `brand.ogColors`. */
+/** Mark stroke per scheme. Every entry resolves to one of `brand.ogColors`. */
 export const MARK_STROKE: Record<LogoColorScheme, string> = {
   primary: brand.ogColors.primary,
   light: brand.ogColors.light,

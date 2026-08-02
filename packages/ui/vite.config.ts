@@ -1,12 +1,12 @@
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 
-// templates/ui ships no dev server of its own — this config exists purely to
+// This package ships no dev server of its own — the config exists purely to
 // give the shared component library a test runner: a plain-node "unit"
 // project for pure-logic `*.test.ts`, plus a jsdom + @testing-library "dom"
 // project for the `*.dom.test.tsx` component tier. Naming keeps the two
 // runners from ever colliding. Tests colocate in `src/**/__tests__/` next to
-// the component they cover, matching packages/kit's convention. `extends:
+// the component they cover. `extends:
 // true` inherits this root config (globals + the react plugin) so neither
 // project has to restate it.
 export default defineConfig({

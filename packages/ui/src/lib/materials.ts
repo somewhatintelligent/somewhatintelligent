@@ -1,5 +1,5 @@
 /**
- * Shared Material Language Styles — somewhatintelligent
+ * Shared material language styles.
  *
  * Surfaces are proof sheets and black-glass evidence tables: flat canvas,
  * crisp rules, nearly square corners.
