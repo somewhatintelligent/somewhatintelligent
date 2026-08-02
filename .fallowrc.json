@@ -2,12 +2,12 @@
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": [
     "**/alchemy.run.ts",
-    "Auth/api/worker.ts",
-    "Auth/app/worker.ts",
-    "Auth/app/start.ts",
-    "Auth/app/routeTree.gen.ts",
-    "Auth/api/schema.gen.ts",
-    "Auth/test/**/*.test.ts",
+    "apps/platform.auth/api/worker.ts",
+    "apps/platform.auth/app/worker.ts",
+    "apps/platform.auth/app/start.ts",
+    "apps/platform.auth/app/routeTree.gen.ts",
+    "apps/platform.auth/api/schema.gen.ts",
+    "apps/platform.auth/test/**/*.test.ts",
     "packages/*/src/index.ts",
     "apps/*/src/server/entry.ts",
     "apps/*/src/shell/main.tsx",
@@ -17,13 +17,13 @@
   "ignorePatterns": ["dist/**", "design/**", "plugin/**", "**/scripts/**", "**/generated/**"],
   "boundaries": {
     "zones": [
-      { "name": "auth-server", "patterns": ["Auth/api/**"] },
+      { "name": "auth-server", "patterns": ["apps/platform.auth/api/**"] },
       {
         "name": "auth-infra",
-        "patterns": ["Auth/alchemy.run.ts", "Auth/index.ts"]
+        "patterns": ["apps/platform.auth/alchemy.run.ts", "apps/platform.auth/index.ts"]
       },
-      { "name": "auth-shared", "patterns": ["Auth/shared/**"] },
-      { "name": "auth-app", "patterns": ["Auth/app/**"] },
+      { "name": "auth-shared", "patterns": ["apps/platform.auth/shared/**"] },
+      { "name": "auth-app", "patterns": ["apps/platform.auth/app/**"] },
       { "name": "shared", "patterns": ["packages/*/src/**"] },
       { "name": "mezedes-core", "patterns": ["apps/mezedes/src/core/**"] },
       { "name": "mezedes-server", "patterns": ["apps/mezedes/src/server/**"] },

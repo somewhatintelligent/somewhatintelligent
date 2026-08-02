@@ -8,7 +8,7 @@ TypeScript with [alchemy](https://alchemy.run), built and checked with
 
 | Path                             | What it is                                                             |
 | -------------------------------- | ---------------------------------------------------------------------- |
-| `Auth/`                          | The identity stack — Better Auth server, its D1 database, and the app  |
+| `apps/platform.auth/`            | The identity stack — Better Auth server, its D1 database, and the app  |
 | `apps/mezedes/`                  | An MCP surface, an owner-only shell, and the artifacts its tools build |
 | `packages/better-auth-effect`    | Better Auth's configuration surface expressed in Effect                |
 | `packages/better-auth-manifest`  | What a deployment has switched on, derived from the config it runs     |
@@ -33,7 +33,7 @@ commit is gated on what it introduced rather than the standing backlog.
 
 ## Deploying
 
-From `Auth/`:
+From `apps/platform.auth/`:
 
 ```sh
 bun run plan --stage <stage>      # what would change

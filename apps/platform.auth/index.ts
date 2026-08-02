@@ -9,7 +9,7 @@ import * as Alchemy from "alchemy";
  * runtime may be re-exported here — one entry mixing the two puts a deploy
  * dependency in an app's bundle the moment it reaches for a constant. The
  * runtime-safe values live in `shared/` and are published separately as
- * `@platform/Auth/shared/*`; see this package's `exports`.
+ * `platform.auth/shared/*`; see this package's `exports`.
  */
 
 /**
