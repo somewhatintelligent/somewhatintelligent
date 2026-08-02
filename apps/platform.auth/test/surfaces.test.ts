@@ -7,7 +7,7 @@
  * build. That is the failure this file exists to make loud.
  */
 
-import { deriveFeatures } from "better-auth-manifest";
+import { deriveFeatures } from "lib.better-auth-manifest";
 import * as Effect from "effect/Effect";
 import { describe, expect, test } from "vite-plus/test";
 

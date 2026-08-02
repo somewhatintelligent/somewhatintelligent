@@ -6,13 +6,13 @@ TypeScript with [alchemy](https://alchemy.run), built and checked with
 
 ## Layout
 
-| Path                              | What it is                                                             |
-| --------------------------------- | ---------------------------------------------------------------------- |
-| `apps/platform.auth/`             | The identity stack — Better Auth server, its D1 database, and the app  |
-| `apps/mezedes/`                   | An MCP surface, an owner-only shell, and the artifacts its tools build |
-| `packages/lib.better-auth-effect` | Better Auth's configuration surface expressed in Effect                |
-| `packages/better-auth-manifest`   | What a deployment has switched on, derived from the config it runs     |
-| `packages/ui`, `packages/design`  | Shared components and design tokens                                    |
+| Path                                | What it is                                                             |
+| ----------------------------------- | ---------------------------------------------------------------------- |
+| `apps/platform.auth/`               | The identity stack — Better Auth server, its D1 database, and the app  |
+| `apps/mezedes/`                     | An MCP surface, an owner-only shell, and the artifacts its tools build |
+| `packages/lib.better-auth-effect`   | Better Auth's configuration surface expressed in Effect                |
+| `packages/lib.better-auth-manifest` | What a deployment has switched on, derived from the config it runs     |
+| `packages/ui`, `packages/design`    | Shared components and design tokens                                    |
 
 `Auth` is a stack of its own and deploys first. It publishes an `AuthRouting`
 output — origin, auth base URL, cookie domain, feature manifest, database id —

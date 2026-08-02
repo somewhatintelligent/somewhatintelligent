@@ -1,5 +1,5 @@
 {
-  "name": "better-auth-manifest",
+  "name": "lib.better-auth-manifest",
   "version": "0.0.0",
   "private": true,
   "description": "What a Better Auth deployment has switched on, derived from the configuration it runs.",

@@ -1,4 +1,4 @@
-import type { AuthFeatures } from "better-auth-manifest";
+import type { AuthFeatures } from "lib.better-auth-manifest";
 
 import * as Alchemy from "alchemy";
 

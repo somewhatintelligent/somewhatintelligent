@@ -1,4 +1,4 @@
-import type { AuthFeatures } from "better-auth-manifest";
+import type { AuthFeatures } from "lib.better-auth-manifest";
 
 /**
  * The surfaces this app implements, and the ONE list that names them. The

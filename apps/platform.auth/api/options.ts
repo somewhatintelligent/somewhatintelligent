@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from "better-auth";
-import { deriveFeatures, type AuthFeatures } from "better-auth-manifest";
+import { deriveFeatures, type AuthFeatures } from "lib.better-auth-manifest";
 import * as Effect from "effect/Effect";
 
 import { authConfig } from "./config.ts";
