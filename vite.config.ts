@@ -14,9 +14,10 @@ export default defineConfig({
        * the changed set from git itself. Returning the command from a function
        * is what suppresses the append.
        *
-       * `--base HEAD` because the default is a merge-base against an upstream
-       * `trunk` does not have; unset, the command errors out instead of
-       * gating, which reads as passing.
+       * `--base HEAD` because a PRE-COMMIT gate should score the commit being
+       * made. The default base is the merge-base against the upstream, which
+       * would re-judge every commit not yet pushed and fail this one for a
+       * finding an earlier one introduced.
        */
       () => "bunx fallow audit --base HEAD",
     ],

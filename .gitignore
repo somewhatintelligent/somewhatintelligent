@@ -35,6 +35,10 @@ dist-ssr
 # Alchemy local state, bundles and logs
 .alchemy
 
+# vite+ installs git hooks here and points core.hooksPath at it. `vp config`
+# runs from `prepare`, so a fresh clone regenerates it on install.
+.vite-hooks
+
 # TanStack Start / router generated dev artefacts
 .tanstack
 .wrangler
