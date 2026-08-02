@@ -1,4 +1,4 @@
-import { Database } from "better-auth-effect";
+import { Database } from "lib.better-auth-effect";
 import * as Context from "effect/Context";
 import * as Layer from "effect/Layer";
 

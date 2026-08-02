@@ -1,5 +1,5 @@
 {
-  "name": "better-auth-effect",
+  "name": "lib.better-auth-effect",
   "version": "0.0.0",
   "description": "Better Auth's whole configuration surface, in Effect, with no knowledge of what backs it.",
   "license": "MIT",

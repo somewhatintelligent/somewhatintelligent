@@ -1,6 +1,6 @@
 import { ALCHEMY_DEV, Stack } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
-import { makeEffectAuth } from "better-auth-effect";
+import { makeEffectAuth } from "lib.better-auth-effect";
 import * as Effect from "effect/Effect";
 
 import { ingress } from "../shared/ingress.ts";

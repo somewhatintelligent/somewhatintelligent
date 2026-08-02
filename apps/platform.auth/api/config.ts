@@ -1,5 +1,5 @@
-import { Bae, makeRequestBoundary } from "better-auth-effect";
-import type { BaeConfigError, EffectAuth } from "better-auth-effect";
+import { Bae, makeRequestBoundary } from "lib.better-auth-effect";
+import type { BaeConfigError, EffectAuth } from "lib.better-auth-effect";
 
 import { apiKey } from "@better-auth/api-key";
 import { oauthProvider } from "@better-auth/oauth-provider";
