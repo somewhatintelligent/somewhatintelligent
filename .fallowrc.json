@@ -28,7 +28,7 @@
       { "name": "mezedes-core", "patterns": ["apps/mezedes/src/core/**"] },
       { "name": "mezedes-server", "patterns": ["apps/mezedes/src/server/**"] },
       { "name": "mezedes-shell", "patterns": ["apps/mezedes/src/shell/**"] },
-      { "name": "mezedes-infra", "patterns": ["apps/mezedes/alchemy.run.ts"] }
+      { "name": "mezedes-infra", "patterns": ["apps/mezedes/module.ts", "stacks/mezedes/**"] }
     ],
     "rules": [
       { "from": "auth-infra", "allow": ["auth-infra", "auth-server", "auth-shared", "shared"] },

@@ -11,7 +11,10 @@
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
     "dev": "vp run website#dev",
-    "prepare": "vp config"
+    "prepare": "vp config",
+    "mezedes:plan": "alchemy plan stacks/mezedes/alchemy.run.ts",
+    "mezedes:deploy": "vp run mezedes#build && alchemy deploy stacks/mezedes/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
+    "mezedes:destroy": "alchemy destroy stacks/mezedes/alchemy.run.ts --stage $ALCHEMY_STAGE --yes"
   },
   "devDependencies": {
     "@effect/platform-bun": "catalog:",

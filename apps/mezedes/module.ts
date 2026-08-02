@@ -5,6 +5,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
+import { Path } from "effect/Path";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
 
 const ZONE = "somewhatintelligent.ca";
@@ -176,150 +177,144 @@ const AccessApp = Cloudflare.Access.Application(
 );
 
 /**
- * The stack name is the remote state's namespace: state is keyed by name and
- * stage, so two stacks sharing a name at one stage share their state and each
- * `deploy` reconciles away whatever the other declared. Treat this name as
- * load-bearing: changing it strands the state the previous name owns.
+ * THE DEPLOYABLE UNIT, and everything it owns.
  *
- * The hostname is a separate matter — it derives from the stage, so only a
- * `prod` deploy contends for `mezedes.<zone>`, and Cloudflare refuses that loudly
- * rather than silently.
+ * Parameterless on purpose. Every resource below reads the stage it needs from
+ * `Alchemy.Stage` itself rather than being handed one, so a composer never
+ * passes stage down — see `Hostnames`. The only things a module may take as
+ * parameters are peers and upstreams, and this one has neither.
+ *
+ * The stack name, the state layer and the adopt policy live in
+ * `stacks/mezedes/` — they are composition, not this app's business. What that
+ * file cannot supply is anything in here, which is why this is an export rather
+ * than a set of loose declarations for it to reassemble.
  */
-export default Alchemy.Stack(
-  "Mezedes",
-  { providers: Cloudflare.providers(), state: Cloudflare.state() },
-  Effect.gen(function* () {
-    const { dev } = yield* AlchemyContext;
-    const { apex, artifactSuffix, named } = yield* Hostnames;
-    const access = yield* AccessApp;
+export const MezedesModule = Effect.gen(function* () {
+  const path = yield* Path;
+  const { dev } = yield* AlchemyContext;
+  const { apex, artifactSuffix, named } = yield* Hostnames;
+  const access = yield* AccessApp;
 
-    const origin = `https://${apex}`;
+  const origin = `https://${apex}`;
 
-    const worker = yield* Cloudflare.Worker("Mezedes", {
-      main: "./src/server/entry.ts",
-      observability: { enabled: true },
-      compatibility: { date: COMPATIBILITY_DATE, flags: ["nodejs_compat"] },
-      /**
-       * A fixed port, because `.mcp.json` at the repo root hardcodes
-       * `http://localhost:8787/mcp` and an MCP client has no way to discover a
-       * port that moved. `strictPort` for the same reason: if 8787 is taken,
-       * failing to start is honest, and quietly binding 8788 leaves the client
-       * pointed at nothing with no error to read.
-       */
-      dev: { port: DEV_PORT, strictPort: true },
-      /**
-       * The apex and one wildcard level of artifact hostname, on the same
-       * Worker — in prod these are two DIFFERENT zones, which alchemy resolves
-       * per hostname, so no second Worker is involved. There is deliberately NO
-       * Access application on `*.<artifactSuffix>`: artifacts are
-       * unauthenticated by design, Access enforces at the EDGE, and an
-       * application there would 401 every shared link before `entry.ts`'s
-       * ordering got a say. Keeping the artifact zone separate makes that a
-       * property of the deploy rather than something to remember.
-       *
-       * Domain and route are ONE decision, spread together: a route without the
-       * apex, or an apex without the route, is a half-configured zone of exactly
-       * the kind the paragraphs above describe.
-       *
-       * PROD ONLY. Other stages answer on the workers.dev URL alone — see
-       * `Hostnames`. A stage that claims no hostname cannot collide with one
-       * that does, and cannot fail a deploy on a stage name DNS will not take.
-       *
-       * The apex is a Custom Domain; the artifact wildcard is NOT, and cannot
-       * be. "Custom Domains do not support wildcard DNS records — an incoming
-       * request must exactly match the domain or subdomain." Attaching one
-       * anyway is accepted: Cloudflare creates the originless `AAAA 100::`
-       * record and issues a certificate, so DNS resolves and TLS completes,
-       * and then no Worker matches and every artifact answers 522. The wildcard
-       * is a `route` below, which is the form that matches by pattern.
-       */
-      ...(named
-        ? {
-            domain: [apex],
-            routes: [{ pattern: `*.${artifactSuffix}/*`, zoneName: artifactSuffix }],
-          }
-        : {}),
-      /**
-       * The inverse of `domain`, and for the same reason. A workers.dev URL is
-       * a hostname on Cloudflare's zone, not this account's, so no Access
-       * application can ever be put in front of one — the shell and `/mcp`
-       * would answer there with `authorize()` as the only thing between a
-       * caller and the index, rather than the edge gate the design names as
-       * the boundary. Off wherever a real hostname exists; on everywhere else,
-       * because a stage with neither is a Worker nothing can reach.
-       */
-      url: !named,
-      /** The shell. The SPA fallback is what lets a deep link into the client router resolve. */
-      /**
-       * `runWorkerFirst` because the asset router runs BEFORE the Worker on every
-       * hostname this script answers, and `/` matches dist/shell/index.html — so
-       * without it every mezes's root URL serves the shell instead of the mezes.
-       */
-      assets: {
-        directory: "dist/shell",
-        notFoundHandling: "single-page-application",
-        runWorkerFirst: true,
-      },
-      env: {
-        BLOBS: Blobs,
-        OWNER: OwnerObject,
-        LOADER: Cloudflare.WorkerLoader("LOADER"),
-        /** "none" in local dev, so the gate is absent from the request path rather than present and declining to act. */
-        AUTH: dev ? "none" : "access",
-        POLICY_AUD: access.aud.as<string>(),
-        TEAM_DOMAIN,
-        ARTIFACT_SUFFIX: artifactSuffix,
-        /**
-         * Named so an artifact response can let the shell — and only the shell
-         * — frame it. Artifacts and shell are separate origins now, so the
-         * blanket `X-Frame-Options: SAMEORIGIN` this replaces would refuse the
-         * preview frame outright.
-         */
-        SHELL_ORIGIN: origin,
-      },
-    });
-
+  const worker = yield* Cloudflare.Worker("Mezedes", {
     /**
-     * `worker.url` is an OUTPUT, known only once the worker exists, so it
-     * reports where alchemy actually bound rather than where this file asked it
-     * to. In dev that is a port it chose, and printing the apex there sends the
-     * reader somewhere that does not answer.
+     * ANCHORED, and it has to be. Alchemy resolves a relative path from the
+     * process's cwd, not from the file that declares the resource — and the
+     * file that invokes this module now lives in `stacks/mezedes/`. A bare
+     * `"./src/server/entry.ts"` would resolve against whatever directory the
+     * deploy happened to start in and find nothing.
      */
-    return dev
-      ? {
-          shell: worker.url.as<string>(),
-          mcp: Output.interpolate`${worker.url}mcp`,
-          /**
-           * Both are hostnames now — a preview is `p--<token>.<artifactZone>`,
-           * not a path — and alchemy's dev proxy rewrites the URL before the
-           * script sees it, so neither resolves locally. `integ/` reaches them
-           * through a service binding; there is no equivalent in a browser.
-           */
-          artifacts: "not reachable by hostname under `alchemy dev` — deploy to see them",
-          previews: "likewise: a preview is its own origin, which the dev proxy rewrites away",
-        }
-      : {
-          shell: origin,
-          mcp: `${origin}/mcp`,
-          /** Minted per version by `/api`, so there is no pattern to print. */
-          previews: "p--<token>.<artifactZone>, from the shell",
-          artifacts: `https://<slug>.${artifactSuffix}`,
-        };
-  }).pipe(
+    main: path.resolve(import.meta.dirname, "src/server/entry.ts"),
+    observability: { enabled: true },
+    compatibility: { date: COMPATIBILITY_DATE, flags: ["nodejs_compat"] },
     /**
-     * Take over a conflicting resource rather than refusing to plan. Access
-     * applications are identified by their domain, so one left behind by an
-     * earlier stack on this apex is `OwnedBySomeoneElse` and stops the deploy
-     * dead.
+     * A fixed port, because `.mcp.json` at the repo root hardcodes
+     * `http://localhost:8787/mcp` and an MCP client has no way to discover a
+     * port that moved. `strictPort` for the same reason: if 8787 is taken,
+     * failing to start is honest, and quietly binding 8788 leaves the client
+     * pointed at nothing with no error to read.
+     */
+    dev: { port: DEV_PORT, strictPort: true },
+    /**
+     * The apex and one wildcard level of artifact hostname, on the same
+     * Worker — in prod these are two DIFFERENT zones, which alchemy resolves
+     * per hostname, so no second Worker is involved. There is deliberately NO
+     * Access application on `*.<artifactSuffix>`: artifacts are
+     * unauthenticated by design, Access enforces at the EDGE, and an
+     * application there would 401 every shared link before `entry.ts`'s
+     * ordering got a say. Keeping the artifact zone separate makes that a
+     * property of the deploy rather than something to remember.
      *
-     * This is a real hand-over, not a merge: whatever adopts a resource becomes
-     * the thing that manages — and destroys — it. Any stack that previously
-     * owned it still lists it in its own state, so `destroy` there will delete
-     * a resource this stack now depends on. Retire the previous owner rather
-     * than leaving both able to claim the same apex.
+     * Domain and route are ONE decision, spread together: a route without the
+     * apex, or an apex without the route, is a half-configured zone of exactly
+     * the kind the paragraphs above describe.
+     *
+     * PROD ONLY. Other stages answer on the workers.dev URL alone — see
+     * `Hostnames`. A stage that claims no hostname cannot collide with one
+     * that does, and cannot fail a deploy on a stage name DNS will not take.
+     *
+     * The apex is a Custom Domain; the artifact wildcard is NOT, and cannot
+     * be. "Custom Domains do not support wildcard DNS records — an incoming
+     * request must exactly match the domain or subdomain." Attaching one
+     * anyway is accepted: Cloudflare creates the originless `AAAA 100::`
+     * record and issues a certificate, so DNS resolves and TLS completes,
+     * and then no Worker matches and every artifact answers 522. The wildcard
+     * is a `route` below, which is the form that matches by pattern.
      */
-    Alchemy.AdoptPolicy.adopt(true),
-  ),
-);
+    ...(named
+      ? {
+          domain: [apex],
+          routes: [{ pattern: `*.${artifactSuffix}/*`, zoneName: artifactSuffix }],
+        }
+      : {}),
+    /**
+     * The inverse of `domain`, and for the same reason. A workers.dev URL is
+     * a hostname on Cloudflare's zone, not this account's, so no Access
+     * application can ever be put in front of one — the shell and `/mcp`
+     * would answer there with `authorize()` as the only thing between a
+     * caller and the index, rather than the edge gate the design names as
+     * the boundary. Off wherever a real hostname exists; on everywhere else,
+     * because a stage with neither is a Worker nothing can reach.
+     */
+    url: !named,
+    /** The shell. The SPA fallback is what lets a deep link into the client router resolve. */
+    /**
+     * `runWorkerFirst` because the asset router runs BEFORE the Worker on every
+     * hostname this script answers, and `/` matches dist/shell/index.html — so
+     * without it every mezes's root URL serves the shell instead of the mezes.
+     */
+    assets: {
+      /** Anchored for the same reason as `main`, and `vite build` writes here. */
+      directory: path.resolve(import.meta.dirname, "dist/shell"),
+      notFoundHandling: "single-page-application",
+      runWorkerFirst: true,
+    },
+    env: {
+      BLOBS: Blobs,
+      OWNER: OwnerObject,
+      LOADER: Cloudflare.WorkerLoader("LOADER"),
+      /** "none" in local dev, so the gate is absent from the request path rather than present and declining to act. */
+      AUTH: dev ? "none" : "access",
+      POLICY_AUD: access.aud.as<string>(),
+      TEAM_DOMAIN,
+      ARTIFACT_SUFFIX: artifactSuffix,
+      /**
+       * Named so an artifact response can let the shell — and only the shell
+       * — frame it. Artifacts and shell are separate origins now, so the
+       * blanket `X-Frame-Options: SAMEORIGIN` this replaces would refuse the
+       * preview frame outright.
+       */
+      SHELL_ORIGIN: origin,
+    },
+  });
+
+  /**
+   * `worker.url` is an OUTPUT, known only once the worker exists, so it
+   * reports where alchemy actually bound rather than where this file asked it
+   * to. In dev that is a port it chose, and printing the apex there sends the
+   * reader somewhere that does not answer.
+   */
+  return dev
+    ? {
+        shell: worker.url.as<string>(),
+        mcp: Output.interpolate`${worker.url}mcp`,
+        /**
+         * Both are hostnames now — a preview is `p--<token>.<artifactZone>`,
+         * not a path — and alchemy's dev proxy rewrites the URL before the
+         * script sees it, so neither resolves locally. `integ/` reaches them
+         * through a service binding; there is no equivalent in a browser.
+         */
+        artifacts: "not reachable by hostname under `alchemy dev` — deploy to see them",
+        previews: "likewise: a preview is its own origin, which the dev proxy rewrites away",
+      }
+    : {
+        shell: origin,
+        mcp: `${origin}/mcp`,
+        /** Minted per version by `/api`, so there is no pattern to print. */
+        previews: "p--<token>.<artifactZone>, from the shell",
+        artifacts: `https://<slug>.${artifactSuffix}`,
+      };
+});
 
 export type { Env };

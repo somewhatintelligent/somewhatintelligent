@@ -2,14 +2,14 @@
   "name": "mezedes",
   "private": true,
   "type": "module",
+  "exports": {
+    "./module": "./module.ts"
+  },
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json && tsc -p src/shell/tsconfig.json",
     "test": "bun test ./test/",
-    "test:integ": "bun test ./integ/",
-    "deploy": "bun run build && alchemy deploy --stage $ALCHEMY_STAGE --yes",
-    "destroy": "alchemy destroy --stage $ALCHEMY_STAGE --yes",
-    "plan": "alchemy plan"
+    "test:integ": "bun test ./integ/"
   },
   "dependencies": {
     "@cloudflare/worker-bundler": "0.2.2",
