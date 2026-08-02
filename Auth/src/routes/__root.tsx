@@ -5,7 +5,6 @@ import { AnalyticsProvider } from "@/lib/analytics";
 import { appConfig } from "@/app.config";
 import type { RouterContext } from "@/router";
 import { AppError, AppNotFound } from "@/components/app-status-pages";
-import { AuthProvider } from "@/lib/auth-context";
 import { loadSession } from "@/lib/session.functions";
 
 const SITE_TITLE = `Identity — ${appConfig.brand.name}`;
@@ -72,19 +71,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           environment={import.meta.env.ENVIRONMENT}
           session={session}
         >
-          <AuthProvider initialSession={session}>
-            {children}
-            <TanStackDevtools
-              config={{ position: "bottom-right" }}
-              plugins={[
-                {
-                  name: "Tanstack Router",
-                  render: <TanStackRouterDevtoolsPanel />,
-                },
-              ]}
-            />
-            <Scripts />
-          </AuthProvider>
+          {children}
+          <TanStackDevtools
+            config={{ position: "bottom-right" }}
+            plugins={[
+              {
+                name: "Tanstack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+          <Scripts />
         </AnalyticsProvider>
       </body>
     </html>

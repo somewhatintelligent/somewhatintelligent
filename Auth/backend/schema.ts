@@ -19,13 +19,13 @@ const generateSchema = generate as unknown as (opts: {
   options: BetterAuthOptions;
 }) => Promise<{ code?: string; fileName: string }>;
 
-export interface GenerateAuthSchemaInput {
+interface GenerateAuthSchemaInput {
   readonly out: string;
   readonly fingerprint: string;
   readonly artifact: string;
 }
 
-export interface GenerateAuthSchemaOutput {
+interface GenerateAuthSchemaOutput {
   readonly schema: string;
   readonly tables: ReadonlyArray<string>;
   readonly relations: number;
@@ -33,13 +33,13 @@ export interface GenerateAuthSchemaOutput {
   readonly fingerprint: string;
 }
 
-export interface GenerateAuthSchema extends Alchemy.Action<
+interface GenerateAuthSchema extends Alchemy.Action<
   "Auth/GenerateAuthSchema",
   GenerateAuthSchemaInput,
   GenerateAuthSchemaOutput
 > {}
 
-export const GenerateAuthSchema = Alchemy.Action<
+const GenerateAuthSchema = Alchemy.Action<
   GenerateAuthSchema,
   GenerateAuthSchemaInput,
   GenerateAuthSchemaOutput

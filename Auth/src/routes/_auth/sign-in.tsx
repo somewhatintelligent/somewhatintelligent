@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { SignInForm } from "@/components/auth/sign-in-form";
-import { toBrowserHref } from "@/lib/basepath";
 import { decodeReturnTo } from "@/lib/return-to";
 
 const OAUTH_PARAMS = [
@@ -42,24 +41,13 @@ export const Route = createFileRoute("/_auth/sign-in")({
     if (!context.session) return;
     const target = resolveTarget(search);
     if (/^https?:\/\//.test(target)) {
-      // An absolute returnTo (e.g. a peer app's `<apex>/app/...`) must not
-      // become an SSR Location header: under the `/account` vmf mount bouncer
-      // prepends the mount to every same-origin Location, corrupting
-      // cross-mount targets. SignInPage finishes that bounce in the browser.
+      // An absolute returnTo (a peer app's `<apex>/app/...`) is bounced in the
+      // browser by SignInPage rather than becoming an SSR Location header.
       if (typeof document === "undefined") return;
       throw redirect({ href: target });
     }
-    // Root-relative targets. On the server the raw path is already right:
-    // bouncer prepends the mount to the Location header, which is correct
-    // for identity's own routes and the `/api/$` guestlist proxy alike. On
-    // the client, `redirect({ href })` reads the href in the BROWSER frame —
-    // the mount rewrite input-strips a leading `/account` before matching —
-    // so hand it the mount-prefixed public form (toBrowserHref). Without
-    // that, the default target `/account` is byte-identical to the mount,
-    // collapses to `/`, and ping-pongs against the index route's redirect
-    // forever (the "sign-in hangs calling loadSession" loop).
     throw redirect({
-      href: toBrowserHref(target),
+      href: target,
       // The OAuth authorize URL lives on the `/api/$` server route — nothing
       // for the client router to render, so force a document navigation.
       reloadDocument: target.startsWith("/api/"),

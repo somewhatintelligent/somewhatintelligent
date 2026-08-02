@@ -30,20 +30,18 @@ export interface Ingress {
   /**
    * The hostname this stage CLAIMS, or `null` to answer on workers.dev alone.
    *
-   * Only production claims one. Attaching a custom domain per stage would have
-   * every stage contending for records on the zone, and a stage name carrying
-   * an underscore — `dev_stoli` — is not a label DNS will take.
+   * Production only: a custom domain per stage would have every stage
+   * contending for records on the zone, and `dev_stoli` is not a label DNS
+   * will take anyway.
    */
   readonly hostname: string | null;
   readonly origin: string;
   /**
    * The `Domain` every session cookie is scoped to, or `null` for host-only.
    *
-   * Only production has one. Every other stage answers on `*.workers.dev`,
-   * which is on the Public Suffix List — a browser rejects a cookie scoped to
-   * it outright — so a sibling app on its own workers.dev host cannot see this
-   * session no matter what is set here. Non-production apps resolve identity
-   * through the auth server itself rather than through a shared cookie.
+   * Production only, and `null` elsewhere is not a gap: `*.workers.dev` is on
+   * the Public Suffix List, so a browser rejects a cookie scoped to it outright
+   * and no setting here would make a sibling app see this session.
    */
   readonly cookieDomain: string | null;
 }

@@ -5,15 +5,7 @@ import { rpcErrorMessage } from "@/lib/rpc-error";
 import { requireAdmin } from "@/lib/server-fn-actor";
 import { toStringArray } from "@/lib/normalize";
 
-export interface OAuthClientRow {
-  id: string;
-  clientId: string;
-  name: string | null;
-  type: string | null;
-  referenceId: string | null;
-}
-
-export interface ClientDetail {
+interface ClientDetail {
   id: string;
   clientId: string;
   name: string | null;
@@ -22,13 +14,13 @@ export interface ClientDetail {
   referenceId: string | null;
 }
 
-export interface ClientDetailPayload {
+interface ClientDetailPayload {
   client: ClientDetail;
   tokenCount: number;
   consentCount: number;
 }
 
-export interface CreateClientInput {
+interface CreateClientInput {
   name: string;
   redirectUris: string[];
   skipConsent: boolean;

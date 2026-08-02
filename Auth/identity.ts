@@ -22,21 +22,16 @@ export class Identity extends Cloudflare.Website.Vite<Identity>()(
       env: {
         AUTH: AuthWorker,
         AVATARS: yield* AvatarBucket,
-        /**
-         * `VITE_`-prefixed entries are inlined into the client bundle as
-         * `import.meta.env.*` literals before rolldown runs, so a surface the
-         * auth server does not run is ABSENT from the bundle rather than hidden
-         * in it. Derived from the same resolved options the worker runs and the
-         * schema is generated from — the app cannot advertise a flow the server
-         * would answer 404 for.
-         */
+        // `VITE_` entries are inlined as `import.meta.env.*` literals before
+        // rolldown runs. Derived from the options the worker actually runs, so
+        // the app cannot advertise a flow the server would answer 404 for.
         ...authDefines(yield* authFeatures),
       },
       dev: { port: DEV_PORT, strictPort: true },
       /**
-       * The claimed hostname, and its inverse. A stage that claims a domain
-       * does not also answer on workers.dev — a second public address for the
-       * login is a second origin the session cookie is not scoped to.
+       * The claimed hostname, and its inverse: a stage that claims a domain
+       * does not also answer on workers.dev, because a second public address
+       * for the login is a second origin the cookie is not scoped to.
        */
       ...(hostname === null ? {} : { domain: [hostname] }),
       url: hostname === null,

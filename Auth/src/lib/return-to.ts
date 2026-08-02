@@ -1,30 +1,22 @@
 /**
- * The open-redirect guard.
+ * The open-redirect guard — the only thing between a query parameter and where
+ * a signed-in person's browser goes next.
  *
- * Peer apps hand this app a raw absolute URL via `?returnTo=`, and it round-trips
- * to that exact URL only when the URL lives under an apex we control. That is the
- * whole trust rule — the apex plus every subdomain, at any depth — and it is
- * deliberately the same rule Better Auth applies to `callbackURL` through its
- * `*.{apex}` trustedOrigins, so this client-side guard and the server-side check
- * on magic-link and social sign-in agree rather than disagreeing quietly.
- *
- * Because we own the whole zone, a new app on a new subdomain is trusted by
- * construction, with nothing to add here.
- *
- * Ported from si, where it shared a file with mount-rewriting machinery for the
- * `/account` sub-path this app is not served on. That is gone; this is not.
- * It is now the ONLY guard between a query parameter and where a signed-in
- * person's browser goes next.
+ * Peer apps hand this app a raw absolute URL via `?returnTo=`, and it
+ * round-trips only to URLs under an apex we control: the apex plus every
+ * subdomain, at any depth. That is deliberately the same rule Better Auth
+ * applies to `callbackURL` through its `*.{apex}` trustedOrigins, so this
+ * client-side guard and the server-side check agree rather than disagreeing
+ * quietly. Owning the whole zone means a new app on a new subdomain is trusted
+ * by construction.
  */
 
 /**
  * The apex, WITHOUT a leading dot.
  *
- * A literal rather than an env read, because a redirect guard that can be
- * misconfigured is a redirect guard that can be turned off. si read this from a
- * var projected into the bundle by a Vite `define` allowlist, which meant an
- * unset var silently rejected every returnTo — the safe direction, but silently.
- * Here the value is in the source and the failure mode is a code review.
+ * A literal rather than an env read: a redirect guard that can be misconfigured
+ * is one that can be turned off. Reading it from a build-time define means an
+ * unset var silently rejects every returnTo — the safe direction, but silently.
  */
 export const APEX = "somewhatintelligent.ca";
 
@@ -77,7 +69,7 @@ export function resolveReturnTo(
 }
 
 /** The default landing place for a signed-in person with nowhere else to be. */
-export const DEFAULT_RETURN_TO = "/account";
+const DEFAULT_RETURN_TO = "/account";
 
 /** {@link resolveReturnTo}, with the default applied. */
 export function decodeReturnTo(value: string | undefined): string {

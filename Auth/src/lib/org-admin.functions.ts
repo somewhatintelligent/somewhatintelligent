@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/server-fn-actor";
 // shape) into typed payloads the routes can rely on.
 // ------------------------------------------------------------------
 
-export interface OrgRow {
+interface OrgRow {
   id: string;
   slug: string;
   name: string;
@@ -39,7 +39,7 @@ export interface OrgInvitation {
   inviterName: string | null;
 }
 
-export interface OrgDetailPayload {
+interface OrgDetailPayload {
   organization: {
     id: string;
     slug: string;

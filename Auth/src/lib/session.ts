@@ -14,9 +14,6 @@ type SessionEnvelope = Awaited<ReturnType<ReturnType<typeof baeClient>["getSessi
 /** The resolved session, or `null` for an anonymous request. */
 export type IdentitySession = NonNullable<SessionEnvelope["session"]>;
 
-/** The person. `session.user`, named, because that is what routes render. */
-export type IdentityUser = IdentitySession["user"];
-
 /**
  * `user.role` is a COMMA-SEPARATED string (`"admin,user"`) or an array — Better
  * Auth's admin plugin splits on commas before matching `adminRoles`. Comparing

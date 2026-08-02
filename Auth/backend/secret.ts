@@ -4,9 +4,10 @@ import * as Effect from "effect/Effect";
 
 /**
  * What Better Auth signs every session cookie and JWT with. Unset, it falls
- * back to a constant compiled into the package that anyone can read. `Random`
- * persists the value in stack state, so replacing this resource invalidates
- * every live session.
+ * back to a constant compiled into the package that anyone can read.
+ *
+ * `Random` persists the value in stack state, so replacing this resource
+ * invalidates every live session.
  */
 export const AuthSecret = Effect.gen(function* () {
   const store = yield* Cloudflare.SecretsStore.Store("AuthSecrets");

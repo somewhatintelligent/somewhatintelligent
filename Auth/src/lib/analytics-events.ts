@@ -11,4 +11,3 @@ export interface ClientEventProps {
   password_changed: Record<string, never>;
   account_deleted: Record<string, never>;
 }
-export type ClientEvent = keyof ClientEventProps;

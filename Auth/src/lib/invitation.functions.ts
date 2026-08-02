@@ -137,7 +137,7 @@ export const getInvitationForAccept = createServerFn({ method: "GET" })
     return { kind: "not-available", sessionUserEmail };
   });
 
-export type AcceptInvitationResult =
+type AcceptInvitationResult =
   | { ok: true; organizationSlug: string | null }
   | { ok: false; error: string };
 
@@ -179,7 +179,7 @@ export const acceptInvitation = createServerFn({ method: "POST" })
     };
   });
 
-export type RejectInvitationResult = { ok: true } | { ok: false; error: string };
+type RejectInvitationResult = { ok: true } | { ok: false; error: string };
 
 export const rejectInvitation = createServerFn({ method: "POST" })
   .validator((data: { invitationId: string }) => data)

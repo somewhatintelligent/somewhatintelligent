@@ -18,36 +18,34 @@ import * as Effect from "effect/Effect";
 import { AUTH_BASE_PATH } from "../ingress.ts";
 import { Signing } from "./capabilities.ts";
 import { Origin } from "./origin.ts";
-import { allocateUsername } from "./username.ts";
+import { allocateUsername, USERNAME_LIMITS } from "./username.ts";
 
 /**
- * The one adapter method this needs. Better Auth's `GenericEndpointContext` is
- * exported but its adapter's `findMany` is generic over the model, so the hook
- * takes the inferred context and narrows in one place rather than restating it.
+ * The one adapter method this needs. Better Auth's adapter types `findMany`
+ * generically over the model, so the hook narrows in one place rather than
+ * restating the whole surface.
  */
 interface UserLookup {
   findMany: (query: unknown) => Promise<ReadonlyArray<Record<string, unknown>>>;
+}
+
+/** What `databaseHooks.user.create.before` is handed. */
+type NewUser = Record<string, unknown>;
+interface CreateContext {
+  readonly context?: { readonly adapter?: unknown };
 }
 
 export const authConfig = Effect.gen(function* () {
   const bae = yield* Bae;
   const { origin, cookieDomain } = yield* Origin;
   const { secret } = yield* Signing;
-  yield* makeRequestBoundary<never>();
+  const run = yield* makeRequestBoundary<never>();
   return yield* bae.configure({
-    /**
-     * Better Auth signs every session cookie and every JWT with this. Omit it
-     * and it falls back to a constant compiled into the package — see
-     * `backend/secret.ts`.
-     */
+    /** See `backend/secret.ts` for what happens when this is omitted. */
     secret,
     baseURL: origin,
     basePath: AUTH_BASE_PATH,
-    /**
-     * Only production has a cookie domain — every other stage answers on
-     * `*.workers.dev`, which browsers refuse to scope a cookie to. See
-     * `Ingress.cookieDomain`.
-     */
+    /** Production alone has a cookie domain — see `Ingress.cookieDomain`. */
     ...(cookieDomain === null
       ? {}
       : { advanced: { crossSubDomainCookies: { enabled: true, domain: cookieDomain } } }),
@@ -56,7 +54,7 @@ export const authConfig = Effect.gen(function* () {
       requireEmailVerification: false,
     },
     plugins: [
-      username(),
+      username(USERNAME_LIMITS),
       jwt({ disableSettingJwtHeader: true }),
       admin({ defaultRole: "user", impersonationSessionDuration: 60 * 20 }),
       twoFactor({ issuer: "somewhatintelligent", otpOptions: { period: 30, digits: 6 } }),
@@ -89,10 +87,10 @@ export const authConfig = Effect.gen(function* () {
       }),
     ],
     /**
-     * `database` is what creates the `rate_limit` table production already has.
-     * The per-route rules are si's, carried over verbatim: the endpoints worth
-     * throttling are the ones that guess a credential, and a global 100/60s
-     * would let an attacker spend the whole budget on `/sign-in/email`.
+     * `database` storage is what creates the `rate_limit` table production
+     * already has. The per-route rules are si's, carried over verbatim: a
+     * global 100/60s would let an attacker spend the whole budget guessing at
+     * `/sign-in/email`.
      */
     rateLimit: {
       storage: "database" as const,
@@ -108,40 +106,46 @@ export const authConfig = Effect.gen(function* () {
     /**
      * Give a new account the username its address implies.
      *
-     * `before`, so the value is written in the same insert rather than as a
-     * follow-up update — an `after` hook would leave a window where the row
-     * exists with no username, and any failure in it would strand the account
-     * in that state permanently.
+     * `before`, so the value lands in the same insert: an `after` hook would
+     * leave a window where the row exists with no username, and a failure in it
+     * would strand the account that way permanently.
      *
-     * Only when the caller supplied none: sign-up can send an explicit
-     * username, and that choice outranks anything derived here.
+     * Only when the caller supplied none — an explicit username outranks
+     * anything derived here. The plugin's own hook runs BEFORE this one and
+     * passes an absent username straight through, so nothing downstream
+     * validates what this produces; it has to be valid by construction, which
+     * is what `username.ts` is for.
      */
     databaseHooks: {
       user: {
         create: {
-          before: async (user, ctx) => {
-            if (typeof user.username === "string" && user.username !== "") return;
-            const adapter = ctx?.context.adapter as UserLookup | undefined;
-            // No adapter is no way to know a name is free, and `username` is
-            // UNIQUE — guessing would turn a collision into a failed sign-up.
-            if (adapter === undefined) return;
-            const email = typeof user.email === "string" ? user.email : "";
+          before: run.fn((user: NewUser, ctx: CreateContext | null) =>
+            Effect.gen(function* () {
+              if (typeof user.username === "string" && user.username !== "") return undefined;
+              const adapter = ctx?.context?.adapter as UserLookup | undefined;
+              // No adapter is no way to know a name is free, and `username` is
+              // UNIQUE — guessing would turn a collision into a failed sign-up.
+              if (adapter === undefined) return undefined;
+              const email = typeof user.email === "string" ? user.email : "";
 
-            const allocated = await allocateUsername(email, {
-              taken: async (candidates) => {
-                const rows = await adapter.findMany({
-                  model: "user",
-                  where: [{ field: "username", value: candidates, operator: "in" }],
-                });
-                return rows
-                  .map((row) => row.username)
-                  .filter((name): name is string => typeof name === "string");
-              },
-            });
-            if (allocated === null) return;
+              const allocated = yield* Effect.promise(() =>
+                allocateUsername(email, {
+                  taken: async (candidates) => {
+                    const rows = await adapter.findMany({
+                      model: "user",
+                      where: [{ field: "username", value: candidates, operator: "in" }],
+                    });
+                    return rows
+                      .map((row) => row.username)
+                      .filter((name): name is string => typeof name === "string");
+                  },
+                }),
+              );
+              if (allocated === null) return undefined;
 
-            return { data: { ...user, ...allocated } };
-          },
+              return { data: { ...user, ...allocated } };
+            }),
+          ),
         },
       },
     },

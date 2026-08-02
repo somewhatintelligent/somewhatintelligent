@@ -22,7 +22,7 @@ import { AVAILABLE_ROLES, DEFAULT_ROLE, type PlatformRole } from "@/components/a
  * declared order — better-auth stores multi-role as a comma-separated
  * string, so membership is checked per role, never `===`.
  */
-export function resolveRoles(currentRole: string | null | undefined): PlatformRole[] {
+function resolveRoles(currentRole: string | null | undefined): PlatformRole[] {
   const held = AVAILABLE_ROLES.filter((r) => hasRole(currentRole, r));
   return held.length > 0 ? held : [DEFAULT_ROLE];
 }

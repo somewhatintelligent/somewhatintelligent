@@ -1,4 +1,4 @@
-export const SCOPES = {
+const SCOPES = {
   openid: {
     label: "Verify your identity",
     description: "Confirms who you are. The minimum.",
@@ -13,12 +13,6 @@ export const SCOPES = {
   },
 } as const;
 
-export type ScopeId = keyof typeof SCOPES;
-
 export function getScopeLabel(scope: string): string {
   return (SCOPES as Record<string, { label: string }>)[scope]?.label ?? scope;
-}
-
-export function getScopeDescription(scope: string): string {
-  return (SCOPES as Record<string, { description: string }>)[scope]?.description ?? "";
 }

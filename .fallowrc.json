@@ -9,7 +9,7 @@
     "packages/*/src/index.ts",
     "Auth/backend/schema.gen.ts"
   ],
-  "ignorePatterns": ["dist/**", "design/**", "plugin/**"],
+  "ignorePatterns": ["dist/**", "design/**", "plugin/**", "**/scripts/**", "**/generated/**"],
   "boundaries": {
     "zones": [
       {

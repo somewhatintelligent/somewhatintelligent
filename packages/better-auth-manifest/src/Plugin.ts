@@ -1,27 +1,22 @@
 /**
- * The manifest as a Better Auth plugin: one unauthenticated GET that answers
- * what the deployment has switched on.
+ * The manifest as a Better Auth plugin: one unauthenticated GET answering what
+ * the deployment has switched on.
  *
- * This is the delivery mode for an app that cannot import the configuration —
- * a separate repository, a separate release cadence, or one bundle serving
- * several deployments. An app built alongside its backend should import
- * {@link deriveFeatures}' result as a constant instead: same answer, no fetch,
- * and a missing feature becomes a compile error rather than an empty list.
+ * For an app that cannot import the configuration — a separate repository, a
+ * separate release cadence, one bundle serving several deployments. An app
+ * built alongside its backend should import {@link deriveFeatures}' result as a
+ * constant instead: same answer, no fetch, and a missing feature becomes a
+ * compile error rather than an empty list.
  *
- * ## What it publishes, and why that is not a disclosure
+ * Publishing the list is not a disclosure. Which sign-in methods a deployment
+ * offers is already discoverable a request at a time, and nothing secret is
+ * readable here anyway — a plugin object exposes endpoints, schema and hooks,
+ * never the options it was constructed with.
  *
- * Which sign-in methods a deployment offers is already discoverable a request
- * at a time — Better Auth answers `404` for a route no plugin mounted, and a
- * sign-in page shows its own buttons. Publishing the list changes how long
- * enumeration takes and nothing about what is knowable. Nothing secret is
- * readable from here in the first place: a plugin object exposes endpoints,
- * schema and hooks, never the options it was constructed with.
- *
- * `trustedOrigins` is deliberately NOT published. It is resolvable here — the
- * context carries it already resolved, even when the option was written as a
- * function — but an app needs it only to decide where it may redirect after an
- * operation, and that decision belongs to the app's own configuration rather
- * than to a list it fetches from the server it is redirecting away from.
+ * `trustedOrigins` is deliberately NOT published, though it is resolvable: an
+ * app needs it only to decide where it may redirect, and that decision belongs
+ * to the app's own configuration rather than to a list fetched from the server
+ * it is redirecting away from.
  */
 
 import { createAuthEndpoint } from "better-auth/api";

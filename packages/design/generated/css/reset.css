@@ -3,9 +3,7 @@
    Run: bun run codegen
    ═══════════════════════════════════════════════════ */
 
-*,
-*::before,
-*::after {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -24,19 +22,12 @@ body {
   min-height: 100vh;
 }
 
-img,
-picture,
-video,
-canvas,
-svg {
+img, picture, video, canvas, svg {
   display: block;
   max-width: 100%;
 }
 
-input,
-button,
-textarea,
-select {
+input, button, textarea, select {
   font: inherit;
   color: inherit;
 }

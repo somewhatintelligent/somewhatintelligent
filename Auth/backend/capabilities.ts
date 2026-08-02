@@ -1,5 +1,5 @@
-import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy";
+import * as Cloudflare from "alchemy/Cloudflare";
 import { Database } from "better-auth-effect";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -12,27 +12,11 @@ import { AuthSecret } from "./secret.ts";
 
 export const dialect = "sqlite" as const;
 
-type Tag<S> = Context.Key<any, S>;
-
-const tripwire = <S>(key: string, known: Partial<S>): S =>
-  new Proxy(
-    (): never => {
-      throw new Error(`${key} was CALLED during schema generation; the stand-in cannot answer.`);
-    },
-    {
-      get: (_target, property): unknown => {
-        if (property in known) return known[property as keyof S];
-        throw new Error(
-          `${key}.${String(property)} was read during schema generation. ` +
-            `Only presence and the fields listed alongside this stand-in are known here.`,
-        );
-      },
-    },
-  ) as S;
-
-const inert = <S>(tag: Tag<S>, known: Partial<S> = {}): Layer.Layer<any> =>
-  Layer.succeed(tag, tripwire(tag.key, known));
-
+/**
+ * Discharge `RuntimeContext` from a binding read. The context is present at
+ * runtime but absent from the type, and `bae.configure` needs a plain value one
+ * phase earlier — the same discharge D1's raw connection uses.
+ */
 const uncoloured = <A, E>(effect: Effect.Effect<A, E, RuntimeContext>): Effect.Effect<A, E> =>
   Effect.provide(effect, RuntimeContext.phantom);
 
@@ -41,30 +25,29 @@ export class Signing extends Context.Service<Signing, { readonly secret: string 
   "Auth/Signing",
 ) {}
 
+/** Stands in on the deploy host, which resolves `authConfig` for the schema and the manifest. */
+export const UNSIGNED = { secret: "schema-generation-only" } as const;
+
 /**
- * Never signs anything. The deploy host resolves `authConfig` too — for the
- * schema and the manifest.
- *
  * Every guard below reads `globalThis.__ALCHEMY_RUNTIME__` LITERALLY. The
  * bundler's define is textual (`Bundle.ts`'s `ALCHEMY_DEFINE`), so that exact
- * expression folds to `true` in the deployed Worker and the plan-only branch is
- * eliminated. Behind a helper — `runtime()` — nothing folds and these
+ * expression folds to `true` in the deployed Worker and the deploy-host branch
+ * is eliminated. Behind a helper — `runtime()` — nothing folds and these
  * stand-ins ship to production.
  */
-const UNSIGNED = { secret: "schema-generation-only" } as const;
-
 export const live = Layer.mergeAll(
   Layer.effect(
     Signing,
     Effect.gen(function* () {
-      // The impl runs at Init in BOTH phases, and on the deploy host there is
-      // no store binding to read — `raw.get` on `undefined`. `uncoloured`
-      // because the read is a runtime effect and `bae.configure` needs a string
-      // one phase earlier; same discharge as D1's raw connection.
-      if (!globalThis.__ALCHEMY_RUNTIME__) return UNSIGNED;
+      /**
+       * `ReadSecret` is what DECLARES the binding, and it does so only on the
+       * deploy host — so it has to be called before the guard, in both phases.
+       * Reading the value is the runtime-only half: at plan time there is no
+       * store behind the binding and `.get()` would run on `undefined`.
+       */
       const read = yield* Cloudflare.SecretsStore.ReadSecret(AuthSecret);
-      const secret = yield* uncoloured(Effect.orDie(read));
-      return { secret: Redacted.value(secret) };
+      if (!globalThis.__ALCHEMY_RUNTIME__) return UNSIGNED;
+      return { secret: Redacted.value(yield* uncoloured(Effect.orDie(read))) };
     }),
   ),
   Layer.effect(
@@ -101,13 +84,4 @@ export const live = Layer.mergeAll(
       Cloudflare.SecretsStore.ReadSecretBinding,
     ),
   ),
-);
-
-export const inertly = Layer.mergeAll(
-  inert(Database, {
-    dialect,
-    betterAuthDatabase: tripwire(`${Database.key}.betterAuthDatabase`, {}),
-  }),
-  inert(Origin, { origin: UNRESOLVED_ORIGIN, cookieDomain: null }),
-  inert(Signing, UNSIGNED),
 );

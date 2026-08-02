@@ -7,6 +7,12 @@
     ".": "./index.ts",
     "./*": "./*.ts"
   },
+  "scripts": {
+    "deploy": "alchemy deploy",
+    "dev": "alchemy dev",
+    "destroy": "alchemy destroy",
+    "plan": "alchemy plan"
+  },
   "dependencies": {
     "@better-auth/api-key": "^1.6.25",
     "@better-auth/oauth-provider": "^1.6.25",
@@ -32,7 +38,6 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5",
-    "@tailwindcss/typography": "catalog:",
     "@tailwindcss/vite": "^4",
     "@types/node": "^26.1.1",
     "@types/react": "catalog:",

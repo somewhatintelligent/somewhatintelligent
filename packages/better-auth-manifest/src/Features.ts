@@ -1,26 +1,15 @@
 /**
  * What a deployment has switched on, read off the configuration it runs.
  *
- * A single-page app cannot ask a type which sign-in buttons to render. Knowing
- * that `signIn.social({ provider: "apple" })` compiles is not the same as
- * having `["apple", "google"]` to iterate, and types erase before the render.
- * So the app needs a VALUE, and this derives it from the one place the answer
- * already exists.
+ * Ids, not affordances: everything here is a Better Auth id — a social provider
+ * key, a plugin's own `id`. Mapping an id to a screen or an icon belongs to the
+ * app, and keeping it there is what lets a plugin this package has never heard
+ * of still reach the UI.
  *
- * ## Ids, not affordances
- *
- * Everything here is a Better Auth id — a social provider key, a plugin's own
- * `id`. Nothing maps an id to a screen, a section or an icon, and nothing
- * carries a closed list of blessed features. That mapping belongs to the app
- * that renders it, and keeping it there is what lets a plugin nobody here has
- * heard of still show up.
- *
- * The rule the shape follows: a field is here because it can be READ off the
- * options, or it is not here. Anything a plugin keeps to itself is unreadable —
- * plugin objects expose endpoints, schema and hooks, never the options they were
- * constructed with — so a captcha SITE key or an organization plugin's
- * membership config cannot appear, and is not restated in its place. A
- * restatement is the thing that drifts.
+ * A field is here only if it can be READ off the options. Plugin objects expose
+ * endpoints, schema and hooks, never the options they were constructed with, so
+ * a captcha site key or the organization plugin's membership config cannot
+ * appear here — and is not restated in its place.
  */
 
 import type { BetterAuthOptions } from "better-auth";
@@ -36,27 +25,18 @@ export interface AuthFeatures {
   readonly basePath: string;
   /** Whether the core email-and-password flow is on. */
   readonly emailAndPassword: boolean;
-  /**
-   * The configured social provider keys, e.g. `["apple", "google"]`.
-   *
-   * One button per entry is the whole reason this is an array and not a type.
-   */
+  /** The configured social provider keys — one button per entry. */
   readonly socialProviders: ReadonlyArray<string>;
   /**
-   * Every plugin id the deployment runs, in configuration order.
-   *
-   * `passkey`, `two-factor`, `organization` and the rest gate their sections
-   * by presence here. An id this package has never heard of is reported
-   * unchanged rather than dropped.
+   * Every plugin id the deployment runs, in configuration order. An id this
+   * package has never heard of is reported unchanged rather than dropped.
    */
   readonly plugins: ReadonlyArray<string>;
 }
 
 /**
- * `BetterAuthPlugin["id"]` is declared `string`, so the read is typed — but the
- * array itself is `[] | BetterAuthPlugin[]`, and an empty-tuple branch loses the
- * element type. Narrowing here keeps the assertion in one line instead of at
- * every call site.
+ * The plugin array is `[] | BetterAuthPlugin[]`, and the empty-tuple branch
+ * loses the element type. Narrowing here keeps the assertion in one place.
  */
 const pluginIds = (options: BetterAuthOptions): ReadonlyArray<string> =>
   ((options.plugins ?? []) as ReadonlyArray<{ readonly id: string }>).map((plugin) => plugin.id);
@@ -69,10 +49,8 @@ const normalisePath = (basePath: string | undefined): string => {
 /**
  * Derive the feature set from a resolved configuration.
  *
- * Pure and synchronous: no I/O, no Better Auth instance, nothing to await. That
- * is what lets the same function run at build time — where the app imports the
- * result as a constant and a missing feature is a compile error — and inside a
- * request handler, where it answers a deployment the app could not import.
+ * Pure and synchronous — no I/O, no Better Auth instance — which is what lets
+ * the same function run at build time and inside a request handler.
  */
 export const deriveFeatures = (options: BetterAuthOptions): AuthFeatures => ({
   basePath: normalisePath(options.basePath),

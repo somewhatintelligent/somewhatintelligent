@@ -9,8 +9,6 @@ export const baeClient = createServerOnlyFn(function baeClient() {
   return toRpcAsync<typeof AuthWorker>(env.AUTH);
 });
 
-export type BaeClient = ReturnType<typeof baeClient>;
-
 export const baeFetch = createServerOnlyFn(function baeFetch(request: Request) {
   return env.AUTH.fetch(request);
 });

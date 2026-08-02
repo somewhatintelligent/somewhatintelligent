@@ -27,7 +27,7 @@ const userKeyOf = (image: string | null | undefined): string | null =>
 
 const failed = (error: string) => ({ ok: false as const, error });
 
-export interface Connection {
+interface Connection {
   readonly consentId: string;
   readonly clientId: string;
   readonly scopes: ReadonlyArray<string>;

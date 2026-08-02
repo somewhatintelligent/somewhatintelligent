@@ -7,9 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@si/ui/components/dropdown-menu";
 import {
@@ -120,7 +117,3 @@ export function MemberActions({
     </AlertDialog>
   );
 }
-
-// Subtree for DropdownMenuSub usage if we need it later (not used in v1).
-// Exported for completeness but tree-shaken.
-export const _internalSub = { DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent };
