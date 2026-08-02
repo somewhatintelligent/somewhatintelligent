@@ -12,7 +12,7 @@
  * files under src/fonts/, update the `@font-face` blocks in
  * src/fonts.css, and repoint the `family` strings below — the `cssName`
  * keys (`--font-display`, `--font-body`, …) are the stable contract the
- * rest of the system and `@si/ui` components are written against;
+ * rest of the system and `platform.ui` components are written against;
  * keep those the same shape even if the actual typefaces change.
  */
 

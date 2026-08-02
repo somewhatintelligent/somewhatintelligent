@@ -1,7 +1,7 @@
 # platform.design
 
 The brand-neutral token engine for this template. Every color, radius,
-shadow, spacing, and font value a consumer app or `@si/ui` component
+shadow, spacing, and font value a consumer app or `platform.ui` component
 touches is generated from the TypeScript source in `src/tokens/*` — there
 is no hand-written CSS color literal anywhere downstream of this package.
 
@@ -26,7 +26,7 @@ scripts/codegen.ts           Generates generated/css/{tokens,tailwind-theme,
 src/theme.css                Single import for consumer apps: Tailwind v4 +
         │                    generated tokens + fonts + shadcn compat.
         ▼
-@si/ui components      Consume ONLY the semantic contract names
+platform.ui components      Consume ONLY the semantic contract names
                               (bg-primary, text-destructive-foreground, …)
                               — never a raw palette step, never a literal.
 ```
@@ -64,9 +64,9 @@ in the semantic contract, that's a contract change (add the field to
 `scripts/codegen.ts` and `scripts/audit-contrast.ts` about it) — not a
 reason to reach for a raw palette step or a new literal.
 
-## `@si/ui` must stay strict-semantic
+## `platform.ui` must stay strict-semantic
 
-Every component in `@si/ui` is written against exactly the semantic
+Every component in `platform.ui` is written against exactly the semantic
 contract above — no raw palette steps (`bg-neutral-500`), no hex/HSL
 literals, no brand strings. This is enforced by:
 

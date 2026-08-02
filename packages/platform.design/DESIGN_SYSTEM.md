@@ -6,7 +6,7 @@ Nothing glows or blurs. Depth is drawn with rules and occasional hard-offset
 lines. Signal pink is a scarce private correction crossing a public record,
 not ambient decoration.
 
-This document is the contract. Every component in `@si/ui`, every app
+This document is the contract. Every component in `platform.ui`, every app
 surface, and every future agent run is held to it.
 
 ---
@@ -43,7 +43,7 @@ The full semantic token contract (theme-aware, from `src/tokens/colors.ts`
 popover, primary(+hover), secondary, muted, accent, destructive(+hover),
 success, warning, border(+strong), input, ring, surface-sunken/-raised,
 inverse, chart-1..5, and the sidebar set. Every name in that contract is
-the only vocabulary component source (`@si/ui`) may use for color.
+the only vocabulary component source (`platform.ui`) may use for color.
 
 Raw theme-invariant ramps for illustration/OG surfaces: `--color-neutral-*`,
 `--color-accent-*` (src/tokens/brand.ts). Never use raw steps for product
@@ -66,7 +66,7 @@ The four generated shadow families survive by name, hard-edged by value:
 - `glass` utility / `--glass-*` — legacy name; opaque sheet + solid rule.
 - `--shadow-brand` — alias of `--brutal-md`. There is no glow.
 
-## 4. Material language (`@si/ui/lib/materials`)
+## 4. Material language (`platform.ui/lib/materials`)
 
 `surfaceMaterials` / `interactiveMaterials` / `compactMaterials` encode the
 grammar once; components compose them. Key mapping: `brutal` = solid rule +
@@ -85,7 +85,7 @@ commit to solid on hover), `neo` = chisel, `glass` = opaque sheet.
   scrim is plain translucent black (`bg-black/20`), never blurred.
 - **Tooltips**: solid `inverse` chip, `inverse-foreground` text.
 - **The mark**: the wordmark/logo module is a per-consumer brand surface
-  (see `@si/ui`'s logo component) — this package only supplies the
+  (see `platform.ui`'s logo component) — this package only supplies the
   color/type tokens it's drawn with.
 
 ## 6. Do / Don't

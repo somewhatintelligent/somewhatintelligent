@@ -13,7 +13,7 @@ import {
   SidebarMenuButton,
   SidebarRail,
   SidebarSeparator,
-} from "@si/ui/components/sidebar";
+} from "platform.ui/components/sidebar";
 import {
   UserIcon,
   LinkIcon,

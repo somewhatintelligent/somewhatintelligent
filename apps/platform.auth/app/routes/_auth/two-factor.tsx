@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { Alert } from "@si/ui/components/alert";
-import { Button } from "@si/ui/components/button";
-import { Card, CardContent } from "@si/ui/components/card";
-import { Checkbox } from "@si/ui/components/checkbox";
-import { Field, FieldLabel } from "@si/ui/components/field";
-import { Input } from "@si/ui/components/input";
+import { Alert } from "platform.ui/components/alert";
+import { Button } from "platform.ui/components/button";
+import { Card, CardContent } from "platform.ui/components/card";
+import { Checkbox } from "platform.ui/components/checkbox";
+import { Field, FieldLabel } from "platform.ui/components/field";
+import { Input } from "platform.ui/components/input";
 import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import { decodeReturnTo } from "@/lib/return-to";

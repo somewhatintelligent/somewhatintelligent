@@ -1,10 +1,16 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { type } from "arktype";
-import { useAppForm } from "@si/ui/hooks/use-app-form";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@si/ui/components/card";
-import { Button, buttonVariants } from "@si/ui/components/button";
-import { cn } from "@si/ui/lib/utils";
+import { useAppForm } from "platform.ui/hooks/use-app-form";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "platform.ui/components/card";
+import { Button, buttonVariants } from "platform.ui/components/button";
+import { cn } from "platform.ui/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,12 +21,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@si/ui/components/alert-dialog";
-import { Input } from "@si/ui/components/input";
-import { Label } from "@si/ui/components/label";
-import { Field, FieldDescription } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
-import { Badge } from "@si/ui/components/badge";
+} from "platform.ui/components/alert-dialog";
+import { Input } from "platform.ui/components/input";
+import { Label } from "platform.ui/components/label";
+import { Field, FieldDescription } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
+import { Badge } from "platform.ui/components/badge";
 import { isManaged } from "@/lib/clients";
 import { deleteClient, getClient, rotateSecret, updateClient } from "@/lib/admin-clients.functions";
 

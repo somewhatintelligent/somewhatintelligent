@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Card, CardContent } from "@si/ui/components/card";
-import { Button } from "@si/ui/components/button";
-import { Input } from "@si/ui/components/input";
-import { Label } from "@si/ui/components/label";
-import { Alert } from "@si/ui/components/alert";
+import { Card, CardContent } from "platform.ui/components/card";
+import { Button } from "platform.ui/components/button";
+import { Input } from "platform.ui/components/input";
+import { Label } from "platform.ui/components/label";
+import { Alert } from "platform.ui/components/alert";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_device/device")({

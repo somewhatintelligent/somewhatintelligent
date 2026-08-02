@@ -9,7 +9,7 @@
    ═══════════════════════════════════════════════════ */
 
 @theme inline {
-  /* Semantic contract — every name here is legal in @si/ui
+  /* Semantic contract — every name here is legal in platform.ui
      component source (see README.md `--strict-semantic`). */
   --color-background: var(--color-background);
   --color-foreground: var(--color-foreground);

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { CameraIcon, UploadCloudIcon } from "lucide-react";
-import { Alert } from "@si/ui/components/alert";
-import { Avatar, AvatarFallback } from "@si/ui/components/avatar";
-import { Button, buttonVariants } from "@si/ui/components/button";
+import { Alert } from "platform.ui/components/alert";
+import { Avatar, AvatarFallback } from "platform.ui/components/avatar";
+import { Button, buttonVariants } from "platform.ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -12,12 +12,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@si/ui/components/dialog";
-import { ImageCropper, type CropArea } from "@si/ui/components/image-cropper";
-import { Slider } from "@si/ui/components/slider";
-import { toast } from "@si/ui/components/sonner";
-import { cn } from "@si/ui/lib/utils";
-import { cropImageToBlob } from "@si/ui/lib/crop";
+} from "platform.ui/components/dialog";
+import { ImageCropper, type CropArea } from "platform.ui/components/image-cropper";
+import { Slider } from "platform.ui/components/slider";
+import { toast } from "platform.ui/components/sonner";
+import { cn } from "platform.ui/lib/utils";
+import { cropImageToBlob } from "platform.ui/lib/crop";
 import { uploadAvatar } from "@/lib/avatar.functions";
 
 const ACCEPT = "image/jpeg,image/png,image/webp";

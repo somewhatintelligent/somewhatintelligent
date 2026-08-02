@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useTransition } from "react";
-import { Badge } from "@si/ui/components/badge";
-import { Button } from "@si/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@si/ui/components/card";
-import { Item, ItemContent, ItemTitle, ItemActions, ItemGroup } from "@si/ui/components/item";
-import { Input } from "@si/ui/components/input";
-import { Field, FieldLabel } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
+import { Badge } from "platform.ui/components/badge";
+import { Button } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "platform.ui/components/card";
+import { Item, ItemContent, ItemTitle, ItemActions, ItemGroup } from "platform.ui/components/item";
+import { Input } from "platform.ui/components/input";
+import { Field, FieldLabel } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
 import { authClient } from "@/lib/auth-client";
 
 interface Passkey {

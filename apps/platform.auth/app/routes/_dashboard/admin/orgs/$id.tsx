@@ -1,17 +1,23 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@si/ui/components/avatar";
-import { Badge } from "@si/ui/components/badge";
-import { Button, buttonVariants } from "@si/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
+import { Avatar, AvatarFallback, AvatarImage } from "platform.ui/components/avatar";
+import { Badge } from "platform.ui/components/badge";
+import { Button, buttonVariants } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "platform.ui/components/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@si/ui/components/dropdown-menu";
-import { toast } from "@si/ui/components/sonner";
-import { cn } from "@si/ui/lib/utils";
+} from "platform.ui/components/dropdown-menu";
+import { toast } from "platform.ui/components/sonner";
+import { cn } from "platform.ui/lib/utils";
 import { AddMemberModal } from "@/components/admin/add-member-modal";
 import { EditOrgDialog } from "@/components/admin/edit-org-dialog";
 import { InviteMemberModal } from "@/components/admin/invite-member-modal";

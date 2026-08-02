@@ -1,16 +1,16 @@
 import { createFileRoute, useRouter, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@si/ui/components/avatar";
-import { Badge } from "@si/ui/components/badge";
-import { Button, buttonVariants } from "@si/ui/components/button";
-import { Input } from "@si/ui/components/input";
+import { Avatar, AvatarFallback, AvatarImage } from "platform.ui/components/avatar";
+import { Badge } from "platform.ui/components/badge";
+import { Button, buttonVariants } from "platform.ui/components/button";
+import { Input } from "platform.ui/components/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@si/ui/components/dropdown-menu";
+} from "platform.ui/components/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,9 +20,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@si/ui/components/alert-dialog";
-import { toast } from "@si/ui/components/sonner";
-import { cn } from "@si/ui/lib/utils";
+} from "platform.ui/components/alert-dialog";
+import { toast } from "platform.ui/components/sonner";
+import { cn } from "platform.ui/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { getUsers, USERS_PAGE_SIZE, type AdminUser } from "@/lib/admin-users.functions";
 import { AddUserModal } from "@/components/admin/add-user-modal";

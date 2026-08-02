@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-nova",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "platform.ui/components",
+    "utils": "platform.ui/lib/utils",
+    "ui": "platform.ui/components/ui",
+    "lib": "platform.ui/lib",
+    "hooks": "platform.ui/hooks"
+  },
+  "registries": {
+    "@unlumen-ui": "https://ui.unlumen.com/r/{name}.json"
+  }
+}

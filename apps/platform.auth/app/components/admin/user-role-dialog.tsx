@@ -6,13 +6,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@si/ui/components/dialog";
-import { Button } from "@si/ui/components/button";
-import { Label } from "@si/ui/components/label";
-import { Field, FieldDescription } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
-import { Checkbox } from "@si/ui/components/checkbox";
-import { toast } from "@si/ui/components/sonner";
+} from "platform.ui/components/dialog";
+import { Button } from "platform.ui/components/button";
+import { Label } from "platform.ui/components/label";
+import { Field, FieldDescription } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
+import { Checkbox } from "platform.ui/components/checkbox";
+import { toast } from "platform.ui/components/sonner";
 import { hasRole } from "@/lib/session";
 import { authClient } from "@/lib/auth-client";
 import { AVAILABLE_ROLES, DEFAULT_ROLE, type PlatformRole } from "@/components/admin/roles";

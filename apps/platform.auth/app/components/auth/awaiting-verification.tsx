@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Button } from "@si/ui/components/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@si/ui/components/card";
-import { Alert } from "@si/ui/components/alert";
+import { Button } from "platform.ui/components/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "platform.ui/components/card";
+import { Alert } from "platform.ui/components/alert";
 import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 

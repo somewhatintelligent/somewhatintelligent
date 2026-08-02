@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Badge } from "@si/ui/components/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
+import { Badge } from "platform.ui/components/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "platform.ui/components/card";
 import {
   Item,
   ItemActions,
@@ -8,7 +14,7 @@ import {
   ItemDescription,
   ItemGroup,
   ItemTitle,
-} from "@si/ui/components/item";
+} from "platform.ui/components/item";
 import { ChevronRightIcon } from "lucide-react";
 import { ChangePasswordDialog } from "@/components/account/change-password-dialog";
 import { DeleteAccountDialog } from "@/components/account/delete-account-dialog";

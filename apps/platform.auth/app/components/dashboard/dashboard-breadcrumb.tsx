@@ -7,7 +7,7 @@ import {
   BreadcrumbLink,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@si/ui/components/breadcrumb";
+} from "platform.ui/components/breadcrumb";
 
 type BreadcrumbEntry = { label: string; href?: string };
 

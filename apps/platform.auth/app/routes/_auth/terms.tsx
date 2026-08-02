@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Card, CardHeader, CardTitle, CardContent } from "@si/ui/components/card";
+import { Card, CardHeader, CardTitle, CardContent } from "platform.ui/components/card";
 
 export const Route = createFileRoute("/_auth/terms")({
   head: () => ({

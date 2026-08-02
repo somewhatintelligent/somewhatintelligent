@@ -1,8 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Button } from "@si/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
-import { Alert } from "@si/ui/components/alert";
+import { Button } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "platform.ui/components/card";
+import { Alert } from "platform.ui/components/alert";
 import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import { publicIdentityHref } from "@/lib/public-url";

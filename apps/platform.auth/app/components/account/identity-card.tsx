@@ -10,14 +10,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@si/ui/components/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@si/ui/components/avatar";
-import { Badge } from "@si/ui/components/badge";
-import { Button, buttonVariants } from "@si/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
-import { DialogTrigger } from "@si/ui/components/dialog";
-import { toast } from "@si/ui/components/sonner";
-import { cn } from "@si/ui/lib/utils";
+} from "platform.ui/components/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "platform.ui/components/avatar";
+import { Badge } from "platform.ui/components/badge";
+import { Button, buttonVariants } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "platform.ui/components/card";
+import { DialogTrigger } from "platform.ui/components/dialog";
+import { toast } from "platform.ui/components/sonner";
+import { cn } from "platform.ui/lib/utils";
 import { removeAvatarFn } from "@/lib/avatar.functions";
 import { AvatarUploadDialog } from "@/components/account/avatar-upload-dialog";
 import { ChangeEmailDialog } from "@/components/account/change-email-dialog";

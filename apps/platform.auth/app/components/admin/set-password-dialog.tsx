@@ -6,13 +6,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@si/ui/components/dialog";
-import { Button } from "@si/ui/components/button";
-import { Input } from "@si/ui/components/input";
-import { Label } from "@si/ui/components/label";
-import { Field, FieldDescription } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
-import { toast } from "@si/ui/components/sonner";
+} from "platform.ui/components/dialog";
+import { Button } from "platform.ui/components/button";
+import { Input } from "platform.ui/components/input";
+import { Label } from "platform.ui/components/label";
+import { Field, FieldDescription } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
+import { toast } from "platform.ui/components/sonner";
 import { authClient } from "@/lib/auth-client";
 import { generatePassword } from "@/lib/generate-password";
 

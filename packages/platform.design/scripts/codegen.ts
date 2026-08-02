@@ -65,7 +65,7 @@ function camelToKebab(s: string): string {
 }
 
 /** The fixed semantic contract, in declaration order — every component in
- *  @si/ui is written against exactly these var names. */
+ *  platform.ui is written against exactly these var names. */
 const SEMANTIC_KEYS = Object.keys(lightColors) as (keyof SemanticTheme)[];
 
 // ============================================
@@ -276,7 +276,7 @@ a {
 
 function generateTailwindTheme(): string {
   const colorLines = [
-    "  /* Semantic contract — every name here is legal in @si/ui",
+    "  /* Semantic contract — every name here is legal in platform.ui",
     "     component source (see README.md `--strict-semantic`). */",
     ...SEMANTIC_KEYS.map((k) => {
       const name = `color-${camelToKebab(k)}`;

@@ -6,22 +6,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@si/ui/components/dialog";
-import { Button } from "@si/ui/components/button";
-import { Input } from "@si/ui/components/input";
-import { Label } from "@si/ui/components/label";
-import { Field, FieldDescription } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
-import { Checkbox } from "@si/ui/components/checkbox";
+} from "platform.ui/components/dialog";
+import { Button } from "platform.ui/components/button";
+import { Input } from "platform.ui/components/input";
+import { Label } from "platform.ui/components/label";
+import { Field, FieldDescription } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
+import { Checkbox } from "platform.ui/components/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@si/ui/components/select";
-import { toast } from "@si/ui/components/sonner";
-import { cn } from "@si/ui/lib/utils";
+} from "platform.ui/components/select";
+import { toast } from "platform.ui/components/sonner";
+import { cn } from "platform.ui/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { generatePassword } from "@/lib/generate-password";
 import { publicIdentityHref } from "@/lib/public-url";

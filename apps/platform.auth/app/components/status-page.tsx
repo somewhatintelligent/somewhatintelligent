@@ -7,9 +7,9 @@
 // primitive stays router-agnostic.
 import * as React from "react";
 
-import { cn } from "@si/ui/lib/utils";
-import { Badge } from "@si/ui/components/badge";
-import { Card } from "@si/ui/components/card";
+import { cn } from "platform.ui/lib/utils";
+import { Badge } from "platform.ui/components/badge";
+import { Card } from "platform.ui/components/card";
 
 export type StatusKind = "error" | "not-found" | "expired" | "forbidden" | "maintenance";
 

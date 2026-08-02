@@ -4,7 +4,7 @@
  * This file is the palette→semantic mapping layer: it reads the literal
  * color values from src/tokens/brand.ts (the only file with hex/HSL
  * literals) and shapes them into the fixed semantic contract every
- * component in `@si/ui` is written against — background/foreground,
+ * component in `platform.ui` is written against — background/foreground,
  * card, popover, primary(+hover), secondary, muted, accent,
  * destructive(+hover), success, warning, border(+strong), input, ring,
  * surface-sunken/raised, inverse, chart-1..5, and the sidebar set.

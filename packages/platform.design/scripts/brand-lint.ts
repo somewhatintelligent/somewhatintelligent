@@ -10,7 +10,7 @@
  *       from-/via-/to-<token>) whose <token> is not one of the semantic
  *       contract names (src/tokens/colors.ts) and not one of the
  *       consumer's own palette token names (src/tokens/brand.ts ramps).
- *       --strict-semantic narrows this to semantic-only (for @si/ui
+ *       --strict-semantic narrows this to semantic-only (for platform.ui
  *       component directories, which must never reach for a raw palette
  *       step).
  *   (c) known brand strings, passed via one or more --brand-word flags.

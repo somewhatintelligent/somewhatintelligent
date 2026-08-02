@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useCapture } from "@/lib/analytics";
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@si/ui/components/sidebar";
+import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "platform.ui/components/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,10 +9,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@si/ui/components/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@si/ui/components/avatar";
+} from "platform.ui/components/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "platform.ui/components/avatar";
 import { ChevronsUpDownIcon } from "lucide-react";
-import { toast } from "@si/ui/components/sonner";
+import { toast } from "platform.ui/components/sonner";
 import { authClient } from "@/lib/auth-client";
 import { isAdminRole } from "@/lib/session";
 

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Badge } from "@si/ui/components/badge";
-import { Button } from "@si/ui/components/button";
+import { Badge } from "platform.ui/components/badge";
+import { Button } from "platform.ui/components/button";
 import { isManaged } from "@/lib/clients";
 import { getClients } from "@/lib/admin-clients.functions";
 

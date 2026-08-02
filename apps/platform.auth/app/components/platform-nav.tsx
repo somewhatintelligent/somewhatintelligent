@@ -8,14 +8,14 @@ import * as React from "react";
 import { CheckIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { cn } from "@si/ui/lib/utils";
+import { cn } from "platform.ui/lib/utils";
 import { LogoIcon } from "platform.design/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@si/ui/components/dropdown-menu";
+} from "platform.ui/components/dropdown-menu";
 
 // ── Root ──────────────────────────────────────────────────────────
 

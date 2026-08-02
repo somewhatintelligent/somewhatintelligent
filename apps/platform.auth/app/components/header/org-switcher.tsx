@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { Building2Icon, CheckIcon, ChevronsUpDownIcon, MailIcon } from "lucide-react";
-import { Button } from "@si/ui/components/button";
+import { Button } from "platform.ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +10,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@si/ui/components/dropdown-menu";
-import { toast } from "@si/ui/components/sonner";
+} from "platform.ui/components/dropdown-menu";
+import { toast } from "platform.ui/components/sonner";
 import { authClient } from "@/lib/auth-client";
 
 type Membership = {

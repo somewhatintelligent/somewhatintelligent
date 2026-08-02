@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button } from "@si/ui/components/button";
-import { Alert } from "@si/ui/components/alert";
+import { Button } from "platform.ui/components/button";
+import { Alert } from "platform.ui/components/alert";
 import { authClient } from "@/lib/auth-client";
 
 export function ConsentActions() {

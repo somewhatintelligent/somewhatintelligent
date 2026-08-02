@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useCapture } from "@/lib/analytics";
-import { buttonVariants } from "@si/ui/components/button";
-import { cn } from "@si/ui/lib/utils";
+import { buttonVariants } from "platform.ui/components/button";
+import { cn } from "platform.ui/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,8 +13,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@si/ui/components/alert-dialog";
-import { toast } from "@si/ui/components/sonner";
+} from "platform.ui/components/alert-dialog";
+import { toast } from "platform.ui/components/sonner";
 import { authClient } from "@/lib/auth-client";
 
 export function DeleteAccountDialog() {

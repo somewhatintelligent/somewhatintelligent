@@ -1,9 +1,9 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Card, CardContent } from "@si/ui/components/card";
-import { Badge } from "@si/ui/components/badge";
-import { Button } from "@si/ui/components/button";
-import { Alert } from "@si/ui/components/alert";
+import { Card, CardContent } from "platform.ui/components/card";
+import { Badge } from "platform.ui/components/badge";
+import { Button } from "platform.ui/components/button";
+import { Alert } from "platform.ui/components/alert";
 import { authClient } from "@/lib/auth-client";
 
 interface DeviceApproveSearch {

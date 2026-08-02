@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { type } from "arktype";
-import { useAppForm } from "@si/ui/hooks/use-app-form";
-import { Button } from "@si/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@si/ui/components/card";
-import { Alert } from "@si/ui/components/alert";
+import { useAppForm } from "platform.ui/hooks/use-app-form";
+import { Button } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "platform.ui/components/card";
+import { Alert } from "platform.ui/components/alert";
 import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Avatar, AvatarFallback, AvatarImage } from "@si/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "platform.ui/components/avatar";
 import { getSessions } from "@/lib/admin-sessions.functions";
 
 export const Route = createFileRoute("/_dashboard/admin/sessions")({

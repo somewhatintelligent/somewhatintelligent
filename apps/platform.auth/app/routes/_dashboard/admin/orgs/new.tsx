@@ -1,14 +1,20 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Button } from "@si/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@si/ui/components/card";
-import { Input } from "@si/ui/components/input";
-import { Label } from "@si/ui/components/label";
-import { Field, FieldDescription, FieldError } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@si/ui/components/avatar";
-import { SearchCombobox } from "@si/ui/components/search-combobox";
-import { toast } from "@si/ui/components/sonner";
+import { Button } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "platform.ui/components/card";
+import { Input } from "platform.ui/components/input";
+import { Label } from "platform.ui/components/label";
+import { Field, FieldDescription, FieldError } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "platform.ui/components/avatar";
+import { SearchCombobox } from "platform.ui/components/search-combobox";
+import { toast } from "platform.ui/components/sonner";
 import {
   createOrgAsOperator,
   searchUsersByEmail,

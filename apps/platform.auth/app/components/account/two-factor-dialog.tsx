@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { Badge } from "@si/ui/components/badge";
-import { Button, buttonVariants } from "@si/ui/components/button";
-import { cn } from "@si/ui/lib/utils";
+import { Badge } from "platform.ui/components/badge";
+import { Button, buttonVariants } from "platform.ui/components/button";
+import { cn } from "platform.ui/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +10,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@si/ui/components/dialog";
-import { Input } from "@si/ui/components/input";
-import { Field, FieldLabel } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
+} from "platform.ui/components/dialog";
+import { Input } from "platform.ui/components/input";
+import { Field, FieldLabel } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
 import { authClient } from "@/lib/auth-client";
 
 export function TwoFactorDialog({ enabled }: { enabled: boolean }) {

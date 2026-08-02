@@ -1,7 +1,7 @@
 // Root-level errorComponent + notFoundComponent used by the root route.
 import { Link } from "@tanstack/react-router";
 
-import { Button } from "@si/ui/components/button";
+import { Button } from "platform.ui/components/button";
 import { StatusPage } from "@/components/status-page";
 
 function trimMessage(raw: string, max = 200): string {

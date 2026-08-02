@@ -6,20 +6,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@si/ui/components/dialog";
-import { Button } from "@si/ui/components/button";
-import { Label } from "@si/ui/components/label";
-import { Field, FieldDescription } from "@si/ui/components/field";
-import { Alert } from "@si/ui/components/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@si/ui/components/avatar";
-import { SearchCombobox } from "@si/ui/components/search-combobox";
+} from "platform.ui/components/dialog";
+import { Button } from "platform.ui/components/button";
+import { Label } from "platform.ui/components/label";
+import { Field, FieldDescription } from "platform.ui/components/field";
+import { Alert } from "platform.ui/components/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "platform.ui/components/avatar";
+import { SearchCombobox } from "platform.ui/components/search-combobox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@si/ui/components/select";
+} from "platform.ui/components/select";
 import { addOrgMember, searchUsersByEmail, type UserSearchHit } from "@/lib/org-admin.functions";
 
 type Role = "owner" | "admin" | "member";

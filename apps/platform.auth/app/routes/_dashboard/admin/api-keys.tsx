@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Badge } from "@si/ui/components/badge";
+import { Badge } from "platform.ui/components/badge";
 import { getApiKeys } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_dashboard/admin/api-keys")({

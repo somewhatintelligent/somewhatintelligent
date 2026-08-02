@@ -3,11 +3,17 @@ import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { type } from "arktype";
 import { FingerprintIcon } from "lucide-react";
 import { useCapture } from "@/lib/analytics";
-import { useAppForm } from "@si/ui/hooks/use-app-form";
-import { Button } from "@si/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@si/ui/components/card";
-import { Alert } from "@si/ui/components/alert";
-import { Separator } from "@si/ui/components/separator";
+import { useAppForm } from "platform.ui/hooks/use-app-form";
+import { Button } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "platform.ui/components/card";
+import { Alert } from "platform.ui/components/alert";
+import { Separator } from "platform.ui/components/separator";
 import { Brand } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import type { SocialProviders } from "@/lib/providers.functions";

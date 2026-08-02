@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { type } from "arktype";
-import { useAppForm } from "@si/ui/hooks/use-app-form";
-import { buttonVariants } from "@si/ui/components/button";
-import { cn } from "@si/ui/lib/utils";
+import { useAppForm } from "platform.ui/hooks/use-app-form";
+import { buttonVariants } from "platform.ui/components/button";
+import { cn } from "platform.ui/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,8 @@ import {
   DialogTrigger,
   DialogClose,
   DialogFooter,
-} from "@si/ui/components/dialog";
-import { Alert } from "@si/ui/components/alert";
+} from "platform.ui/components/dialog";
+import { Alert } from "platform.ui/components/alert";
 import { authClient } from "@/lib/auth-client";
 
 const usernameSchema = type({

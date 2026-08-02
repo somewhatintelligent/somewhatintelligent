@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Card, CardContent } from "@si/ui/components/card";
+import { Card, CardContent } from "platform.ui/components/card";
 import { getScopeLabel } from "@/lib/scopes";
 import { ConsentActions } from "@/components/auth/consent-actions";
 import { resolveClientName } from "@/lib/oauth-clients.functions";

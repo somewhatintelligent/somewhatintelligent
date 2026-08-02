@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Button } from "@si/ui/components/button";
+import { Button } from "platform.ui/components/button";
 import { listOrgsForAdmin } from "@/lib/org-admin.functions";
 import { relativeTime } from "@/lib/relative-time";
 

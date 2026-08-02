@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { buttonVariants } from "@si/ui/components/button";
+import { buttonVariants } from "platform.ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@si/ui/components/dropdown-menu";
+} from "platform.ui/components/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,8 +18,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@si/ui/components/alert-dialog";
-import { cn } from "@si/ui/lib/utils";
+} from "platform.ui/components/alert-dialog";
+import { cn } from "platform.ui/lib/utils";
 
 type Role = "owner" | "admin" | "member";
 

@@ -1,8 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useTransition } from "react";
-import { Badge } from "@si/ui/components/badge";
-import { Button } from "@si/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@si/ui/components/card";
+import { Badge } from "platform.ui/components/badge";
+import { Button } from "platform.ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "platform.ui/components/card";
 import {
   Item,
   ItemContent,
@@ -10,8 +16,8 @@ import {
   ItemDescription,
   ItemActions,
   ItemGroup,
-} from "@si/ui/components/item";
-import { toast } from "@si/ui/components/sonner";
+} from "platform.ui/components/item";
+import { toast } from "platform.ui/components/sonner";
 import { authClient } from "@/lib/auth-client";
 
 interface SessionInfo {
