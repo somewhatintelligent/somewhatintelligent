@@ -5,21 +5,21 @@ export const user = sqliteTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: integer("emailVerified", { mode: "boolean" })
+  emailVerified: integer("email_verified", { mode: "boolean" })
     .default(false)
     .notNull(),
   image: text("image"),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
     .$onUpdate(() => new Date())
     .notNull(),
   username: text("username").unique(),
-  displayUsername: text("displayUsername"),
+  displayUsername: text("display_username"),
   role: text("role"),
   banned: integer("banned", { mode: "boolean" }).default(false),
-  banReason: text("banReason"),
-  banExpires: integer("banExpires", { mode: "timestamp_ms" }),
-  twoFactorEnabled: integer("twoFactorEnabled", { mode: "boolean" }).default(
+  banReason: text("ban_reason"),
+  banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+  twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).default(
     false,
   ),
 });
@@ -28,19 +28,19 @@ export const session = sqliteTable(
   "session",
   {
     id: text("id").primaryKey(),
-    expiresAt: integer("expiresAt", { mode: "timestamp_ms" }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
     token: text("token").notNull().unique(),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .$onUpdate(() => new Date())
       .notNull(),
-    ipAddress: text("ipAddress"),
-    userAgent: text("userAgent"),
-    userId: text("userId")
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    impersonatedBy: text("impersonatedBy"),
-    activeOrganizationId: text("activeOrganizationId"),
+    impersonatedBy: text("impersonated_by"),
+    activeOrganizationId: text("active_organization_id"),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );
@@ -49,24 +49,24 @@ export const account = sqliteTable(
   "account",
   {
     id: text("id").primaryKey(),
-    accountId: text("accountId").notNull(),
-    providerId: text("providerId").notNull(),
-    userId: text("userId")
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("accessToken"),
-    refreshToken: text("refreshToken"),
-    idToken: text("idToken"),
-    accessTokenExpiresAt: integer("accessTokenExpiresAt", {
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: integer("access_token_expires_at", {
       mode: "timestamp_ms",
     }),
-    refreshTokenExpiresAt: integer("refreshTokenExpiresAt", {
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", {
       mode: "timestamp_ms",
     }),
     scope: text("scope"),
     password: text("password"),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -79,9 +79,9 @@ export const verification = sqliteTable(
     id: text("id").primaryKey(),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
-    expiresAt: integer("expiresAt", { mode: "timestamp_ms" }).notNull(),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -90,24 +90,24 @@ export const verification = sqliteTable(
 
 export const jwks = sqliteTable("jwks", {
   id: text("id").primaryKey(),
-  publicKey: text("publicKey").notNull(),
-  privateKey: text("privateKey").notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-  expiresAt: integer("expiresAt", { mode: "timestamp_ms" }),
+  publicKey: text("public_key").notNull(),
+  privateKey: text("private_key").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
 });
 
 export const twoFactor = sqliteTable(
-  "twoFactor",
+  "two_factor",
   {
     id: text("id").primaryKey(),
     secret: text("secret").notNull(),
-    backupCodes: text("backupCodes").notNull(),
-    userId: text("userId")
+    backupCodes: text("backup_codes").notNull(),
+    userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     verified: integer("verified", { mode: "boolean" }).default(true),
-    failedVerificationCount: integer("failedVerificationCount").default(0),
-    lockedUntil: integer("lockedUntil", { mode: "timestamp_ms" }),
+    failedVerificationCount: integer("failed_verification_count").default(0),
+    lockedUntil: integer("locked_until", { mode: "timestamp_ms" }),
   },
   (table) => [
     index("twoFactor_secret_idx").on(table.secret),
@@ -120,16 +120,16 @@ export const passkey = sqliteTable(
   {
     id: text("id").primaryKey(),
     name: text("name"),
-    publicKey: text("publicKey").notNull(),
-    userId: text("userId")
+    publicKey: text("public_key").notNull(),
+    userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    credentialID: text("credentialID").notNull(),
+    credentialID: text("credential_id").notNull(),
     counter: integer("counter").notNull(),
-    deviceType: text("deviceType").notNull(),
-    backedUp: integer("backedUp", { mode: "boolean" }).notNull(),
+    deviceType: text("device_type").notNull(),
+    backedUp: integer("backed_up", { mode: "boolean" }).notNull(),
     transports: text("transports"),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }),
     aaguid: text("aaguid"),
   },
   (table) => [
@@ -138,16 +138,16 @@ export const passkey = sqliteTable(
   ],
 );
 
-export const deviceCode = sqliteTable("deviceCode", {
+export const deviceCode = sqliteTable("device_code", {
   id: text("id").primaryKey(),
-  deviceCode: text("deviceCode").notNull(),
-  userCode: text("userCode").notNull(),
-  userId: text("userId"),
-  expiresAt: integer("expiresAt", { mode: "timestamp_ms" }).notNull(),
+  deviceCode: text("device_code").notNull(),
+  userCode: text("user_code").notNull(),
+  userId: text("user_id"),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
   status: text("status").notNull(),
-  lastPolledAt: integer("lastPolledAt", { mode: "timestamp_ms" }),
-  pollingInterval: integer("pollingInterval"),
-  clientId: text("clientId"),
+  lastPolledAt: integer("last_polled_at", { mode: "timestamp_ms" }),
+  pollingInterval: integer("polling_interval"),
+  clientId: text("client_id"),
   scope: text("scope"),
 });
 
@@ -155,27 +155,27 @@ export const apikey = sqliteTable(
   "apikey",
   {
     id: text("id").primaryKey(),
-    configId: text("configId").default("default").notNull(),
+    configId: text("config_id").default("default").notNull(),
     name: text("name"),
     start: text("start"),
-    referenceId: text("referenceId").notNull(),
+    referenceId: text("reference_id").notNull(),
     prefix: text("prefix"),
     key: text("key").notNull(),
-    refillInterval: integer("refillInterval"),
-    refillAmount: integer("refillAmount"),
-    lastRefillAt: integer("lastRefillAt", { mode: "timestamp_ms" }),
+    refillInterval: integer("refill_interval"),
+    refillAmount: integer("refill_amount"),
+    lastRefillAt: integer("last_refill_at", { mode: "timestamp_ms" }),
     enabled: integer("enabled", { mode: "boolean" }).default(true),
-    rateLimitEnabled: integer("rateLimitEnabled", { mode: "boolean" }).default(
-      true,
-    ),
-    rateLimitTimeWindow: integer("rateLimitTimeWindow").default(86400000),
-    rateLimitMax: integer("rateLimitMax").default(10),
-    requestCount: integer("requestCount").default(0),
+    rateLimitEnabled: integer("rate_limit_enabled", {
+      mode: "boolean",
+    }).default(true),
+    rateLimitTimeWindow: integer("rate_limit_time_window").default(86400000),
+    rateLimitMax: integer("rate_limit_max").default(10),
+    requestCount: integer("request_count").default(0),
     remaining: integer("remaining"),
-    lastRequest: integer("lastRequest", { mode: "timestamp_ms" }),
-    expiresAt: integer("expiresAt", { mode: "timestamp_ms" }),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
+    lastRequest: integer("last_request", { mode: "timestamp_ms" }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     permissions: text("permissions"),
     metadata: text("metadata"),
   },
@@ -187,61 +187,61 @@ export const apikey = sqliteTable(
 );
 
 export const oauthClient = sqliteTable(
-  "oauthClient",
+  "oauth_client",
   {
     id: text("id").primaryKey(),
-    clientId: text("clientId").notNull().unique(),
-    clientSecret: text("clientSecret"),
+    clientId: text("client_id").notNull().unique(),
+    clientSecret: text("client_secret"),
     disabled: integer("disabled", { mode: "boolean" }).default(false),
-    skipConsent: integer("skipConsent", { mode: "boolean" }),
-    enableEndSession: integer("enableEndSession", { mode: "boolean" }),
-    subjectType: text("subjectType"),
+    skipConsent: integer("skip_consent", { mode: "boolean" }),
+    enableEndSession: integer("enable_end_session", { mode: "boolean" }),
+    subjectType: text("subject_type"),
     scopes: text("scopes", { mode: "json" }),
-    userId: text("userId").references(() => user.id, { onDelete: "cascade" }),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
     name: text("name"),
     uri: text("uri"),
     icon: text("icon"),
     contacts: text("contacts", { mode: "json" }),
     tos: text("tos"),
     policy: text("policy"),
-    softwareId: text("softwareId"),
-    softwareVersion: text("softwareVersion"),
-    softwareStatement: text("softwareStatement"),
-    redirectUris: text("redirectUris", { mode: "json" }).notNull(),
-    postLogoutRedirectUris: text("postLogoutRedirectUris", { mode: "json" }),
-    tokenEndpointAuthMethod: text("tokenEndpointAuthMethod"),
-    grantTypes: text("grantTypes", { mode: "json" }),
-    responseTypes: text("responseTypes", { mode: "json" }),
+    softwareId: text("software_id"),
+    softwareVersion: text("software_version"),
+    softwareStatement: text("software_statement"),
+    redirectUris: text("redirect_uris", { mode: "json" }).notNull(),
+    postLogoutRedirectUris: text("post_logout_redirect_uris", { mode: "json" }),
+    tokenEndpointAuthMethod: text("token_endpoint_auth_method"),
+    grantTypes: text("grant_types", { mode: "json" }),
+    responseTypes: text("response_types", { mode: "json" }),
     public: integer("public", { mode: "boolean" }),
     type: text("type"),
-    requirePKCE: integer("requirePKCE", { mode: "boolean" }),
-    referenceId: text("referenceId"),
+    requirePKCE: integer("require_pkce", { mode: "boolean" }),
+    referenceId: text("reference_id"),
     metadata: text("metadata", { mode: "json" }),
   },
   (table) => [index("oauthClient_userId_idx").on(table.userId)],
 );
 
 export const oauthRefreshToken = sqliteTable(
-  "oauthRefreshToken",
+  "oauth_refresh_token",
   {
     id: text("id").primaryKey(),
     token: text("token").notNull().unique(),
-    clientId: text("clientId")
+    clientId: text("client_id")
       .notNull()
       .references(() => oauthClient.clientId, { onDelete: "cascade" }),
-    sessionId: text("sessionId").references(() => session.id, {
+    sessionId: text("session_id").references(() => session.id, {
       onDelete: "set null",
     }),
-    userId: text("userId")
+    userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    referenceId: text("referenceId"),
-    expiresAt: integer("expiresAt", { mode: "timestamp_ms" }).notNull(),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
+    referenceId: text("reference_id"),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     revoked: integer("revoked", { mode: "timestamp_ms" }),
-    authTime: integer("authTime", { mode: "timestamp_ms" }),
+    authTime: integer("auth_time", { mode: "timestamp_ms" }),
     scopes: text("scopes", { mode: "json" }).notNull(),
   },
   (table) => [
@@ -252,23 +252,23 @@ export const oauthRefreshToken = sqliteTable(
 );
 
 export const oauthAccessToken = sqliteTable(
-  "oauthAccessToken",
+  "oauth_access_token",
   {
     id: text("id").primaryKey(),
     token: text("token").notNull().unique(),
-    clientId: text("clientId")
+    clientId: text("client_id")
       .notNull()
       .references(() => oauthClient.clientId, { onDelete: "cascade" }),
-    sessionId: text("sessionId").references(() => session.id, {
+    sessionId: text("session_id").references(() => session.id, {
       onDelete: "set null",
     }),
-    userId: text("userId").references(() => user.id, { onDelete: "cascade" }),
-    referenceId: text("referenceId"),
-    refreshId: text("refreshId").references(() => oauthRefreshToken.id, {
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    referenceId: text("reference_id"),
+    refreshId: text("refresh_id").references(() => oauthRefreshToken.id, {
       onDelete: "cascade",
     }),
-    expiresAt: integer("expiresAt", { mode: "timestamp_ms" }).notNull(),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     scopes: text("scopes", { mode: "json" }).notNull(),
   },
   (table) => [
@@ -280,17 +280,17 @@ export const oauthAccessToken = sqliteTable(
 );
 
 export const oauthConsent = sqliteTable(
-  "oauthConsent",
+  "oauth_consent",
   {
     id: text("id").primaryKey(),
-    clientId: text("clientId")
+    clientId: text("client_id")
       .notNull()
       .references(() => oauthClient.clientId, { onDelete: "cascade" }),
-    userId: text("userId").references(() => user.id, { onDelete: "cascade" }),
-    referenceId: text("referenceId"),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    referenceId: text("reference_id"),
     scopes: text("scopes", { mode: "json" }).notNull(),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
     index("oauthConsent_clientId_idx").on(table.clientId),
@@ -303,7 +303,7 @@ export const organization = sqliteTable("organization", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   metadata: text("metadata"),
 });
 
@@ -311,14 +311,14 @@ export const member = sqliteTable(
   "member",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organizationId")
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    userId: text("userId")
+    userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
@@ -330,15 +330,15 @@ export const invitation = sqliteTable(
   "invitation",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organizationId")
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: text("role"),
     status: text("status").default("pending").notNull(),
-    expiresAt: integer("expiresAt", { mode: "timestamp_ms" }).notNull(),
-    createdAt: integer("createdAt", { mode: "timestamp_ms" }).notNull(),
-    inviterId: text("inviterId")
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    inviterId: text("inviter_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
@@ -348,8 +348,15 @@ export const invitation = sqliteTable(
   ],
 );
 
+export const rateLimit = sqliteTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: integer("last_request").notNull(),
+});
+
 export const relations = defineRelations(
-  { user, session, account, verification, jwks, twoFactor, passkey, deviceCode, apikey, oauthClient, oauthRefreshToken, oauthAccessToken, oauthConsent, organization, member, invitation },
+  { user, session, account, verification, jwks, twoFactor, passkey, deviceCode, apikey, oauthClient, oauthRefreshToken, oauthAccessToken, oauthConsent, organization, member, invitation, rateLimit },
   (r) => ({
     user: {
       sessions: r.many.session(),

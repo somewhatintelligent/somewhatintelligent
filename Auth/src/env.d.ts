@@ -1,6 +1,23 @@
 /// <reference types="vite/client" />
 
+import type { AuthDefines } from "../surfaces.ts";
 import type { IdentityEnv } from "./identity-env.ts";
+
+/**
+ * The auth surfaces, as build-time constants.
+ *
+ * Typed from the same `SURFACES` list the deploy projects, so a misspelled read
+ * — `VITE_AUTH_PASKEY` — is a compile error rather than `undefined`, which
+ * would silently render as "this surface is off".
+ *
+ * Read each name LITERALLY. `import.meta.env[`VITE_AUTH_${id}`]` is a computed
+ * access: Vite substitutes text for an exact key and a computed one never
+ * matches, so it survives to runtime as a property lookup on an object that
+ * does not exist in the bundle.
+ */
+declare global {
+  interface ImportMetaEnv extends AuthDefines {}
+}
 
 /**
  * The `cloudflare:workers` env surface.

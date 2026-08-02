@@ -21,6 +21,7 @@
     "arktype": "catalog:",
     "better-auth": "^1.6.25",
     "better-auth-effect": "workspace:*",
+    "better-auth-manifest": "workspace:*",
     "drizzle-orm": "catalog:",
     "effect": "catalog:",
     "lucide-react": "catalog:",

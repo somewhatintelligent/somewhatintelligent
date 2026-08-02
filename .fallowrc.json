@@ -1,8 +1,54 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
-  "entry": ["**/alchemy.run.ts", "**/backend/worker.ts", "**/src/worker.ts"],
+  "entry": [
+    "**/alchemy.run.ts",
+    "**/backend/worker.ts",
+    "**/src/worker.ts",
+    "Auth/src/start.ts",
+    "Auth/src/routeTree.gen.ts",
+    "packages/*/src/index.ts",
+    "Auth/backend/schema.gen.ts"
+  ],
   "ignorePatterns": ["dist/**", "design/**", "plugin/**"],
-  "boundaries": {},
+  "boundaries": {
+    "zones": [
+      {
+        "name": "auth-server",
+        "patterns": ["Auth/backend/**"]
+      },
+      {
+        "name": "infra",
+        "patterns": ["Auth/*.ts"]
+      },
+      {
+        "name": "app",
+        "patterns": ["Auth/src/**"]
+      },
+      {
+        "name": "shared",
+        "patterns": ["packages/*/src/**"]
+      }
+    ],
+    "rules": [
+      {
+        "from": "infra",
+        "allow": ["auth-server", "app", "shared", "infra"]
+      },
+      {
+        "from": "auth-server",
+        "allow": ["auth-server", "shared", "infra"]
+      },
+      {
+        "from": "app",
+        "allow": ["app", "shared", "infra"],
+        "allowTypeOnly": ["auth-server"]
+      },
+      {
+        "from": "shared",
+        "allow": ["shared"]
+      }
+    ]
+  },
   "rules": {
     "boundary-violation": "error",
     "unused-exports": "error",

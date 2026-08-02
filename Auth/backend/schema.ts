@@ -7,9 +7,8 @@ import { generateSchema as generate } from "auth/api";
 import type { BetterAuthOptions } from "better-auth";
 import * as Effect from "effect/Effect";
 
-import { columnNaming, inertly } from "./capabilities.ts";
-import { authConfig } from "./config.ts";
 import { schemaPath } from "./database.ts";
+import { authOptions } from "./options.ts";
 import { toDrizzleV1, type PatchedModule } from "./drizzle-v1.ts";
 
 const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
@@ -49,12 +48,20 @@ export const GenerateAuthSchema = Alchemy.Action<
 const render: Effect.Effect<PatchedModule> = Effect.runSync(
   Effect.cached(
     Effect.gen(function* () {
-      const options = yield* Effect.scoped(Effect.provide(authConfig, inertly));
+      const options = yield* authOptions;
       const generated = yield* Effect.promise(() =>
         generateSchema({
           adapter: {
             id: "drizzle",
-            options: { provider: "sqlite", camelCase: columnNaming === "verbatim" },
+            /**
+             * snake_case, because production already exists. si's `guestlist`
+             * created that database with Better Auth's default naming, so
+             * every table and column in it is snake_case — `two_factor`,
+             * `email_verified`, `user_id`. camelCase here does not migrate it;
+             * it produces a SECOND, empty schema alongside the real one and the
+             * app reads the empty half. Verified against the live database.
+             */
+            options: { provider: "sqlite", camelCase: false },
           },
           options,
           file: schemaPath,

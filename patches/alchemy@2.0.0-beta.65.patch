@@ -99,6 +99,37 @@ index c3b31ca5c18cb49713a8e273fbe8ff7ad9ddc408..82147042fe484e639860fe56bed107e3
  };
  //# sourceMappingURL=Application.js.map
 \ No newline at end of file
+diff --git a/lib/Cloudflare/Workers/Worker.d.ts b/lib/Cloudflare/Workers/Worker.d.ts
+index 376f0588d7dc7becff7b1720ef688d51bab14a5d..07a860409841297bd11ae426691ad2c315f2cda7 100644
+--- a/lib/Cloudflare/Workers/Worker.d.ts
++++ b/lib/Cloudflare/Workers/Worker.d.ts
+@@ -1049,6 +1049,26 @@ export type Worker<Bindings extends WorkerBindings = any> = Resource<WorkerTypeI
+  * ```
+  */
+ export declare const Worker: ResourceClassLike<Worker> & Effect.Effect<Worker & WorkerRuntimeContext & RuntimeContext, never, Worker> & {
++    /**
++     * Read an already-deployed Worker out of the state store — a different
++     * stage, a different stack, or both — and use it anywhere the real
++     * resource is accepted, including as a `service` binding in another
++     * Stack's `env`.
++     *
++     * PATCH. `Resource()` builds this onto every resource class and
++     * `Platform()` copies it across with `Object.assign(constructor,
++     * resource, ...)`, so it has always existed at runtime and upstream's own
++     * JSDoc documents `yield* Cloudflare.Worker.ref(id, { stage })`. Only the
++     * hand-written public type omits it: `Worker` is declared
++     * `ResourceClassLike<Worker>`, which carries no `ref`, rather than
++     * `ResourceClass<Worker>`, which declares it. Still true on upstream
++     * `main` as of 73d7de6, so this is not deletable on the next bump —
++     * re-check `ResourceClassLike` in `Resource.d.ts` before removing.
++     */
++    ref(id: string, options?: {
++        stage?: string;
++        stack?: string;
++    }): Effect.Effect<Worker>;
+     <Self, Shape extends WorkerShape, Deps = never>(): {
+         <const Id extends string>(id: Id): Effect.Effect<Worker & Rpc<Self> & Dependencies<Deps>, never, Self | Extract<Deps, Container.Application<any>> | Providers> & Named<Id> & {
+             new (_: never): MakeShape<Shape, WorkerShape> & Named<Id> & Tag;
 diff --git a/src/Cloudflare/Access/Application.ts b/src/Cloudflare/Access/Application.ts
 index 04864c6c2f2e5bdfebf098dc2e9e8ef02472776c..0c53ff280714727c9b7210efca555cc84bcc703e 100644
 --- a/src/Cloudflare/Access/Application.ts

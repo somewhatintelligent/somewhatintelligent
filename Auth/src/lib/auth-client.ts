@@ -18,9 +18,9 @@
  *
  * The auth server has no address — it is `url: false`, reachable only through
  * this app's service binding. What the browser talks to is `/api/auth/*` on the
- * origin it is already on, which `routes/api.auth.$.ts` proxies over that
- * binding. Same-origin means no CORS preflight and cookies attach without anyone
- * opting in.
+ * origin it is already on, which `src/worker.ts` proxies over that binding.
+ * Same-origin means no CORS preflight and cookies attach without anyone opting
+ * in.
  *
  * si derived this from a var projected into the bundle, because its identity app
  * was mounted at `/account` of a shared host and had to strip that path back off

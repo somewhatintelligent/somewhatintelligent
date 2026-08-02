@@ -6,8 +6,13 @@ import * as Effect from "effect/Effect";
 import { ingress } from "../ingress.ts";
 import { live } from "./capabilities.ts";
 import { authConfig } from "./config.ts";
-import { GATEWAY_ORIGIN } from "./gateway.ts";
+import { AUTH_COOKIE_DOMAIN, AUTH_ORIGIN } from "./origin.ts";
 import { authRpc } from "./rpc.ts";
+
+const addressing = Effect.gen(function* () {
+  const { stage } = yield* Stack;
+  return ingress(stage, yield* ALCHEMY_DEV);
+});
 
 export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
   "AuthWorker",
@@ -17,10 +22,8 @@ export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
     observability: { enabled: true },
     compatibility: { flags: ["nodejs_compat"] },
     env: {
-      [GATEWAY_ORIGIN]: Effect.gen(function* () {
-        const { stage } = yield* Stack;
-        return ingress(stage, yield* ALCHEMY_DEV).origin;
-      }),
+      [AUTH_ORIGIN]: Effect.map(addressing, (at) => at.origin),
+      [AUTH_COOKIE_DOMAIN]: Effect.map(addressing, (at) => at.cookieDomain ?? ""),
     },
   },
   Effect.gen(function* () {

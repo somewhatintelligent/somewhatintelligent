@@ -25,7 +25,11 @@
   },
   "include": [
     "alchemy.run.ts",
+    "identity.ts",
+    "index.ts",
+    "surfaces.ts",
     "ingress.ts",
+    "stack.ts",
     "vite.config.ts",
     "backend/**/*.ts",
     "src/**/*.ts",
