@@ -20,8 +20,4 @@ export default defineConfig({
     ignorePatterns: ["**/dist/**", "**/design/**", "**/.alchemy/**"],
     options: { typeAware: true, typeCheck: true },
   },
-
-  run: {
-    cache: true,
-  },
 });
