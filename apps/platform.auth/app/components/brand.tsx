@@ -3,7 +3,7 @@
 // `app/app.config.ts`, no change needed here.
 // Mirrors the satori-safe `<OgBrand>` (og/_brand.tsx) so the in-app and
 // OG-image renders share one mark.
-import { LogoIcon } from "@si/design/logo";
+import { LogoIcon } from "platform.design/logo";
 import { appConfig } from "@/app.config";
 
 // Per-app product name. Each app in the workspace declares its own —

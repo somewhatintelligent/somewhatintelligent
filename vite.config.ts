@@ -66,7 +66,7 @@ export default defineConfig({
   fmt: {
     ignorePatterns: [
       "**/dist/**",
-      "**/design/**",
+      "apps/*/design/**",
       "**/.alchemy/**",
       "**/*.gen.ts",
       "**/migrations/**",
@@ -76,7 +76,7 @@ export default defineConfig({
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     ignorePatterns: [
       "**/dist/**",
-      "**/design/**",
+      "apps/*/design/**",
       "**/.alchemy/**",
       "**/*.gen.ts",
       "**/migrations/**",

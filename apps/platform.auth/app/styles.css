@@ -1,4 +1,4 @@
-@import "@si/design/theme.css";
+@import "platform.design/theme.css";
 @source "../../packages/ui/src/**/*.tsx";
 @source "../../packages/ui/src/**/*.ts";
 @source "../**/*.tsx";

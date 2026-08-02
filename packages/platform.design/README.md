@@ -1,4 +1,4 @@
-# @si/design
+# platform.design
 
 The brand-neutral token engine for this template. Every color, radius,
 shadow, spacing, and font value a consumer app or `@si/ui` component

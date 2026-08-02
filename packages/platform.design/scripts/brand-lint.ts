@@ -347,8 +347,8 @@ function checkUtilities(file: string, content: string, legalTokens: Set<string>)
       if (/^offset-\d/.test(token)) continue;
       // ring-offset-<color>: strip the offset segment and re-check the color.
       if (token.startsWith("offset-") && legalTokens.has(token.slice("offset-".length))) continue;
-      if (/^gradient-to-/.test(token)) continue; // gradient direction, not a color
-      if (/^blend-/.test(token)) continue; // bg-blend-* / mix-blend-* modes
+      if (token.startsWith("gradient-to-")) continue; // gradient direction, not a color
+      if (token.startsWith("blend-")) continue; // bg-blend-* / mix-blend-* modes
       // Font-size tokens from the generated tailwind theme (`--text-<name>`)
       // make text-<name> a size utility, not a color.
       if (m[1] === "text" && fontSizeTokens.has(token)) continue;

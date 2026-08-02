@@ -109,35 +109,35 @@
   --glass-shadow: 0 4px 0px hsl(0 0% 0% / 0);
 
   /* Fonts — swap the family values in src/tokens/typography.ts */
-  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-  --font-body: 'Source Serif 4', Georgia, serif;
-  --font-editorial: 'Source Serif 4', Georgia, serif;
-  --font-editorial-display: 'Source Serif 4', Georgia, serif;
-  --font-accent: 'Source Serif 4', Georgia, serif;
-  --font-mono: 'Iosevka', ui-monospace, 'SF Mono', monospace;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Source Serif 4", Georgia, serif;
+  --font-editorial: "Source Serif 4", Georgia, serif;
+  --font-editorial-display: "Source Serif 4", Georgia, serif;
+  --font-accent: "Source Serif 4", Georgia, serif;
+  --font-mono: "Iosevka", ui-monospace, "SF Mono", monospace;
 
   /* Raw brand palette (exact hex, theme-invariant) — src/tokens/brand.ts */
-  --color-neutral-50: #F7F7F3;
-  --color-neutral-100: #F1F1EC;
-  --color-neutral-200: #E2E2DB;
-  --color-neutral-300: #CACAC1;
-  --color-neutral-400: #A3A39B;
-  --color-neutral-500: #81817A;
-  --color-neutral-600: #60605A;
-  --color-neutral-700: #41413D;
+  --color-neutral-50: #f7f7f3;
+  --color-neutral-100: #f1f1ec;
+  --color-neutral-200: #e2e2db;
+  --color-neutral-300: #cacac1;
+  --color-neutral-400: #a3a39b;
+  --color-neutral-500: #81817a;
+  --color-neutral-600: #60605a;
+  --color-neutral-700: #41413d;
   --color-neutral-800: #282826;
   --color-neutral-900: #151514;
   --color-neutral-950: #080908;
-  --color-accent-50: #FFF0F7;
-  --color-accent-100: #FFDCEB;
-  --color-accent-200: #FFB9D7;
-  --color-accent-300: #FF8FC2;
-  --color-accent-400: #FF68AE;
-  --color-accent-500: #FF4FA3;
-  --color-accent-600: #E62A84;
-  --color-accent-700: #BC1768;
-  --color-accent-800: #92104F;
-  --color-accent-900: #680C39;
+  --color-accent-50: #fff0f7;
+  --color-accent-100: #ffdceb;
+  --color-accent-200: #ffb9d7;
+  --color-accent-300: #ff8fc2;
+  --color-accent-400: #ff68ae;
+  --color-accent-500: #ff4fa3;
+  --color-accent-600: #e62a84;
+  --color-accent-700: #bc1768;
+  --color-accent-800: #92104f;
+  --color-accent-900: #680c39;
   --color-accent-950: #400722;
 
   /* Radius (theme-invariant; aliased by @theme so tenants can override) */

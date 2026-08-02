@@ -36,8 +36,13 @@ rename needs. What comes off is `fallow audit`, which attributes findings by
 file path while this branch moves every file in the repo. Restore it with
 `REARCH_GATE=1`, and permanently at commit 12.
 
-## Note on the 15 warnings
+## Note on the warning count
 
-`vp check` exits 0 with 15 pre-existing warnings. They are the floor, not a
-target. If a rename changes the count, read the diff before assuming it is
-noise.
+`vp check` exits 0 with warnings. They are the floor, not a target. If a rename
+changes the count, read the diff before assuming it is noise — that is exactly
+what this table is for.
+
+| from     | files | warnings | why it moved                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------- | ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| capture  | 293   | 15       | the baseline                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| commit 6 | 308   | 16       | `@si/design` -> `platform.design` fell out from under the `**/design/**` ignore, which was written for app-local design ASSET folders (`apps/mezedes/design/` — 12 png, 4 html, 1 excalidraw) and had been excluding a real TypeScript package by accident. The package is now linted, and the one new warning is a genuine finding it had been hiding: `cssVar` declared and never used in `platform.design/scripts/codegen.ts`. The pattern is narrowed to `apps/*/design/**` so it cannot catch a package again. |
