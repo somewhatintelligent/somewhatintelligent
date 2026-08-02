@@ -6,48 +6,48 @@
     "**/src/worker.ts",
     "Auth/src/start.ts",
     "Auth/src/routeTree.gen.ts",
+    "Auth/backend/schema.gen.ts",
     "packages/*/src/index.ts",
-    "Auth/backend/schema.gen.ts"
+    "Apps/*/src/server/entry.ts",
+    "Apps/*/src/shell/main.tsx",
+    "Apps/*/test/**/*.test.ts",
+    "Apps/*/integ/**/*.test.ts"
   ],
   "ignorePatterns": ["dist/**", "design/**", "plugin/**", "**/scripts/**", "**/generated/**"],
   "boundaries": {
     "zones": [
-      {
-        "name": "auth-server",
-        "patterns": ["Auth/backend/**"]
-      },
-      {
-        "name": "infra",
-        "patterns": ["Auth/*.ts"]
-      },
-      {
-        "name": "app",
-        "patterns": ["Auth/src/**"]
-      },
-      {
-        "name": "shared",
-        "patterns": ["packages/*/src/**"]
-      }
+      { "name": "auth-server", "patterns": ["Auth/backend/**"] },
+      { "name": "auth-infra", "patterns": ["Auth/*.ts"] },
+      { "name": "auth-app", "patterns": ["Auth/src/**"] },
+      { "name": "shared", "patterns": ["packages/*/src/**"] },
+      { "name": "mezedes-core", "patterns": ["Apps/Mezedes/src/core/**"] },
+      { "name": "mezedes-server", "patterns": ["Apps/Mezedes/src/server/**"] },
+      { "name": "mezedes-shell", "patterns": ["Apps/Mezedes/src/shell/**"] },
+      { "name": "mezedes-infra", "patterns": ["Apps/Mezedes/alchemy.run.ts"] }
     ],
     "rules": [
+      { "from": "auth-infra", "allow": ["auth-server", "auth-app", "shared", "auth-infra"] },
+      { "from": "auth-server", "allow": ["auth-server", "shared", "auth-infra"] },
       {
-        "from": "infra",
-        "allow": ["auth-server", "app", "shared", "infra"]
-      },
-      {
-        "from": "auth-server",
-        "allow": ["auth-server", "shared", "infra"]
-      },
-      {
-        "from": "app",
-        "allow": ["app", "shared", "infra"],
+        "from": "auth-app",
+        "allow": ["auth-app", "shared", "auth-infra"],
         "allowTypeOnly": ["auth-server"]
       },
-      {
-        "from": "shared",
-        "allow": ["shared"]
-      }
-    ]
+      { "from": "shared", "allow": ["shared"] },
+      { "from": "mezedes-core", "allow": [] },
+      { "from": "mezedes-server", "allow": ["mezedes-core"] },
+      { "from": "mezedes-shell", "allow": [], "allowTypeOnly": ["mezedes-core"] },
+      { "from": "mezedes-infra", "allow": ["mezedes-server"] }
+    ],
+    "calls": {
+      "forbidden": [
+        { "from": "mezedes-core", "callee": "cloudflare:workers.*" },
+        { "from": "mezedes-core", "callee": "fetch" },
+        { "from": "mezedes-core", "callee": "caches.*" },
+        { "from": "mezedes-core", "callee": "crypto.subtle.*" },
+        { "from": "mezedes-shell", "callee": "cloudflare:workers.*" }
+      ]
+    }
   },
   "rules": {
     "boundary-violation": "error",

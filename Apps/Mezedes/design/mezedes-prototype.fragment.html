@@ -1,0 +1,795 @@
+<div id="mezedes-prototype" data-theme="light" data-route="collection">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=GFS+Didot&family=IBM+Plex+Mono:wght@400&family=Manrope:wght@400;500&display=swap');
+
+    #mezedes-prototype {
+      --mz-paper: #f3eddd;
+      --mz-paper-strong: #fffaf0;
+      --mz-ink: #183f79;
+      --mz-text: #27231c;
+      --mz-muted: #6a6558;
+      --mz-line: #174e91;
+      --mz-accent: #d8512d;
+      --mz-olive: #65704c;
+      --mz-danger: #b53f2c;
+      --mz-shadow: rgba(37, 31, 24, 0.2);
+      --mz-dim: rgba(34, 29, 22, 0.42);
+      position: relative;
+      width: 100%;
+      min-height: 720px;
+      overflow: hidden;
+      color: var(--mz-text);
+      background-color: var(--mz-paper);
+      background-image:
+        linear-gradient(rgba(23, 78, 145, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 78, 145, 0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: Manrope, system-ui, sans-serif;
+      border: 1px solid color-mix(in srgb, var(--mz-line) 28%, transparent);
+      isolation: isolate;
+    }
+
+    #mezedes-prototype[data-theme="dark"] {
+      --mz-paper: #172017;
+      --mz-paper-strong: #222c21;
+      --mz-ink: #f1eadc;
+      --mz-text: #f1eadc;
+      --mz-muted: #b2b6a3;
+      --mz-line: #a6ba75;
+      --mz-accent: #d6a846;
+      --mz-olive: #a6ba75;
+      --mz-danger: #d4775d;
+      --mz-shadow: rgba(0, 0, 0, 0.48);
+      --mz-dim: rgba(5, 8, 5, 0.66);
+      background-image:
+        linear-gradient(rgba(166, 186, 117, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(166, 186, 117, 0.025) 1px, transparent 1px);
+    }
+
+    #mezedes-prototype * { box-sizing: border-box; }
+    #mezedes-prototype button,
+    #mezedes-prototype input { font: inherit; }
+    #mezedes-prototype button { color: inherit; }
+    #mezedes-prototype button:focus-visible,
+    #mezedes-prototype input:focus-visible { outline: 3px solid var(--mz-accent); outline-offset: 3px; }
+    #mezedes-prototype [hidden] { display: none !important; }
+
+    #mezedes-prototype .mz-header {
+      position: relative;
+      z-index: 10;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 2rem;
+      border-bottom: 1px solid var(--mz-line);
+      background: color-mix(in srgb, var(--mz-paper) 94%, transparent);
+    }
+
+    #mezedes-prototype .mz-brand {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      color: var(--mz-ink);
+      font-family: "GFS Didot", Georgia, serif;
+      font-size: clamp(1.45rem, 4vw, 2.1rem);
+      line-height: 1;
+      text-align: left;
+    }
+
+    #mezedes-prototype .mz-brand-root { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+    #mezedes-prototype[data-route="collection"] .mz-brand-root { text-decoration: none; }
+    #mezedes-prototype .mz-crumb { color: var(--mz-text); }
+
+    #mezedes-prototype .mz-header-actions { display: flex; align-items: center; gap: 0.35rem; }
+    #mezedes-prototype .mz-text-action,
+    #mezedes-prototype .mz-icon-action {
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      padding: 0.62rem 0.72rem;
+      color: var(--mz-ink);
+    }
+    #mezedes-prototype .mz-text-action:hover,
+    #mezedes-prototype .mz-icon-action:hover { color: var(--mz-accent); }
+    #mezedes-prototype .mz-icon-action { display: inline-flex; align-items: center; gap: 0.45rem; }
+    #mezedes-prototype .mz-symbol { font-family: Georgia, serif; font-size: 1.2em; }
+
+    #mezedes-prototype .mz-account-wrap { position: relative; }
+    #mezedes-prototype .mz-popover {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.35rem);
+      width: 150px;
+      padding: 0.5rem;
+      border: 1px solid var(--mz-line);
+      background: var(--mz-paper-strong);
+      box-shadow: 8px 8px 0 color-mix(in srgb, var(--mz-line) 16%, transparent);
+      z-index: 20;
+    }
+    #mezedes-prototype .mz-popover button { width: 100%; text-align: left; border: 0; background: transparent; padding: 0.65rem; cursor: pointer; }
+    #mezedes-prototype .mz-popover button:hover { background: color-mix(in srgb, var(--mz-line) 10%, transparent); }
+
+    #mezedes-prototype .mz-page { padding: clamp(1.2rem, 4vw, 2.1rem); }
+    #mezedes-prototype .mz-collection-intro {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1.4rem;
+    }
+    #mezedes-prototype .mz-collection-intro h1 {
+      margin: 0;
+      color: var(--mz-ink);
+      font-family: "GFS Didot", Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(2.4rem, 7vw, 5rem);
+      line-height: 0.9;
+    }
+    #mezedes-prototype .mz-count { color: var(--mz-muted); font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    #mezedes-prototype .mz-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--mz-line);
+      border: 1px solid var(--mz-line);
+    }
+    #mezedes-prototype .mz-mezes {
+      min-width: 0;
+      min-height: 250px;
+      display: grid;
+      grid-template-columns: minmax(150px, 0.75fr) minmax(180px, 1.25fr);
+      grid-template-rows: 1fr auto;
+      gap: 1rem;
+      border: 0;
+      padding: 1.2rem;
+      background: var(--mz-paper);
+      text-align: left;
+      cursor: pointer;
+      overflow: hidden;
+      position: relative;
+    }
+    #mezedes-prototype .mz-mezes:hover .mz-mezes-title { color: var(--mz-accent); transform: translateX(5px); }
+    #mezedes-prototype .mz-mezes-title {
+      margin: 0;
+      align-self: start;
+      color: var(--mz-ink);
+      font-family: "GFS Didot", Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 0.86;
+      transition: color 160ms ease, transform 160ms ease;
+      position: relative;
+      z-index: 2;
+    }
+    #mezedes-prototype .mz-meta { grid-column: 1 / -1; align-self: end; padding-top: 0.7rem; border-top: 1px solid var(--mz-line); color: var(--mz-muted); font-size: 0.78rem; }
+    #mezedes-prototype .mz-art { min-height: 170px; position: relative; overflow: hidden; background: var(--mz-paper-strong); }
+    #mezedes-prototype .mz-art::before,
+    #mezedes-prototype .mz-art::after { content: ""; position: absolute; }
+    #mezedes-prototype .mz-art-garden::before { inset: 12% 8% 0; background: repeating-linear-gradient(92deg, transparent 0 16px, var(--mz-olive) 17px 18px, transparent 19px 28px); clip-path: polygon(0 100%,5% 56%,8% 100%,13% 24%,17% 100%,23% 45%,27% 100%,34% 8%,38% 100%,46% 38%,50% 100%,58% 17%,62% 100%,70% 48%,74% 100%,83% 22%,87% 100%,94% 42%,100% 100%); }
+    #mezedes-prototype .mz-art-garden::after { width: 82px; height: 82px; left: 45%; top: 14%; border: 1px dashed var(--mz-accent); border-radius: 50%; box-shadow: 0 0 0 28px color-mix(in srgb, var(--mz-accent) 5%, transparent), 0 0 0 29px var(--mz-accent); }
+    #mezedes-prototype .mz-art-clock::before { width: 138px; height: 138px; border: 2px solid var(--mz-accent); border-radius: 50%; left: 50%; top: 50%; transform: translate(-50%,-50%); background: repeating-conic-gradient(from -2deg, var(--mz-accent) 0 1deg, transparent 1deg 30deg); }
+    #mezedes-prototype .mz-art-clock::after { width: 4px; height: 52px; background: var(--mz-accent); left: 50%; top: 50%; transform-origin: top; transform: rotate(38deg); }
+    #mezedes-prototype .mz-art-wave::before { inset: 0; background: repeating-radial-gradient(ellipse at 30% 120%, transparent 0 16px, var(--mz-line) 17px 18px, transparent 19px 27px); opacity: 0.75; }
+    #mezedes-prototype .mz-art-wave::after { width: 10px; height: 10px; border-radius: 50%; background: var(--mz-accent); left: 63%; top: 42%; box-shadow: -70px 42px 0 var(--mz-olive), 55px 58px 0 var(--mz-line); }
+    #mezedes-prototype .mz-art-house::before { left: 16%; right: 18%; bottom: 14%; height: 60%; background: var(--mz-line); clip-path: polygon(0 28%,33% 0,33% 22%,100% 22%,100% 100%,0 100%); }
+    #mezedes-prototype .mz-art-house::after { left: 44%; bottom: 14%; width: 20px; height: 42px; background: var(--mz-paper-strong); box-shadow: 70px -66px 0 10px var(--mz-accent); }
+
+    #mezedes-prototype .mz-detail { padding-top: 0; }
+    #mezedes-prototype .mz-toolbar {
+      min-height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 1px solid var(--mz-line);
+      position: relative;
+    }
+    #mezedes-prototype .mz-modes,
+    #mezedes-prototype .mz-local-actions { display: flex; align-items: center; gap: 0.35rem; }
+    #mezedes-prototype .mz-mode {
+      border: 0;
+      border-bottom: 2px solid transparent;
+      padding: 0.85rem 0.55rem 0.65rem;
+      background: transparent;
+      color: var(--mz-ink);
+      cursor: pointer;
+      font-family: "GFS Didot", Georgia, serif;
+      font-size: 1.15rem;
+    }
+    #mezedes-prototype .mz-mode[aria-selected="true"] { color: var(--mz-accent); border-color: var(--mz-accent); }
+    #mezedes-prototype .mz-overflow-wrap { position: relative; }
+
+    #mezedes-prototype .mz-workspace { padding-top: 1rem; }
+    #mezedes-prototype .mz-sandbox {
+      position: relative;
+      min-height: 520px;
+      border: 1px solid var(--mz-line);
+      overflow: hidden;
+      background: var(--mz-paper-strong);
+    }
+    #mezedes-prototype .mz-sandbox-label { position: absolute; z-index: 2; top: 0.6rem; left: 0.7rem; color: var(--mz-ink); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; }
+    #mezedes-prototype canvas { display: block; width: 100%; height: 520px; cursor: crosshair; }
+
+    #mezedes-prototype .mz-code-browser {
+      min-height: 520px;
+      display: grid;
+      grid-template-columns: minmax(170px, 22%) 1fr;
+      border: 1px solid var(--mz-line);
+      background: #111811;
+      color: #efe8db;
+    }
+    #mezedes-prototype .mz-filetree { padding: 0.8rem; border-right: 1px solid #526048; }
+    #mezedes-prototype .mz-filetree button { display: block; width: 100%; border: 0; padding: 0.6rem 0.7rem; background: transparent; color: #c9cdb9; text-align: left; cursor: pointer; }
+    #mezedes-prototype .mz-filetree button:hover,
+    #mezedes-prototype .mz-filetree button[aria-current="true"] { color: #f3eddf; background: #273324; }
+    #mezedes-prototype .mz-editor { min-width: 0; position: relative; overflow: auto; }
+    #mezedes-prototype .mz-readonly { position: absolute; top: 0.75rem; right: 0.9rem; color: #aeb39f; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    #mezedes-prototype pre { margin: 0; padding: 2.4rem 1.2rem 1.2rem; color: #d8decc; font-family: "IBM Plex Mono", monospace; font-size: 0.76rem; line-height: 1.65; white-space: pre-wrap; }
+    #mezedes-prototype .tk-o { color: #e37b52; }
+    #mezedes-prototype .tk-g { color: #a8bc75; }
+    #mezedes-prototype .tk-y { color: #d6a846; }
+
+    #mezedes-prototype .mz-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      background: var(--mz-dim);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    #mezedes-prototype .mz-backdrop.is-open { opacity: 1; pointer-events: auto; }
+    #mezedes-prototype .mz-sheet {
+      position: absolute;
+      z-index: 35;
+      top: 0;
+      right: 0;
+      width: min(390px, 92%);
+      height: 100%;
+      padding: 1.2rem;
+      border-left: 1px solid var(--mz-line);
+      background: var(--mz-paper-strong);
+      transform: translateX(102%);
+      transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+      box-shadow: -18px 0 40px var(--mz-shadow);
+    }
+    #mezedes-prototype .mz-sheet.is-open { transform: translateX(0); }
+    #mezedes-prototype .mz-sheet-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.9rem; border-bottom: 1px solid var(--mz-line); }
+    #mezedes-prototype .mz-sheet h2,
+    #mezedes-prototype dialog h2 { margin: 0; color: var(--mz-ink); font-family: "GFS Didot", Georgia, serif; font-weight: 400; font-size: 2rem; }
+    #mezedes-prototype .mz-version-list { margin-top: 0.5rem; }
+    #mezedes-prototype .mz-version {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 0.75rem;
+      border: 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--mz-line) 28%, transparent);
+      padding: 1rem 0.2rem;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    #mezedes-prototype .mz-version:hover { color: var(--mz-accent); }
+    #mezedes-prototype .mz-version[aria-current="true"] { color: var(--mz-accent); }
+    #mezedes-prototype .mz-version-dot { width: 12px; height: 12px; margin-top: 0.3rem; border: 1px solid currentColor; border-radius: 50%; }
+    #mezedes-prototype .mz-version[aria-current="true"] .mz-version-dot { background: currentColor; box-shadow: inset 0 0 0 3px var(--mz-paper-strong); }
+    #mezedes-prototype .mz-version small { display: block; margin-top: 0.22rem; color: var(--mz-muted); }
+
+    #mezedes-prototype dialog {
+      width: min(520px, calc(100% - 2rem));
+      max-height: calc(100% - 2rem);
+      overflow: auto;
+      border: 1px solid var(--mz-line);
+      border-radius: 0;
+      padding: 0;
+      color: var(--mz-text);
+      background: var(--mz-paper-strong);
+      box-shadow: 16px 16px 0 color-mix(in srgb, var(--mz-line) 24%, transparent);
+    }
+    #mezedes-prototype dialog::backdrop { background: var(--mz-dim); }
+    #mezedes-prototype .mz-dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem; border-bottom: 1px solid var(--mz-line); }
+    #mezedes-prototype .mz-dialog-body { padding: 1.2rem; }
+    #mezedes-prototype .mz-field { display: grid; gap: 0.4rem; margin-bottom: 1rem; }
+    #mezedes-prototype .mz-field label,
+    #mezedes-prototype .mz-field legend { color: var(--mz-ink); font-size: 0.8rem; }
+    #mezedes-prototype .mz-field input[type="text"] { width: 100%; border: 1px solid var(--mz-line); border-radius: 0; padding: 0.75rem; color: var(--mz-text); background: var(--mz-paper); }
+    #mezedes-prototype .mz-choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    #mezedes-prototype .mz-choice { display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; border: 1px solid var(--mz-line); cursor: pointer; }
+    #mezedes-prototype .mz-helper { margin: 0.55rem 0 0; color: var(--mz-muted); font-size: 0.72rem; }
+    #mezedes-prototype .mz-dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.2rem; border-top: 1px solid var(--mz-line); }
+    #mezedes-prototype .mz-action { border: 1px solid var(--mz-line); border-radius: 0; padding: 0.7rem 0.9rem; background: transparent; cursor: pointer; }
+    #mezedes-prototype .mz-action:hover { background: color-mix(in srgb, var(--mz-line) 10%, transparent); }
+    #mezedes-prototype .mz-action-primary { color: var(--mz-paper-strong); background: var(--mz-line); }
+    #mezedes-prototype .mz-action-primary:hover { background: var(--mz-accent); border-color: var(--mz-accent); }
+    #mezedes-prototype .mz-action-danger { color: var(--mz-danger); border-color: var(--mz-danger); margin-right: auto; }
+    #mezedes-prototype .mz-action:disabled { opacity: 0.38; cursor: not-allowed; }
+
+    #mezedes-prototype .mz-live {
+      position: absolute;
+      z-index: 50;
+      inset: 0;
+      display: grid;
+      background: var(--mz-paper-strong);
+    }
+    #mezedes-prototype .mz-live-return { position: absolute; z-index: 2; top: 1rem; left: 1rem; border: 1px solid var(--mz-line); padding: 0.65rem 0.8rem; background: var(--mz-paper-strong); color: var(--mz-ink); cursor: pointer; }
+    #mezedes-prototype .mz-live canvas { width: 100%; height: 720px; }
+    #mezedes-prototype .mz-toast { position: absolute; z-index: 60; left: 50%; bottom: 1rem; transform: translate(-50%, 140%); padding: 0.7rem 1rem; border: 1px solid var(--mz-line); background: var(--mz-paper-strong); color: var(--mz-text); transition: transform 180ms ease; }
+    #mezedes-prototype .mz-toast.is-open { transform: translate(-50%, 0); }
+
+    @media (max-width: 760px) {
+      #mezedes-prototype { min-height: 760px; }
+      #mezedes-prototype .mz-header { min-height: 62px; padding: 0 0.8rem; }
+      #mezedes-prototype .mz-header-actions .mz-label { display: none; }
+      #mezedes-prototype .mz-page { padding: 1rem; }
+      #mezedes-prototype .mz-grid { grid-template-columns: 1fr; }
+      #mezedes-prototype .mz-mezes { min-height: 220px; }
+      #mezedes-prototype .mz-toolbar { align-items: stretch; flex-direction: column; gap: 0; padding: 0.35rem 0; }
+      #mezedes-prototype .mz-local-actions { justify-content: space-between; border-top: 1px solid color-mix(in srgb, var(--mz-line) 28%, transparent); }
+      #mezedes-prototype .mz-sandbox,
+      #mezedes-prototype canvas { min-height: 530px; height: 530px; }
+      #mezedes-prototype .mz-code-browser { grid-template-columns: 1fr; }
+      #mezedes-prototype .mz-filetree { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid #526048; padding: 0.4rem; }
+      #mezedes-prototype .mz-filetree button { width: auto; white-space: nowrap; }
+      #mezedes-prototype .mz-sheet { top: auto; bottom: 0; width: 100%; height: min(64%, 560px); border-left: 0; border-top: 1px solid var(--mz-line); transform: translateY(102%); }
+      #mezedes-prototype .mz-sheet.is-open { transform: translateY(0); }
+      #mezedes-prototype .mz-choice-row { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 470px) {
+      #mezedes-prototype .mz-mezes { grid-template-columns: minmax(110px, 0.7fr) 1.3fr; padding: 0.85rem; min-height: 190px; }
+      #mezedes-prototype .mz-art { min-height: 140px; }
+      #mezedes-prototype .mz-icon-action { padding-inline: 0.45rem; }
+      #mezedes-prototype .mz-local-actions { gap: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #mezedes-prototype *, #mezedes-prototype *::before, #mezedes-prototype *::after { transition-duration: 0.01ms !important; }
+    }
+  </style>
+
+  <header class="mz-header">
+    <button type="button" class="mz-brand" data-action="home" aria-label="Back to all mezedes">
+      <span class="mz-brand-root">mezedes</span><span class="mz-crumb" hidden> / <span id="mz-header-name">signal garden</span></span>
+    </button>
+    <div class="mz-header-actions">
+      <button type="button" class="mz-icon-action" data-action="theme" aria-label="Switch to olive dusk">
+        <span class="mz-symbol" aria-hidden="true">☼</span><span class="mz-label">daylight</span>
+      </button>
+      <div class="mz-account-wrap">
+        <button type="button" class="mz-icon-action" data-action="account" aria-expanded="false"><span class="mz-symbol" aria-hidden="true">○</span><span class="mz-label">stoli</span></button>
+        <div class="mz-popover" id="mz-account-menu" hidden>
+          <button type="button" data-action="theme">Switch theme</button>
+          <button type="button" data-action="signout">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="mz-page" id="mz-collection-page" aria-label="Your mezedes">
+      <div class="mz-collection-intro">
+        <h1>your small things</h1>
+        <span class="mz-count" id="mz-count">4 mezedes</span>
+      </div>
+      <div class="mz-grid" id="mz-grid">
+        <button type="button" class="mz-mezes" data-mezes="soft launch">
+          <h2 class="mz-mezes-title">soft<br>launch</h2><span class="mz-art mz-art-wave" aria-hidden="true"></span>
+          <span class="mz-meta">private · 4 versions · 2d</span>
+        </button>
+        <button type="button" class="mz-mezes" data-mezes="pita clock">
+          <h2 class="mz-mezes-title">pita<br>clock</h2><span class="mz-art mz-art-clock" aria-hidden="true"></span>
+          <span class="mz-meta">public · 7 versions · 5d</span>
+        </button>
+        <button type="button" class="mz-mezes" data-mezes="signal garden">
+          <h2 class="mz-mezes-title">signal<br>garden</h2><span class="mz-art mz-art-garden" aria-hidden="true"></span>
+          <span class="mz-meta">private · 4 versions · 2d</span>
+        </button>
+        <button type="button" class="mz-mezes" data-mezes="drift study">
+          <h2 class="mz-mezes-title">drift<br>study</h2><span class="mz-art mz-art-house" aria-hidden="true"></span>
+          <span class="mz-meta">private · 2 versions · 2w</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="mz-page mz-detail" id="mz-detail-page" aria-label="Mezes details" hidden>
+      <div class="mz-toolbar">
+        <div class="mz-modes" role="tablist" aria-label="Mezes view">
+          <button type="button" class="mz-mode" role="tab" aria-selected="true" data-view="preview">preview</button>
+          <button type="button" class="mz-mode" role="tab" aria-selected="false" data-view="code">code</button>
+        </div>
+        <div class="mz-local-actions">
+          <button type="button" class="mz-icon-action" data-action="open-live"><span aria-hidden="true">↗</span><span>open live</span></button>
+          <button type="button" class="mz-icon-action" data-action="versions" aria-expanded="false"><span aria-hidden="true">↶</span><span id="mz-version-button">versions</span></button>
+          <div class="mz-overflow-wrap">
+            <button type="button" class="mz-icon-action" data-action="overflow" aria-label="More mezes actions" aria-expanded="false">•••</button>
+            <div class="mz-popover" id="mz-overflow-menu" hidden>
+              <button type="button" data-action="settings">Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mz-workspace" id="mz-preview-pane" role="tabpanel">
+        <div class="mz-sandbox">
+          <span class="mz-sandbox-label">sandbox · click to send a signal</span>
+          <canvas id="mz-garden" aria-label="Interactive signal garden preview"></canvas>
+        </div>
+      </div>
+
+      <div class="mz-workspace" id="mz-code-pane" role="tabpanel" hidden>
+        <div class="mz-code-browser">
+          <nav class="mz-filetree" aria-label="Files">
+            <button type="button" aria-current="true" data-file="App.tsx">App.tsx</button>
+            <button type="button" data-file="garden.ts">garden.ts</button>
+            <button type="button" data-file="styles.css">styles.css</button>
+            <button type="button" data-file="index.html">index.html</button>
+            <button type="button" data-file="package.json">package.json</button>
+          </nav>
+          <div class="mz-editor"><span class="mz-readonly">read only</span><pre id="mz-code"><code></code></pre></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="mz-backdrop" id="mz-backdrop" data-action="close-sheet"></div>
+  <aside class="mz-sheet" id="mz-version-sheet" aria-label="Version history" aria-hidden="true">
+    <div class="mz-sheet-head"><h2>versions</h2><button type="button" class="mz-icon-action" data-action="close-sheet" aria-label="Close versions">×</button></div>
+    <div class="mz-version-list">
+      <button type="button" class="mz-version" aria-current="true" data-version="Live"><span class="mz-version-dot"></span><span><strong>Live</strong><small>Current live version</small></span></button>
+      <button type="button" class="mz-version" aria-current="false" data-version="v4"><span class="mz-version-dot"></span><span><strong>v4 · 2 days ago</strong><small>Tweaked wave rhythm</small></span></button>
+      <button type="button" class="mz-version" aria-current="false" data-version="v3"><span class="mz-version-dot"></span><span><strong>v3 · 1 week ago</strong><small>Adjusted bird placement</small></span></button>
+      <button type="button" class="mz-version" aria-current="false" data-version="v2"><span class="mz-version-dot"></span><span><strong>v2 · 2 weeks ago</strong><small>Refined plant density</small></span></button>
+      <button type="button" class="mz-version" aria-current="false" data-version="v1"><span class="mz-version-dot"></span><span><strong>v1 · 3 weeks ago</strong><small>Initial composition</small></span></button>
+    </div>
+    <button type="button" class="mz-action" data-version="Live">return to live</button>
+  </aside>
+
+  <dialog id="mz-settings-dialog">
+    <form method="dialog" id="mz-settings-form">
+      <div class="mz-dialog-head"><h2>mezes settings</h2><button type="button" class="mz-icon-action" data-action="close-settings" aria-label="Close settings">×</button></div>
+      <div class="mz-dialog-body">
+        <div class="mz-field"><label for="mz-name">name</label><input id="mz-name" type="text" value="signal garden" autocomplete="off"></div>
+        <fieldset class="mz-field"><legend>privacy</legend><div class="mz-choice-row">
+          <label class="mz-choice"><input type="radio" name="privacy" value="private" checked> private</label>
+          <label class="mz-choice"><input type="radio" name="privacy" value="public"> public internet</label>
+        </div><p class="mz-helper">Public mezedes can be reached by anyone with the link.</p></fieldset>
+      </div>
+      <div class="mz-dialog-actions">
+        <button type="button" class="mz-action mz-action-danger" data-action="delete">delete mezes</button>
+        <button type="button" class="mz-action" data-action="close-settings">cancel</button>
+        <button type="button" class="mz-action mz-action-primary" data-action="save-settings">save changes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="mz-delete-dialog">
+    <form method="dialog" id="mz-delete-form">
+      <div class="mz-dialog-head"><h2>delete mezes?</h2><button type="button" class="mz-icon-action" data-action="close-delete" aria-label="Close confirmation">×</button></div>
+      <div class="mz-dialog-body">
+        <p>This removes the mezes and every served version. Type <strong id="mz-delete-name">signal garden</strong> to continue.</p>
+        <div class="mz-field"><label for="mz-delete-confirm">mezes name</label><input id="mz-delete-confirm" type="text" autocomplete="off"></div>
+      </div>
+      <div class="mz-dialog-actions"><button type="button" class="mz-action" data-action="close-delete">cancel</button><button type="button" class="mz-action mz-action-danger" id="mz-confirm-delete" data-action="confirm-delete" disabled>delete forever</button></div>
+    </form>
+  </dialog>
+
+  <section class="mz-live" id="mz-live-view" aria-label="Public artifact preview" hidden>
+    <button type="button" class="mz-live-return" data-action="close-live">← return to mezedes</button>
+    <canvas id="mz-live-garden" aria-label="Live signal garden"></canvas>
+  </section>
+  <div class="mz-toast" id="mz-toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('mezedes-prototype');
+      const collectionPage = root.querySelector('#mz-collection-page');
+      const detailPage = root.querySelector('#mz-detail-page');
+      const crumb = root.querySelector('.mz-crumb');
+      const headerName = root.querySelector('#mz-header-name');
+      const previewPane = root.querySelector('#mz-preview-pane');
+      const codePane = root.querySelector('#mz-code-pane');
+      const versionSheet = root.querySelector('#mz-version-sheet');
+      const backdrop = root.querySelector('#mz-backdrop');
+      const versionButton = root.querySelector('#mz-version-button');
+      const settingsDialog = root.querySelector('#mz-settings-dialog');
+      const deleteDialog = root.querySelector('#mz-delete-dialog');
+      const liveView = root.querySelector('#mz-live-view');
+      const toast = root.querySelector('#mz-toast');
+      const accountMenu = root.querySelector('#mz-account-menu');
+      const overflowMenu = root.querySelector('#mz-overflow-menu');
+      const nameInput = root.querySelector('#mz-name');
+      const deleteName = root.querySelector('#mz-delete-name');
+      const deleteInput = root.querySelector('#mz-delete-confirm');
+      const deleteButton = root.querySelector('#mz-confirm-delete');
+      const grid = root.querySelector('#mz-grid');
+      const count = root.querySelector('#mz-count');
+      const codeTarget = root.querySelector('#mz-code code');
+      let currentName = 'signal garden';
+      let currentVersion = 'Live';
+      let toastTimer;
+
+      const codeFiles = {
+        'App.tsx': `<span class="tk-o">import</span> { SignalGarden } <span class="tk-o">from</span> <span class="tk-y">'./garden'</span>;
+
+<span class="tk-o">export default function</span> App() {
+  <span class="tk-o">return</span> &lt;SignalGarden density={<span class="tk-y">18</span>} /&gt;;
+}`,
+        'garden.ts': `<span class="tk-o">export function</span> <span class="tk-g">sendSignal</span>(x: number, y: number) {
+  <span class="tk-o">return</span> { origin: [x, y], rings: <span class="tk-y">3</span> };
+}
+
+<span class="tk-o">export const</span> palette = {
+  cobalt: <span class="tk-y">'#174e91'</span>,
+  olive: <span class="tk-y">'#65704c'</span>,
+  sun: <span class="tk-y">'#d8512d'</span>
+};`,
+        'styles.css': `.garden { background: <span class="tk-y">#f3eddd</span>; }
+.signal { stroke: <span class="tk-y">#d8512d</span>; }
+.stem { stroke: <span class="tk-y">#65704c</span>; }`,
+        'index.html': `&lt;main id=<span class="tk-y">"garden"</span>&gt;&lt;/main&gt;
+&lt;script type=<span class="tk-y">"module"</span> src=<span class="tk-y">"/src/App.tsx"</span>&gt;&lt;/script&gt;`,
+        'package.json': `{
+  <span class="tk-y">"name"</span>: <span class="tk-y">"signal-garden"</span>,
+  <span class="tk-y">"private"</span>: true,
+  <span class="tk-y">"dependencies"</span>: { <span class="tk-y">"react"</span>: <span class="tk-y">"19.1.0"</span> }
+}`
+      };
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('is-open');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('is-open'), 2200);
+      }
+
+      function closeMenus() {
+        accountMenu.hidden = true;
+        overflowMenu.hidden = true;
+        root.querySelector('[data-action="account"]').setAttribute('aria-expanded', 'false');
+        root.querySelector('[data-action="overflow"]').setAttribute('aria-expanded', 'false');
+      }
+
+      function goHome() {
+        root.dataset.route = 'collection';
+        collectionPage.hidden = false;
+        detailPage.hidden = true;
+        crumb.hidden = true;
+        closeSheet();
+        closeMenus();
+      }
+
+      function openMezes(name) {
+        currentName = name;
+        root.dataset.route = 'detail';
+        collectionPage.hidden = true;
+        detailPage.hidden = false;
+        crumb.hidden = false;
+        headerName.textContent = name;
+        nameInput.value = name;
+        deleteName.textContent = name;
+        setView('preview');
+        requestAnimationFrame(() => drawGarden(root.querySelector('#mz-garden'), currentVersion));
+      }
+
+      function setView(view) {
+        const preview = view === 'preview';
+        previewPane.hidden = !preview;
+        codePane.hidden = preview;
+        root.querySelectorAll('.mz-mode').forEach(button => button.setAttribute('aria-selected', String(button.dataset.view === view)));
+        if (!preview) codeTarget.innerHTML = codeFiles['App.tsx'];
+      }
+
+      function openSheet() {
+        versionSheet.classList.add('is-open');
+        backdrop.classList.add('is-open');
+        versionSheet.setAttribute('aria-hidden', 'false');
+        root.querySelector('[data-action="versions"]').setAttribute('aria-expanded', 'true');
+      }
+
+      function closeSheet() {
+        versionSheet.classList.remove('is-open');
+        backdrop.classList.remove('is-open');
+        versionSheet.setAttribute('aria-hidden', 'true');
+        const trigger = root.querySelector('[data-action="versions"]');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+      }
+
+      function selectVersion(version) {
+        currentVersion = version;
+        root.querySelectorAll('.mz-version').forEach(button => button.setAttribute('aria-current', String(button.dataset.version === version)));
+        versionButton.textContent = version === 'Live' ? 'versions' : `versions · ${version}`;
+        drawGarden(root.querySelector('#mz-garden'), version);
+        closeSheet();
+        showToast(version === 'Live' ? 'Showing live' : `Showing frozen ${version}`);
+      }
+
+      function toggleTheme() {
+        const dark = root.dataset.theme === 'dark';
+        root.dataset.theme = dark ? 'light' : 'dark';
+        const themeButton = root.querySelector('.mz-header [data-action="theme"]');
+        themeButton.querySelector('.mz-symbol').textContent = dark ? '☼' : '◐';
+        themeButton.querySelector('.mz-label').textContent = dark ? 'daylight' : 'olive dusk';
+        themeButton.setAttribute('aria-label', dark ? 'Switch to olive dusk' : 'Switch to Hellenic daylight');
+        drawGarden(root.querySelector('#mz-garden'), currentVersion);
+        if (!liveView.hidden) drawGarden(root.querySelector('#mz-live-garden'), currentVersion);
+        closeMenus();
+      }
+
+      function openSettings() {
+        closeMenus();
+        nameInput.value = currentName;
+        settingsDialog.showModal();
+      }
+
+      function saveSettings() {
+        const nextName = nameInput.value.trim() || currentName;
+        const privacy = root.querySelector('input[name="privacy"]:checked').value;
+        const oldName = currentName;
+        currentName = nextName;
+        headerName.textContent = nextName;
+        deleteName.textContent = nextName;
+        const matchingCard = [...grid.querySelectorAll('.mz-mezes')].find(card => card.dataset.mezes === oldName);
+        if (matchingCard) {
+          matchingCard.dataset.mezes = nextName;
+          matchingCard.querySelector('.mz-mezes-title').innerHTML = nextName.split(' ').join('<br>');
+          const meta = matchingCard.querySelector('.mz-meta');
+          meta.textContent = `${privacy === 'public' ? 'public' : 'private'} · 4 versions · now`;
+        }
+        settingsDialog.close();
+        showToast('Changes saved');
+      }
+
+      function openDelete() {
+        settingsDialog.close();
+        deleteInput.value = '';
+        deleteButton.disabled = true;
+        deleteDialog.showModal();
+      }
+
+      function confirmDelete() {
+        const card = [...grid.querySelectorAll('.mz-mezes')].find(item => item.dataset.mezes === currentName);
+        if (card) card.remove();
+        count.textContent = `${grid.querySelectorAll('.mz-mezes').length} mezedes`;
+        deleteDialog.close();
+        goHome();
+        showToast('Mezes deleted');
+      }
+
+      function openLive() {
+        liveView.hidden = false;
+        drawGarden(root.querySelector('#mz-live-garden'), currentVersion);
+      }
+
+      function drawGarden(canvas, version) {
+        if (!canvas || canvas.offsetWidth === 0) return;
+        const rect = canvas.getBoundingClientRect();
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.max(1, Math.round(rect.width * ratio));
+        canvas.height = Math.max(1, Math.round(rect.height * ratio));
+        const ctx = canvas.getContext('2d');
+        ctx.scale(ratio, ratio);
+        const w = rect.width;
+        const h = rect.height;
+        const dark = root.dataset.theme === 'dark';
+        const paper = dark ? '#111711' : '#fffaf0';
+        const cobalt = dark ? '#a6ba75' : '#174e91';
+        const olive = dark ? '#8fa269' : '#65704c';
+        const accent = dark ? '#d6a846' : '#d8512d';
+        const seedBase = {Live: 41, v4: 35, v3: 29, v2: 23, v1: 17}[version] || 41;
+        let seed = seedBase;
+        const random = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+        ctx.fillStyle = paper;
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = cobalt;
+        ctx.lineWidth = 0.8;
+        ctx.globalAlpha = 0.55;
+        for (let wave = 0; wave < 9; wave++) {
+          ctx.beginPath();
+          for (let x = -20; x <= w + 20; x += 7) {
+            const y = h * 0.64 + wave * 8 + Math.sin(x * 0.018 + wave * 0.55) * 14;
+            if (x === -20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        const stems = Math.max(16, Math.floor(w / 44));
+        for (let i = 0; i < stems; i++) {
+          const x = 18 + random() * (w - 36);
+          const stemH = h * (0.2 + random() * 0.42);
+          const base = h - 18;
+          const bend = (random() - 0.5) * 34;
+          ctx.strokeStyle = olive;
+          ctx.lineWidth = 1 + random() * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(x, base);
+          ctx.quadraticCurveTo(x + bend * 0.4, base - stemH * 0.55, x + bend, base - stemH);
+          ctx.stroke();
+          const leaves = 3 + Math.floor(random() * 5);
+          for (let leaf = 1; leaf <= leaves; leaf++) {
+            const t = leaf / (leaves + 1);
+            const lx = x + bend * t;
+            const ly = base - stemH * t;
+            const side = leaf % 2 ? -1 : 1;
+            ctx.beginPath();
+            ctx.moveTo(lx, ly);
+            ctx.quadraticCurveTo(lx + side * 14, ly - 10, lx + side * 19, ly - 3);
+            ctx.quadraticCurveTo(lx + side * 9, ly + 3, lx, ly);
+            ctx.stroke();
+          }
+          if (random() > 0.36) {
+            ctx.fillStyle = random() > 0.7 ? accent : olive;
+            ctx.beginPath();
+            ctx.arc(x + bend, base - stemH, 2.5 + random() * 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.fillStyle = accent;
+        for (let i = 0; i < 13; i++) {
+          const x = random() * w;
+          const y = 35 + random() * h * 0.4;
+          ctx.fillRect(x, y, 2, 2);
+        }
+        canvas.dataset.drawn = 'true';
+      }
+
+      function sendSignal(event) {
+        const canvas = event.currentTarget;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const ctx = canvas.getContext('2d');
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        ctx.save();
+        ctx.scale(ratio, ratio);
+        ctx.strokeStyle = root.dataset.theme === 'dark' ? '#d6a846' : '#d8512d';
+        ctx.lineWidth = 1.5;
+        [12, 28, 46].forEach(radius => { ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke(); });
+        ctx.restore();
+      }
+
+      root.addEventListener('click', event => {
+        const mezes = event.target.closest('[data-mezes]');
+        if (mezes) { openMezes(mezes.dataset.mezes); return; }
+        const view = event.target.closest('[data-view]');
+        if (view) { setView(view.dataset.view); return; }
+        const version = event.target.closest('[data-version]');
+        if (version) { selectVersion(version.dataset.version); return; }
+        const action = event.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+        if (action === 'home') goHome();
+        if (action === 'theme') toggleTheme();
+        if (action === 'account') { const open = accountMenu.hidden; closeMenus(); accountMenu.hidden = !open; event.target.closest('button').setAttribute('aria-expanded', String(open)); }
+        if (action === 'overflow') { const open = overflowMenu.hidden; closeMenus(); overflowMenu.hidden = !open; event.target.closest('button').setAttribute('aria-expanded', String(open)); }
+        if (action === 'versions') openSheet();
+        if (action === 'close-sheet') closeSheet();
+        if (action === 'settings') openSettings();
+        if (action === 'save-settings') saveSettings();
+        if (action === 'close-settings') settingsDialog.close();
+        if (action === 'delete') openDelete();
+        if (action === 'confirm-delete') confirmDelete();
+        if (action === 'close-delete') deleteDialog.close();
+        if (action === 'open-live') openLive();
+        if (action === 'close-live') liveView.hidden = true;
+        if (action === 'signout') { closeMenus(); showToast('Signed out in the real product'); }
+      });
+
+      deleteInput.addEventListener('input', () => { deleteButton.disabled = deleteInput.value !== currentName; });
+      root.querySelectorAll('[data-file]').forEach(button => button.addEventListener('click', () => {
+        root.querySelectorAll('[data-file]').forEach(item => item.setAttribute('aria-current', String(item === button)));
+        codeTarget.innerHTML = codeFiles[button.dataset.file];
+      }));
+      root.querySelector('#mz-garden').addEventListener('click', sendSignal);
+      root.querySelector('#mz-live-garden').addEventListener('click', sendSignal);
+      window.addEventListener('resize', () => {
+        if (root.dataset.route === 'detail' && !previewPane.hidden) drawGarden(root.querySelector('#mz-garden'), currentVersion);
+        if (!liveView.hidden) drawGarden(root.querySelector('#mz-live-garden'), currentVersion);
+      });
+
+      codeTarget.innerHTML = codeFiles['App.tsx'];
+    })();
+  </script>
+</div>

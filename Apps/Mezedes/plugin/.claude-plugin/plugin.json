@@ -1,0 +1,6 @@
+{
+  "name": "mezedes",
+  "version": "0.1.0",
+  "description": "Build small self-contained web things and publish them to a URL.",
+  "author": { "name": "stoli" }
+}

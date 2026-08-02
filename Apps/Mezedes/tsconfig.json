@@ -1,0 +1,36 @@
+{
+  // The Worker, its tests and the infrastructure. NOT the shell: a Worker and a
+  // browser bundle have different globals, and giving them one `lib` is what
+  // made `caches.default` unreachable — lib.dom's `CacheStorage` wins over the
+  // Workers one, and they do not merge. The shell has its own config next to it,
+  // which editors resolve automatically for files under `src/shell`.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "types": ["@cloudflare/workers-types", "bun"],
+
+    // Source imports its siblings with an explicit `.ts` extension. Nothing here
+    // emits: vite builds the shell and alchemy bundles the Worker.
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "skipLibCheck": true
+  },
+  "include": ["src/core", "src/server", "test", "integ", "alchemy.run.ts", "vite.config.ts"]
+}

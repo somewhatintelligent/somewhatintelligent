@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mezedes</title>
+    <!--
+      The token set, inline, so the first paint is not white. The shell's
+      stylesheet redefines the same names once it loads. The header's toggle
+      writes `data-theme` on the root element and must win over the media query
+      in both directions, which is why the dark block excludes an explicit
+      light choice rather than relying on order.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+
+        --mz-paper: #f3eddd;
+        --mz-paper-strong: #fffaf0;
+        --mz-ink: #183f79;
+        --mz-line: #174e91;
+        --mz-olive: #65704c;
+        --mz-accent: #d8512d;
+        --mz-danger: #b53f2c;
+        --mz-text: #27231c;
+        --mz-muted: #6a6558;
+        --mz-dim: rgba(34, 29, 22, 0.42);
+        --mz-shadow: rgba(37, 31, 24, 0.2);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --mz-paper: #172017;
+          --mz-paper-strong: #222c21;
+          --mz-ink: #f1eadc;
+          --mz-line: #a6ba75;
+          --mz-olive: #a6ba75;
+          --mz-accent: #d6a846;
+          --mz-danger: #d4775d;
+          --mz-text: #f1eadc;
+          --mz-muted: #b2b6a3;
+          --mz-dim: rgba(5, 8, 5, 0.66);
+          --mz-shadow: rgba(0, 0, 0, 0.48);
+        }
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+
+        --mz-paper: #172017;
+        --mz-paper-strong: #222c21;
+        --mz-ink: #f1eadc;
+        --mz-line: #a6ba75;
+        --mz-olive: #a6ba75;
+        --mz-accent: #d6a846;
+        --mz-danger: #d4775d;
+        --mz-text: #f1eadc;
+        --mz-muted: #b2b6a3;
+        --mz-dim: rgba(5, 8, 5, 0.66);
+        --mz-shadow: rgba(0, 0, 0, 0.48);
+      }
+
+      :root[data-theme="light"] {
+        color-scheme: light;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: var(--mz-paper);
+        color: var(--mz-text);
+        font-family: Manrope, system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/shell/main.tsx"></script>
+  </body>
+</html>

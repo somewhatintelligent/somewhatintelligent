@@ -1,0 +1,150 @@
+<div id="mezedes-journey-map">
+  <style>
+    #mezedes-journey-map {
+      --mj-paper: light-dark(#f5eedf, #182019);
+      --mj-panel: light-dark(#fff9ec, #242d22);
+      --mj-ink: light-dark(#251f18, #f2ebdd);
+      --mj-blue: light-dark(#134f92, #a8bc75);
+      --mj-olive: light-dark(#637044, #a8bc75);
+      --mj-red: light-dark(#c94d32, #d4775d);
+      --mj-line: light-dark(#b7ad9b, #3b4837);
+      color: var(--mj-ink);
+      background: var(--mj-paper);
+      border: 1px solid var(--mj-line);
+      padding: 1rem;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    #mezedes-journey-map * { box-sizing: border-box; }
+    #mezedes-journey-map .mj-route {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) 36px minmax(0, 1.1fr) 36px minmax(0, 1.35fr);
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+    #mezedes-journey-map .mj-node {
+      background: var(--mj-panel);
+      border: 2px solid var(--mj-blue);
+      padding: 0.85rem;
+      min-width: 0;
+    }
+    #mezedes-journey-map .mj-node.mj-secondary { border-color: var(--mj-olive); }
+    #mezedes-journey-map .mj-node.mj-danger { border-color: var(--mj-red); }
+    #mezedes-journey-map .mj-node h3,
+    #mezedes-journey-map .mj-node p { margin: 0; }
+    #mezedes-journey-map .mj-node h3 { color: var(--mj-blue); }
+    #mezedes-journey-map .mj-node p { margin-top: 0.5rem; font-family: ui-sans-serif, system-ui, sans-serif; }
+    #mezedes-journey-map .mj-arrow {
+      align-self: center;
+      color: var(--mj-blue);
+      text-align: center;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    #mezedes-journey-map .mj-arrow::after { content: "→"; display: block; font-size: 1.5rem; }
+    #mezedes-journey-map .mj-branch {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--mj-line);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+    #mezedes-journey-map .mj-branch-title {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      color: var(--mj-olive);
+      margin-bottom: 0.35rem;
+    }
+    #mezedes-journey-map .mj-list {
+      margin: 0.5rem 0 0;
+      padding-left: 1.1rem;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    #mezedes-journey-map .mj-external {
+      margin-top: 1rem;
+      border-top: 2px dashed var(--mj-red);
+      padding-top: 0.75rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: baseline;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    #mezedes-journey-map .mj-external strong { color: var(--mj-red); }
+    #mezedes-journey-map .mj-note {
+      margin-top: 0.75rem;
+      color: var(--mj-olive);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    @media (max-width: 620px) {
+      #mezedes-journey-map .mj-route { grid-template-columns: 1fr; }
+      #mezedes-journey-map .mj-arrow::after { content: "↓"; }
+      #mezedes-journey-map .mj-branch { grid-template-columns: 1fr; }
+      #mezedes-journey-map .mj-external { display: block; }
+    }
+  </style>
+
+  <div class="mj-route" aria-label="Primary route journey">
+    <section class="mj-node mj-secondary">
+      <h3>Sign in</h3>
+      <p>Authenticated Mezedes shell.</p>
+    </section>
+    <div class="mj-arrow">identity</div>
+    <section class="mj-node">
+      <h3>Collection</h3>
+      <p>Header: <strong>mezedes</strong></p>
+      <ul class="mj-list">
+        <li>Open a created mezes</li>
+        <li>Read privacy, version count, recency</li>
+        <li>Theme and account menu</li>
+      </ul>
+    </section>
+    <div class="mj-arrow">open mezes</div>
+    <section class="mj-node">
+      <h3>Mezes</h3>
+      <p>Header becomes <strong>mezedes / signal garden</strong>.</p>
+      <ul class="mj-list">
+        <li>Preview ↔ Code</li>
+        <li>Open live artifact</li>
+        <li>Versions</li>
+        <li>••• → Settings</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="mj-branch">
+    <section class="mj-node mj-secondary">
+      <div class="mj-branch-title">Mode</div>
+      <h3>Code</h3>
+      <ul class="mj-list">
+        <li>Browse local file tree</li>
+        <li>Select a file</li>
+        <li>Read source only</li>
+        <li>Return to Preview</li>
+      </ul>
+    </section>
+    <section class="mj-node mj-secondary">
+      <div class="mj-branch-title">Overlay</div>
+      <h3>Versions</h3>
+      <ul class="mj-list">
+        <li>Desktop: right sheet</li>
+        <li>Mobile: bottom sheet</li>
+        <li>Select Live or checkpoint</li>
+        <li>Close or return to live</li>
+      </ul>
+    </section>
+    <section class="mj-node mj-danger">
+      <div class="mj-branch-title">Overlay</div>
+      <h3>Settings</h3>
+      <ul class="mj-list">
+        <li>Rename</li>
+        <li>Private ↔ Public internet</li>
+        <li>Save or cancel</li>
+        <li>Delete → confirmation</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="mj-external">
+    <strong>External destination</strong>
+    <span>“Open live” launches the sandboxed artifact without Mezedes chrome. Confirmed deletion returns to Collection.</span>
+  </div>
+  <div class="mj-note">Creation and editing remain outside this UI shell; this surface is for browsing, previewing, reading, versioning, sharing, and management.</div>
+</div>

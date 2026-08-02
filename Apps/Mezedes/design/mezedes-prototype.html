@@ -1,0 +1,1926 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Mezedes Prototype</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Mezedes Prototype" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Mezedes Prototype&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --red: light-dark(rgb(186 38 35), rgb(250 66 62));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;mezedes-prototype&quot; data-theme=&quot;light&quot; data-route=&quot;collection&quot;&gt;
+  &lt;style&gt;
+    @import url(&#x27;https://fonts.googleapis.com/css2?family=GFS+Didot&amp;family=IBM+Plex+Mono:wght@400&amp;family=Manrope:wght@400;500&amp;display=swap&#x27;);
+
+    #mezedes-prototype {
+      --mz-paper: #f3eddd;
+      --mz-paper-strong: #fffaf0;
+      --mz-ink: #183f79;
+      --mz-text: #27231c;
+      --mz-muted: #6a6558;
+      --mz-line: #174e91;
+      --mz-accent: #d8512d;
+      --mz-olive: #65704c;
+      --mz-danger: #b53f2c;
+      --mz-shadow: rgba(37, 31, 24, 0.2);
+      --mz-dim: rgba(34, 29, 22, 0.42);
+      position: relative;
+      width: 100%;
+      min-height: 720px;
+      overflow: hidden;
+      color: var(--mz-text);
+      background-color: var(--mz-paper);
+      background-image:
+        linear-gradient(rgba(23, 78, 145, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 78, 145, 0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: Manrope, system-ui, sans-serif;
+      border: 1px solid color-mix(in srgb, var(--mz-line) 28%, transparent);
+      isolation: isolate;
+    }
+
+    #mezedes-prototype[data-theme=&quot;dark&quot;] {
+      --mz-paper: #172017;
+      --mz-paper-strong: #222c21;
+      --mz-ink: #f1eadc;
+      --mz-text: #f1eadc;
+      --mz-muted: #b2b6a3;
+      --mz-line: #a6ba75;
+      --mz-accent: #d6a846;
+      --mz-olive: #a6ba75;
+      --mz-danger: #d4775d;
+      --mz-shadow: rgba(0, 0, 0, 0.48);
+      --mz-dim: rgba(5, 8, 5, 0.66);
+      background-image:
+        linear-gradient(rgba(166, 186, 117, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(166, 186, 117, 0.025) 1px, transparent 1px);
+    }
+
+    #mezedes-prototype * { box-sizing: border-box; }
+    #mezedes-prototype button,
+    #mezedes-prototype input { font: inherit; }
+    #mezedes-prototype button { color: inherit; }
+    #mezedes-prototype button:focus-visible,
+    #mezedes-prototype input:focus-visible { outline: 3px solid var(--mz-accent); outline-offset: 3px; }
+    #mezedes-prototype [hidden] { display: none !important; }
+
+    #mezedes-prototype .mz-header {
+      position: relative;
+      z-index: 10;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 2rem;
+      border-bottom: 1px solid var(--mz-line);
+      background: color-mix(in srgb, var(--mz-paper) 94%, transparent);
+    }
+
+    #mezedes-prototype .mz-brand {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      color: var(--mz-ink);
+      font-family: &quot;GFS Didot&quot;, Georgia, serif;
+      font-size: clamp(1.45rem, 4vw, 2.1rem);
+      line-height: 1;
+      text-align: left;
+    }
+
+    #mezedes-prototype .mz-brand-root { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+    #mezedes-prototype[data-route=&quot;collection&quot;] .mz-brand-root { text-decoration: none; }
+    #mezedes-prototype .mz-crumb { color: var(--mz-text); }
+
+    #mezedes-prototype .mz-header-actions { display: flex; align-items: center; gap: 0.35rem; }
+    #mezedes-prototype .mz-text-action,
+    #mezedes-prototype .mz-icon-action {
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      padding: 0.62rem 0.72rem;
+      color: var(--mz-ink);
+    }
+    #mezedes-prototype .mz-text-action:hover,
+    #mezedes-prototype .mz-icon-action:hover { color: var(--mz-accent); }
+    #mezedes-prototype .mz-icon-action { display: inline-flex; align-items: center; gap: 0.45rem; }
+    #mezedes-prototype .mz-symbol { font-family: Georgia, serif; font-size: 1.2em; }
+
+    #mezedes-prototype .mz-account-wrap { position: relative; }
+    #mezedes-prototype .mz-popover {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.35rem);
+      width: 150px;
+      padding: 0.5rem;
+      border: 1px solid var(--mz-line);
+      background: var(--mz-paper-strong);
+      box-shadow: 8px 8px 0 color-mix(in srgb, var(--mz-line) 16%, transparent);
+      z-index: 20;
+    }
+    #mezedes-prototype .mz-popover button { width: 100%; text-align: left; border: 0; background: transparent; padding: 0.65rem; cursor: pointer; }
+    #mezedes-prototype .mz-popover button:hover { background: color-mix(in srgb, var(--mz-line) 10%, transparent); }
+
+    #mezedes-prototype .mz-page { padding: clamp(1.2rem, 4vw, 2.1rem); }
+    #mezedes-prototype .mz-collection-intro {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1.4rem;
+    }
+    #mezedes-prototype .mz-collection-intro h1 {
+      margin: 0;
+      color: var(--mz-ink);
+      font-family: &quot;GFS Didot&quot;, Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(2.4rem, 7vw, 5rem);
+      line-height: 0.9;
+    }
+    #mezedes-prototype .mz-count { color: var(--mz-muted); font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    #mezedes-prototype .mz-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--mz-line);
+      border: 1px solid var(--mz-line);
+    }
+    #mezedes-prototype .mz-mezes {
+      min-width: 0;
+      min-height: 250px;
+      display: grid;
+      grid-template-columns: minmax(150px, 0.75fr) minmax(180px, 1.25fr);
+      grid-template-rows: 1fr auto;
+      gap: 1rem;
+      border: 0;
+      padding: 1.2rem;
+      background: var(--mz-paper);
+      text-align: left;
+      cursor: pointer;
+      overflow: hidden;
+      position: relative;
+    }
+    #mezedes-prototype .mz-mezes:hover .mz-mezes-title { color: var(--mz-accent); transform: translateX(5px); }
+    #mezedes-prototype .mz-mezes-title {
+      margin: 0;
+      align-self: start;
+      color: var(--mz-ink);
+      font-family: &quot;GFS Didot&quot;, Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 0.86;
+      transition: color 160ms ease, transform 160ms ease;
+      position: relative;
+      z-index: 2;
+    }
+    #mezedes-prototype .mz-meta { grid-column: 1 / -1; align-self: end; padding-top: 0.7rem; border-top: 1px solid var(--mz-line); color: var(--mz-muted); font-size: 0.78rem; }
+    #mezedes-prototype .mz-art { min-height: 170px; position: relative; overflow: hidden; background: var(--mz-paper-strong); }
+    #mezedes-prototype .mz-art::before,
+    #mezedes-prototype .mz-art::after { content: &quot;&quot;; position: absolute; }
+    #mezedes-prototype .mz-art-garden::before { inset: 12% 8% 0; background: repeating-linear-gradient(92deg, transparent 0 16px, var(--mz-olive) 17px 18px, transparent 19px 28px); clip-path: polygon(0 100%,5% 56%,8% 100%,13% 24%,17% 100%,23% 45%,27% 100%,34% 8%,38% 100%,46% 38%,50% 100%,58% 17%,62% 100%,70% 48%,74% 100%,83% 22%,87% 100%,94% 42%,100% 100%); }
+    #mezedes-prototype .mz-art-garden::after { width: 82px; height: 82px; left: 45%; top: 14%; border: 1px dashed var(--mz-accent); border-radius: 50%; box-shadow: 0 0 0 28px color-mix(in srgb, var(--mz-accent) 5%, transparent), 0 0 0 29px var(--mz-accent); }
+    #mezedes-prototype .mz-art-clock::before { width: 138px; height: 138px; border: 2px solid var(--mz-accent); border-radius: 50%; left: 50%; top: 50%; transform: translate(-50%,-50%); background: repeating-conic-gradient(from -2deg, var(--mz-accent) 0 1deg, transparent 1deg 30deg); }
+    #mezedes-prototype .mz-art-clock::after { width: 4px; height: 52px; background: var(--mz-accent); left: 50%; top: 50%; transform-origin: top; transform: rotate(38deg); }
+    #mezedes-prototype .mz-art-wave::before { inset: 0; background: repeating-radial-gradient(ellipse at 30% 120%, transparent 0 16px, var(--mz-line) 17px 18px, transparent 19px 27px); opacity: 0.75; }
+    #mezedes-prototype .mz-art-wave::after { width: 10px; height: 10px; border-radius: 50%; background: var(--mz-accent); left: 63%; top: 42%; box-shadow: -70px 42px 0 var(--mz-olive), 55px 58px 0 var(--mz-line); }
+    #mezedes-prototype .mz-art-house::before { left: 16%; right: 18%; bottom: 14%; height: 60%; background: var(--mz-line); clip-path: polygon(0 28%,33% 0,33% 22%,100% 22%,100% 100%,0 100%); }
+    #mezedes-prototype .mz-art-house::after { left: 44%; bottom: 14%; width: 20px; height: 42px; background: var(--mz-paper-strong); box-shadow: 70px -66px 0 10px var(--mz-accent); }
+
+    #mezedes-prototype .mz-detail { padding-top: 0; }
+    #mezedes-prototype .mz-toolbar {
+      min-height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 1px solid var(--mz-line);
+      position: relative;
+    }
+    #mezedes-prototype .mz-modes,
+    #mezedes-prototype .mz-local-actions { display: flex; align-items: center; gap: 0.35rem; }
+    #mezedes-prototype .mz-mode {
+      border: 0;
+      border-bottom: 2px solid transparent;
+      padding: 0.85rem 0.55rem 0.65rem;
+      background: transparent;
+      color: var(--mz-ink);
+      cursor: pointer;
+      font-family: &quot;GFS Didot&quot;, Georgia, serif;
+      font-size: 1.15rem;
+    }
+    #mezedes-prototype .mz-mode[aria-selected=&quot;true&quot;] { color: var(--mz-accent); border-color: var(--mz-accent); }
+    #mezedes-prototype .mz-overflow-wrap { position: relative; }
+
+    #mezedes-prototype .mz-workspace { padding-top: 1rem; }
+    #mezedes-prototype .mz-sandbox {
+      position: relative;
+      min-height: 520px;
+      border: 1px solid var(--mz-line);
+      overflow: hidden;
+      background: var(--mz-paper-strong);
+    }
+    #mezedes-prototype .mz-sandbox-label { position: absolute; z-index: 2; top: 0.6rem; left: 0.7rem; color: var(--mz-ink); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; }
+    #mezedes-prototype canvas { display: block; width: 100%; height: 520px; cursor: crosshair; }
+
+    #mezedes-prototype .mz-code-browser {
+      min-height: 520px;
+      display: grid;
+      grid-template-columns: minmax(170px, 22%) 1fr;
+      border: 1px solid var(--mz-line);
+      background: #111811;
+      color: #efe8db;
+    }
+    #mezedes-prototype .mz-filetree { padding: 0.8rem; border-right: 1px solid #526048; }
+    #mezedes-prototype .mz-filetree button { display: block; width: 100%; border: 0; padding: 0.6rem 0.7rem; background: transparent; color: #c9cdb9; text-align: left; cursor: pointer; }
+    #mezedes-prototype .mz-filetree button:hover,
+    #mezedes-prototype .mz-filetree button[aria-current=&quot;true&quot;] { color: #f3eddf; background: #273324; }
+    #mezedes-prototype .mz-editor { min-width: 0; position: relative; overflow: auto; }
+    #mezedes-prototype .mz-readonly { position: absolute; top: 0.75rem; right: 0.9rem; color: #aeb39f; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    #mezedes-prototype pre { margin: 0; padding: 2.4rem 1.2rem 1.2rem; color: #d8decc; font-family: &quot;IBM Plex Mono&quot;, monospace; font-size: 0.76rem; line-height: 1.65; white-space: pre-wrap; }
+    #mezedes-prototype .tk-o { color: #e37b52; }
+    #mezedes-prototype .tk-g { color: #a8bc75; }
+    #mezedes-prototype .tk-y { color: #d6a846; }
+
+    #mezedes-prototype .mz-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      background: var(--mz-dim);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    #mezedes-prototype .mz-backdrop.is-open { opacity: 1; pointer-events: auto; }
+    #mezedes-prototype .mz-sheet {
+      position: absolute;
+      z-index: 35;
+      top: 0;
+      right: 0;
+      width: min(390px, 92%);
+      height: 100%;
+      padding: 1.2rem;
+      border-left: 1px solid var(--mz-line);
+      background: var(--mz-paper-strong);
+      transform: translateX(102%);
+      transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+      box-shadow: -18px 0 40px var(--mz-shadow);
+    }
+    #mezedes-prototype .mz-sheet.is-open { transform: translateX(0); }
+    #mezedes-prototype .mz-sheet-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.9rem; border-bottom: 1px solid var(--mz-line); }
+    #mezedes-prototype .mz-sheet h2,
+    #mezedes-prototype dialog h2 { margin: 0; color: var(--mz-ink); font-family: &quot;GFS Didot&quot;, Georgia, serif; font-weight: 400; font-size: 2rem; }
+    #mezedes-prototype .mz-version-list { margin-top: 0.5rem; }
+    #mezedes-prototype .mz-version {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 0.75rem;
+      border: 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--mz-line) 28%, transparent);
+      padding: 1rem 0.2rem;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    #mezedes-prototype .mz-version:hover { color: var(--mz-accent); }
+    #mezedes-prototype .mz-version[aria-current=&quot;true&quot;] { color: var(--mz-accent); }
+    #mezedes-prototype .mz-version-dot { width: 12px; height: 12px; margin-top: 0.3rem; border: 1px solid currentColor; border-radius: 50%; }
+    #mezedes-prototype .mz-version[aria-current=&quot;true&quot;] .mz-version-dot { background: currentColor; box-shadow: inset 0 0 0 3px var(--mz-paper-strong); }
+    #mezedes-prototype .mz-version small { display: block; margin-top: 0.22rem; color: var(--mz-muted); }
+
+    #mezedes-prototype dialog {
+      width: min(520px, calc(100% - 2rem));
+      max-height: calc(100% - 2rem);
+      overflow: auto;
+      border: 1px solid var(--mz-line);
+      border-radius: 0;
+      padding: 0;
+      color: var(--mz-text);
+      background: var(--mz-paper-strong);
+      box-shadow: 16px 16px 0 color-mix(in srgb, var(--mz-line) 24%, transparent);
+    }
+    #mezedes-prototype dialog::backdrop { background: var(--mz-dim); }
+    #mezedes-prototype .mz-dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem; border-bottom: 1px solid var(--mz-line); }
+    #mezedes-prototype .mz-dialog-body { padding: 1.2rem; }
+    #mezedes-prototype .mz-field { display: grid; gap: 0.4rem; margin-bottom: 1rem; }
+    #mezedes-prototype .mz-field label,
+    #mezedes-prototype .mz-field legend { color: var(--mz-ink); font-size: 0.8rem; }
+    #mezedes-prototype .mz-field input[type=&quot;text&quot;] { width: 100%; border: 1px solid var(--mz-line); border-radius: 0; padding: 0.75rem; color: var(--mz-text); background: var(--mz-paper); }
+    #mezedes-prototype .mz-choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    #mezedes-prototype .mz-choice { display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; border: 1px solid var(--mz-line); cursor: pointer; }
+    #mezedes-prototype .mz-helper { margin: 0.55rem 0 0; color: var(--mz-muted); font-size: 0.72rem; }
+    #mezedes-prototype .mz-dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.2rem; border-top: 1px solid var(--mz-line); }
+    #mezedes-prototype .mz-action { border: 1px solid var(--mz-line); border-radius: 0; padding: 0.7rem 0.9rem; background: transparent; cursor: pointer; }
+    #mezedes-prototype .mz-action:hover { background: color-mix(in srgb, var(--mz-line) 10%, transparent); }
+    #mezedes-prototype .mz-action-primary { color: var(--mz-paper-strong); background: var(--mz-line); }
+    #mezedes-prototype .mz-action-primary:hover { background: var(--mz-accent); border-color: var(--mz-accent); }
+    #mezedes-prototype .mz-action-danger { color: var(--mz-danger); border-color: var(--mz-danger); margin-right: auto; }
+    #mezedes-prototype .mz-action:disabled { opacity: 0.38; cursor: not-allowed; }
+
+    #mezedes-prototype .mz-live {
+      position: absolute;
+      z-index: 50;
+      inset: 0;
+      display: grid;
+      background: var(--mz-paper-strong);
+    }
+    #mezedes-prototype .mz-live-return { position: absolute; z-index: 2; top: 1rem; left: 1rem; border: 1px solid var(--mz-line); padding: 0.65rem 0.8rem; background: var(--mz-paper-strong); color: var(--mz-ink); cursor: pointer; }
+    #mezedes-prototype .mz-live canvas { width: 100%; height: 720px; }
+    #mezedes-prototype .mz-toast { position: absolute; z-index: 60; left: 50%; bottom: 1rem; transform: translate(-50%, 140%); padding: 0.7rem 1rem; border: 1px solid var(--mz-line); background: var(--mz-paper-strong); color: var(--mz-text); transition: transform 180ms ease; }
+    #mezedes-prototype .mz-toast.is-open { transform: translate(-50%, 0); }
+
+    @media (max-width: 760px) {
+      #mezedes-prototype { min-height: 760px; }
+      #mezedes-prototype .mz-header { min-height: 62px; padding: 0 0.8rem; }
+      #mezedes-prototype .mz-header-actions .mz-label { display: none; }
+      #mezedes-prototype .mz-page { padding: 1rem; }
+      #mezedes-prototype .mz-grid { grid-template-columns: 1fr; }
+      #mezedes-prototype .mz-mezes { min-height: 220px; }
+      #mezedes-prototype .mz-toolbar { align-items: stretch; flex-direction: column; gap: 0; padding: 0.35rem 0; }
+      #mezedes-prototype .mz-local-actions { justify-content: space-between; border-top: 1px solid color-mix(in srgb, var(--mz-line) 28%, transparent); }
+      #mezedes-prototype .mz-sandbox,
+      #mezedes-prototype canvas { min-height: 530px; height: 530px; }
+      #mezedes-prototype .mz-code-browser { grid-template-columns: 1fr; }
+      #mezedes-prototype .mz-filetree { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid #526048; padding: 0.4rem; }
+      #mezedes-prototype .mz-filetree button { width: auto; white-space: nowrap; }
+      #mezedes-prototype .mz-sheet { top: auto; bottom: 0; width: 100%; height: min(64%, 560px); border-left: 0; border-top: 1px solid var(--mz-line); transform: translateY(102%); }
+      #mezedes-prototype .mz-sheet.is-open { transform: translateY(0); }
+      #mezedes-prototype .mz-choice-row { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 470px) {
+      #mezedes-prototype .mz-mezes { grid-template-columns: minmax(110px, 0.7fr) 1.3fr; padding: 0.85rem; min-height: 190px; }
+      #mezedes-prototype .mz-art { min-height: 140px; }
+      #mezedes-prototype .mz-icon-action { padding-inline: 0.45rem; }
+      #mezedes-prototype .mz-local-actions { gap: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #mezedes-prototype *, #mezedes-prototype *::before, #mezedes-prototype *::after { transition-duration: 0.01ms !important; }
+    }
+  &lt;/style&gt;
+
+  &lt;header class=&quot;mz-header&quot;&gt;
+    &lt;button type=&quot;button&quot; class=&quot;mz-brand&quot; data-action=&quot;home&quot; aria-label=&quot;Back to all mezedes&quot;&gt;
+      &lt;span class=&quot;mz-brand-root&quot;&gt;mezedes&lt;/span&gt;&lt;span class=&quot;mz-crumb&quot; hidden&gt; / &lt;span id=&quot;mz-header-name&quot;&gt;signal garden&lt;/span&gt;&lt;/span&gt;
+    &lt;/button&gt;
+    &lt;div class=&quot;mz-header-actions&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;theme&quot; aria-label=&quot;Switch to olive dusk&quot;&gt;
+        &lt;span class=&quot;mz-symbol&quot; aria-hidden=&quot;true&quot;&gt;☼&lt;/span&gt;&lt;span class=&quot;mz-label&quot;&gt;daylight&lt;/span&gt;
+      &lt;/button&gt;
+      &lt;div class=&quot;mz-account-wrap&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;account&quot; aria-expanded=&quot;false&quot;&gt;&lt;span class=&quot;mz-symbol&quot; aria-hidden=&quot;true&quot;&gt;○&lt;/span&gt;&lt;span class=&quot;mz-label&quot;&gt;stoli&lt;/span&gt;&lt;/button&gt;
+        &lt;div class=&quot;mz-popover&quot; id=&quot;mz-account-menu&quot; hidden&gt;
+          &lt;button type=&quot;button&quot; data-action=&quot;theme&quot;&gt;Switch theme&lt;/button&gt;
+          &lt;button type=&quot;button&quot; data-action=&quot;signout&quot;&gt;Sign out&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/header&gt;
+
+  &lt;main&gt;
+    &lt;section class=&quot;mz-page&quot; id=&quot;mz-collection-page&quot; aria-label=&quot;Your mezedes&quot;&gt;
+      &lt;div class=&quot;mz-collection-intro&quot;&gt;
+        &lt;h1&gt;your small things&lt;/h1&gt;
+        &lt;span class=&quot;mz-count&quot; id=&quot;mz-count&quot;&gt;4 mezedes&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;mz-grid&quot; id=&quot;mz-grid&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-mezes&quot; data-mezes=&quot;soft launch&quot;&gt;
+          &lt;h2 class=&quot;mz-mezes-title&quot;&gt;soft&lt;br&gt;launch&lt;/h2&gt;&lt;span class=&quot;mz-art mz-art-wave&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;mz-meta&quot;&gt;private · 4 versions · 2d&lt;/span&gt;
+        &lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-mezes&quot; data-mezes=&quot;pita clock&quot;&gt;
+          &lt;h2 class=&quot;mz-mezes-title&quot;&gt;pita&lt;br&gt;clock&lt;/h2&gt;&lt;span class=&quot;mz-art mz-art-clock&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;mz-meta&quot;&gt;public · 7 versions · 5d&lt;/span&gt;
+        &lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-mezes&quot; data-mezes=&quot;signal garden&quot;&gt;
+          &lt;h2 class=&quot;mz-mezes-title&quot;&gt;signal&lt;br&gt;garden&lt;/h2&gt;&lt;span class=&quot;mz-art mz-art-garden&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;mz-meta&quot;&gt;private · 4 versions · 2d&lt;/span&gt;
+        &lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-mezes&quot; data-mezes=&quot;drift study&quot;&gt;
+          &lt;h2 class=&quot;mz-mezes-title&quot;&gt;drift&lt;br&gt;study&lt;/h2&gt;&lt;span class=&quot;mz-art mz-art-house&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;mz-meta&quot;&gt;private · 2 versions · 2w&lt;/span&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;section class=&quot;mz-page mz-detail&quot; id=&quot;mz-detail-page&quot; aria-label=&quot;Mezes details&quot; hidden&gt;
+      &lt;div class=&quot;mz-toolbar&quot;&gt;
+        &lt;div class=&quot;mz-modes&quot; role=&quot;tablist&quot; aria-label=&quot;Mezes view&quot;&gt;
+          &lt;button type=&quot;button&quot; class=&quot;mz-mode&quot; role=&quot;tab&quot; aria-selected=&quot;true&quot; data-view=&quot;preview&quot;&gt;preview&lt;/button&gt;
+          &lt;button type=&quot;button&quot; class=&quot;mz-mode&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; data-view=&quot;code&quot;&gt;code&lt;/button&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;mz-local-actions&quot;&gt;
+          &lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;open-live&quot;&gt;&lt;span aria-hidden=&quot;true&quot;&gt;↗&lt;/span&gt;&lt;span&gt;open live&lt;/span&gt;&lt;/button&gt;
+          &lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;versions&quot; aria-expanded=&quot;false&quot;&gt;&lt;span aria-hidden=&quot;true&quot;&gt;↶&lt;/span&gt;&lt;span id=&quot;mz-version-button&quot;&gt;versions&lt;/span&gt;&lt;/button&gt;
+          &lt;div class=&quot;mz-overflow-wrap&quot;&gt;
+            &lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;overflow&quot; aria-label=&quot;More mezes actions&quot; aria-expanded=&quot;false&quot;&gt;•••&lt;/button&gt;
+            &lt;div class=&quot;mz-popover&quot; id=&quot;mz-overflow-menu&quot; hidden&gt;
+              &lt;button type=&quot;button&quot; data-action=&quot;settings&quot;&gt;Settings&lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;mz-workspace&quot; id=&quot;mz-preview-pane&quot; role=&quot;tabpanel&quot;&gt;
+        &lt;div class=&quot;mz-sandbox&quot;&gt;
+          &lt;span class=&quot;mz-sandbox-label&quot;&gt;sandbox · click to send a signal&lt;/span&gt;
+          &lt;canvas id=&quot;mz-garden&quot; aria-label=&quot;Interactive signal garden preview&quot;&gt;&lt;/canvas&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;mz-workspace&quot; id=&quot;mz-code-pane&quot; role=&quot;tabpanel&quot; hidden&gt;
+        &lt;div class=&quot;mz-code-browser&quot;&gt;
+          &lt;nav class=&quot;mz-filetree&quot; aria-label=&quot;Files&quot;&gt;
+            &lt;button type=&quot;button&quot; aria-current=&quot;true&quot; data-file=&quot;App.tsx&quot;&gt;App.tsx&lt;/button&gt;
+            &lt;button type=&quot;button&quot; data-file=&quot;garden.ts&quot;&gt;garden.ts&lt;/button&gt;
+            &lt;button type=&quot;button&quot; data-file=&quot;styles.css&quot;&gt;styles.css&lt;/button&gt;
+            &lt;button type=&quot;button&quot; data-file=&quot;index.html&quot;&gt;index.html&lt;/button&gt;
+            &lt;button type=&quot;button&quot; data-file=&quot;package.json&quot;&gt;package.json&lt;/button&gt;
+          &lt;/nav&gt;
+          &lt;div class=&quot;mz-editor&quot;&gt;&lt;span class=&quot;mz-readonly&quot;&gt;read only&lt;/span&gt;&lt;pre id=&quot;mz-code&quot;&gt;&lt;code&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/main&gt;
+
+  &lt;div class=&quot;mz-backdrop&quot; id=&quot;mz-backdrop&quot; data-action=&quot;close-sheet&quot;&gt;&lt;/div&gt;
+  &lt;aside class=&quot;mz-sheet&quot; id=&quot;mz-version-sheet&quot; aria-label=&quot;Version history&quot; aria-hidden=&quot;true&quot;&gt;
+    &lt;div class=&quot;mz-sheet-head&quot;&gt;&lt;h2&gt;versions&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;close-sheet&quot; aria-label=&quot;Close versions&quot;&gt;×&lt;/button&gt;&lt;/div&gt;
+    &lt;div class=&quot;mz-version-list&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;mz-version&quot; aria-current=&quot;true&quot; data-version=&quot;Live&quot;&gt;&lt;span class=&quot;mz-version-dot&quot;&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;Live&lt;/strong&gt;&lt;small&gt;Current live version&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;mz-version&quot; aria-current=&quot;false&quot; data-version=&quot;v4&quot;&gt;&lt;span class=&quot;mz-version-dot&quot;&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;v4 · 2 days ago&lt;/strong&gt;&lt;small&gt;Tweaked wave rhythm&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;mz-version&quot; aria-current=&quot;false&quot; data-version=&quot;v3&quot;&gt;&lt;span class=&quot;mz-version-dot&quot;&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;v3 · 1 week ago&lt;/strong&gt;&lt;small&gt;Adjusted bird placement&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;mz-version&quot; aria-current=&quot;false&quot; data-version=&quot;v2&quot;&gt;&lt;span class=&quot;mz-version-dot&quot;&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;v2 · 2 weeks ago&lt;/strong&gt;&lt;small&gt;Refined plant density&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;mz-version&quot; aria-current=&quot;false&quot; data-version=&quot;v1&quot;&gt;&lt;span class=&quot;mz-version-dot&quot;&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;v1 · 3 weeks ago&lt;/strong&gt;&lt;small&gt;Initial composition&lt;/small&gt;&lt;/span&gt;&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;button type=&quot;button&quot; class=&quot;mz-action&quot; data-version=&quot;Live&quot;&gt;return to live&lt;/button&gt;
+  &lt;/aside&gt;
+
+  &lt;dialog id=&quot;mz-settings-dialog&quot;&gt;
+    &lt;form method=&quot;dialog&quot; id=&quot;mz-settings-form&quot;&gt;
+      &lt;div class=&quot;mz-dialog-head&quot;&gt;&lt;h2&gt;mezes settings&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;close-settings&quot; aria-label=&quot;Close settings&quot;&gt;×&lt;/button&gt;&lt;/div&gt;
+      &lt;div class=&quot;mz-dialog-body&quot;&gt;
+        &lt;div class=&quot;mz-field&quot;&gt;&lt;label for=&quot;mz-name&quot;&gt;name&lt;/label&gt;&lt;input id=&quot;mz-name&quot; type=&quot;text&quot; value=&quot;signal garden&quot; autocomplete=&quot;off&quot;&gt;&lt;/div&gt;
+        &lt;fieldset class=&quot;mz-field&quot;&gt;&lt;legend&gt;privacy&lt;/legend&gt;&lt;div class=&quot;mz-choice-row&quot;&gt;
+          &lt;label class=&quot;mz-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;privacy&quot; value=&quot;private&quot; checked&gt; private&lt;/label&gt;
+          &lt;label class=&quot;mz-choice&quot;&gt;&lt;input type=&quot;radio&quot; name=&quot;privacy&quot; value=&quot;public&quot;&gt; public internet&lt;/label&gt;
+        &lt;/div&gt;&lt;p class=&quot;mz-helper&quot;&gt;Public mezedes can be reached by anyone with the link.&lt;/p&gt;&lt;/fieldset&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;mz-dialog-actions&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-action mz-action-danger&quot; data-action=&quot;delete&quot;&gt;delete mezes&lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-action&quot; data-action=&quot;close-settings&quot;&gt;cancel&lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;mz-action mz-action-primary&quot; data-action=&quot;save-settings&quot;&gt;save changes&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/form&gt;
+  &lt;/dialog&gt;
+
+  &lt;dialog id=&quot;mz-delete-dialog&quot;&gt;
+    &lt;form method=&quot;dialog&quot; id=&quot;mz-delete-form&quot;&gt;
+      &lt;div class=&quot;mz-dialog-head&quot;&gt;&lt;h2&gt;delete mezes?&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;mz-icon-action&quot; data-action=&quot;close-delete&quot; aria-label=&quot;Close confirmation&quot;&gt;×&lt;/button&gt;&lt;/div&gt;
+      &lt;div class=&quot;mz-dialog-body&quot;&gt;
+        &lt;p&gt;This removes the mezes and every served version. Type &lt;strong id=&quot;mz-delete-name&quot;&gt;signal garden&lt;/strong&gt; to continue.&lt;/p&gt;
+        &lt;div class=&quot;mz-field&quot;&gt;&lt;label for=&quot;mz-delete-confirm&quot;&gt;mezes name&lt;/label&gt;&lt;input id=&quot;mz-delete-confirm&quot; type=&quot;text&quot; autocomplete=&quot;off&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;mz-dialog-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;mz-action&quot; data-action=&quot;close-delete&quot;&gt;cancel&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;mz-action mz-action-danger&quot; id=&quot;mz-confirm-delete&quot; data-action=&quot;confirm-delete&quot; disabled&gt;delete forever&lt;/button&gt;&lt;/div&gt;
+    &lt;/form&gt;
+  &lt;/dialog&gt;
+
+  &lt;section class=&quot;mz-live&quot; id=&quot;mz-live-view&quot; aria-label=&quot;Public artifact preview&quot; hidden&gt;
+    &lt;button type=&quot;button&quot; class=&quot;mz-live-return&quot; data-action=&quot;close-live&quot;&gt;← return to mezedes&lt;/button&gt;
+    &lt;canvas id=&quot;mz-live-garden&quot; aria-label=&quot;Live signal garden&quot;&gt;&lt;/canvas&gt;
+  &lt;/section&gt;
+  &lt;div class=&quot;mz-toast&quot; id=&quot;mz-toast&quot; role=&quot;status&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;mezedes-prototype&#x27;);
+      const collectionPage = root.querySelector(&#x27;#mz-collection-page&#x27;);
+      const detailPage = root.querySelector(&#x27;#mz-detail-page&#x27;);
+      const crumb = root.querySelector(&#x27;.mz-crumb&#x27;);
+      const headerName = root.querySelector(&#x27;#mz-header-name&#x27;);
+      const previewPane = root.querySelector(&#x27;#mz-preview-pane&#x27;);
+      const codePane = root.querySelector(&#x27;#mz-code-pane&#x27;);
+      const versionSheet = root.querySelector(&#x27;#mz-version-sheet&#x27;);
+      const backdrop = root.querySelector(&#x27;#mz-backdrop&#x27;);
+      const versionButton = root.querySelector(&#x27;#mz-version-button&#x27;);
+      const settingsDialog = root.querySelector(&#x27;#mz-settings-dialog&#x27;);
+      const deleteDialog = root.querySelector(&#x27;#mz-delete-dialog&#x27;);
+      const liveView = root.querySelector(&#x27;#mz-live-view&#x27;);
+      const toast = root.querySelector(&#x27;#mz-toast&#x27;);
+      const accountMenu = root.querySelector(&#x27;#mz-account-menu&#x27;);
+      const overflowMenu = root.querySelector(&#x27;#mz-overflow-menu&#x27;);
+      const nameInput = root.querySelector(&#x27;#mz-name&#x27;);
+      const deleteName = root.querySelector(&#x27;#mz-delete-name&#x27;);
+      const deleteInput = root.querySelector(&#x27;#mz-delete-confirm&#x27;);
+      const deleteButton = root.querySelector(&#x27;#mz-confirm-delete&#x27;);
+      const grid = root.querySelector(&#x27;#mz-grid&#x27;);
+      const count = root.querySelector(&#x27;#mz-count&#x27;);
+      const codeTarget = root.querySelector(&#x27;#mz-code code&#x27;);
+      let currentName = &#x27;signal garden&#x27;;
+      let currentVersion = &#x27;Live&#x27;;
+      let toastTimer;
+
+      const codeFiles = {
+        &#x27;App.tsx&#x27;: `&lt;span class=&quot;tk-o&quot;&gt;import&lt;/span&gt; { SignalGarden } &lt;span class=&quot;tk-o&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;tk-y&quot;&gt;&#x27;./garden&#x27;&lt;/span&gt;;
+
+&lt;span class=&quot;tk-o&quot;&gt;export default function&lt;/span&gt; App() {
+  &lt;span class=&quot;tk-o&quot;&gt;return&lt;/span&gt; &amp;lt;SignalGarden density={&lt;span class=&quot;tk-y&quot;&gt;18&lt;/span&gt;} /&amp;gt;;
+}`,
+        &#x27;garden.ts&#x27;: `&lt;span class=&quot;tk-o&quot;&gt;export function&lt;/span&gt; &lt;span class=&quot;tk-g&quot;&gt;sendSignal&lt;/span&gt;(x: number, y: number) {
+  &lt;span class=&quot;tk-o&quot;&gt;return&lt;/span&gt; { origin: [x, y], rings: &lt;span class=&quot;tk-y&quot;&gt;3&lt;/span&gt; };
+}
+
+&lt;span class=&quot;tk-o&quot;&gt;export const&lt;/span&gt; palette = {
+  cobalt: &lt;span class=&quot;tk-y&quot;&gt;&#x27;#174e91&#x27;&lt;/span&gt;,
+  olive: &lt;span class=&quot;tk-y&quot;&gt;&#x27;#65704c&#x27;&lt;/span&gt;,
+  sun: &lt;span class=&quot;tk-y&quot;&gt;&#x27;#d8512d&#x27;&lt;/span&gt;
+};`,
+        &#x27;styles.css&#x27;: `.garden { background: &lt;span class=&quot;tk-y&quot;&gt;#f3eddd&lt;/span&gt;; }
+.signal { stroke: &lt;span class=&quot;tk-y&quot;&gt;#d8512d&lt;/span&gt;; }
+.stem { stroke: &lt;span class=&quot;tk-y&quot;&gt;#65704c&lt;/span&gt;; }`,
+        &#x27;index.html&#x27;: `&amp;lt;main id=&lt;span class=&quot;tk-y&quot;&gt;&quot;garden&quot;&lt;/span&gt;&amp;gt;&amp;lt;/main&amp;gt;
+&amp;lt;script type=&lt;span class=&quot;tk-y&quot;&gt;&quot;module&quot;&lt;/span&gt; src=&lt;span class=&quot;tk-y&quot;&gt;&quot;/src/App.tsx&quot;&lt;/span&gt;&amp;gt;&amp;lt;/script&amp;gt;`,
+        &#x27;package.json&#x27;: `{
+  &lt;span class=&quot;tk-y&quot;&gt;&quot;name&quot;&lt;/span&gt;: &lt;span class=&quot;tk-y&quot;&gt;&quot;signal-garden&quot;&lt;/span&gt;,
+  &lt;span class=&quot;tk-y&quot;&gt;&quot;private&quot;&lt;/span&gt;: true,
+  &lt;span class=&quot;tk-y&quot;&gt;&quot;dependencies&quot;&lt;/span&gt;: { &lt;span class=&quot;tk-y&quot;&gt;&quot;react&quot;&lt;/span&gt;: &lt;span class=&quot;tk-y&quot;&gt;&quot;19.1.0&quot;&lt;/span&gt; }
+}`
+      };
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add(&#x27;is-open&#x27;);
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() =&gt; toast.classList.remove(&#x27;is-open&#x27;), 2200);
+      }
+
+      function closeMenus() {
+        accountMenu.hidden = true;
+        overflowMenu.hidden = true;
+        root.querySelector(&#x27;[data-action=&quot;account&quot;]&#x27;).setAttribute(&#x27;aria-expanded&#x27;, &#x27;false&#x27;);
+        root.querySelector(&#x27;[data-action=&quot;overflow&quot;]&#x27;).setAttribute(&#x27;aria-expanded&#x27;, &#x27;false&#x27;);
+      }
+
+      function goHome() {
+        root.dataset.route = &#x27;collection&#x27;;
+        collectionPage.hidden = false;
+        detailPage.hidden = true;
+        crumb.hidden = true;
+        closeSheet();
+        closeMenus();
+      }
+
+      function openMezes(name) {
+        currentName = name;
+        root.dataset.route = &#x27;detail&#x27;;
+        collectionPage.hidden = true;
+        detailPage.hidden = false;
+        crumb.hidden = false;
+        headerName.textContent = name;
+        nameInput.value = name;
+        deleteName.textContent = name;
+        setView(&#x27;preview&#x27;);
+        requestAnimationFrame(() =&gt; drawGarden(root.querySelector(&#x27;#mz-garden&#x27;), currentVersion));
+      }
+
+      function setView(view) {
+        const preview = view === &#x27;preview&#x27;;
+        previewPane.hidden = !preview;
+        codePane.hidden = preview;
+        root.querySelectorAll(&#x27;.mz-mode&#x27;).forEach(button =&gt; button.setAttribute(&#x27;aria-selected&#x27;, String(button.dataset.view === view)));
+        if (!preview) codeTarget.innerHTML = codeFiles[&#x27;App.tsx&#x27;];
+      }
+
+      function openSheet() {
+        versionSheet.classList.add(&#x27;is-open&#x27;);
+        backdrop.classList.add(&#x27;is-open&#x27;);
+        versionSheet.setAttribute(&#x27;aria-hidden&#x27;, &#x27;false&#x27;);
+        root.querySelector(&#x27;[data-action=&quot;versions&quot;]&#x27;).setAttribute(&#x27;aria-expanded&#x27;, &#x27;true&#x27;);
+      }
+
+      function closeSheet() {
+        versionSheet.classList.remove(&#x27;is-open&#x27;);
+        backdrop.classList.remove(&#x27;is-open&#x27;);
+        versionSheet.setAttribute(&#x27;aria-hidden&#x27;, &#x27;true&#x27;);
+        const trigger = root.querySelector(&#x27;[data-action=&quot;versions&quot;]&#x27;);
+        if (trigger) trigger.setAttribute(&#x27;aria-expanded&#x27;, &#x27;false&#x27;);
+      }
+
+      function selectVersion(version) {
+        currentVersion = version;
+        root.querySelectorAll(&#x27;.mz-version&#x27;).forEach(button =&gt; button.setAttribute(&#x27;aria-current&#x27;, String(button.dataset.version === version)));
+        versionButton.textContent = version === &#x27;Live&#x27; ? &#x27;versions&#x27; : `versions · ${version}`;
+        drawGarden(root.querySelector(&#x27;#mz-garden&#x27;), version);
+        closeSheet();
+        showToast(version === &#x27;Live&#x27; ? &#x27;Showing live&#x27; : `Showing frozen ${version}`);
+      }
+
+      function toggleTheme() {
+        const dark = root.dataset.theme === &#x27;dark&#x27;;
+        root.dataset.theme = dark ? &#x27;light&#x27; : &#x27;dark&#x27;;
+        const themeButton = root.querySelector(&#x27;.mz-header [data-action=&quot;theme&quot;]&#x27;);
+        themeButton.querySelector(&#x27;.mz-symbol&#x27;).textContent = dark ? &#x27;☼&#x27; : &#x27;◐&#x27;;
+        themeButton.querySelector(&#x27;.mz-label&#x27;).textContent = dark ? &#x27;daylight&#x27; : &#x27;olive dusk&#x27;;
+        themeButton.setAttribute(&#x27;aria-label&#x27;, dark ? &#x27;Switch to olive dusk&#x27; : &#x27;Switch to Hellenic daylight&#x27;);
+        drawGarden(root.querySelector(&#x27;#mz-garden&#x27;), currentVersion);
+        if (!liveView.hidden) drawGarden(root.querySelector(&#x27;#mz-live-garden&#x27;), currentVersion);
+        closeMenus();
+      }
+
+      function openSettings() {
+        closeMenus();
+        nameInput.value = currentName;
+        settingsDialog.showModal();
+      }
+
+      function saveSettings() {
+        const nextName = nameInput.value.trim() || currentName;
+        const privacy = root.querySelector(&#x27;input[name=&quot;privacy&quot;]:checked&#x27;).value;
+        const oldName = currentName;
+        currentName = nextName;
+        headerName.textContent = nextName;
+        deleteName.textContent = nextName;
+        const matchingCard = [...grid.querySelectorAll(&#x27;.mz-mezes&#x27;)].find(card =&gt; card.dataset.mezes === oldName);
+        if (matchingCard) {
+          matchingCard.dataset.mezes = nextName;
+          matchingCard.querySelector(&#x27;.mz-mezes-title&#x27;).innerHTML = nextName.split(&#x27; &#x27;).join(&#x27;&lt;br&gt;&#x27;);
+          const meta = matchingCard.querySelector(&#x27;.mz-meta&#x27;);
+          meta.textContent = `${privacy === &#x27;public&#x27; ? &#x27;public&#x27; : &#x27;private&#x27;} · 4 versions · now`;
+        }
+        settingsDialog.close();
+        showToast(&#x27;Changes saved&#x27;);
+      }
+
+      function openDelete() {
+        settingsDialog.close();
+        deleteInput.value = &#x27;&#x27;;
+        deleteButton.disabled = true;
+        deleteDialog.showModal();
+      }
+
+      function confirmDelete() {
+        const card = [...grid.querySelectorAll(&#x27;.mz-mezes&#x27;)].find(item =&gt; item.dataset.mezes === currentName);
+        if (card) card.remove();
+        count.textContent = `${grid.querySelectorAll(&#x27;.mz-mezes&#x27;).length} mezedes`;
+        deleteDialog.close();
+        goHome();
+        showToast(&#x27;Mezes deleted&#x27;);
+      }
+
+      function openLive() {
+        liveView.hidden = false;
+        drawGarden(root.querySelector(&#x27;#mz-live-garden&#x27;), currentVersion);
+      }
+
+      function drawGarden(canvas, version) {
+        if (!canvas || canvas.offsetWidth === 0) return;
+        const rect = canvas.getBoundingClientRect();
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.max(1, Math.round(rect.width * ratio));
+        canvas.height = Math.max(1, Math.round(rect.height * ratio));
+        const ctx = canvas.getContext(&#x27;2d&#x27;);
+        ctx.scale(ratio, ratio);
+        const w = rect.width;
+        const h = rect.height;
+        const dark = root.dataset.theme === &#x27;dark&#x27;;
+        const paper = dark ? &#x27;#111711&#x27; : &#x27;#fffaf0&#x27;;
+        const cobalt = dark ? &#x27;#a6ba75&#x27; : &#x27;#174e91&#x27;;
+        const olive = dark ? &#x27;#8fa269&#x27; : &#x27;#65704c&#x27;;
+        const accent = dark ? &#x27;#d6a846&#x27; : &#x27;#d8512d&#x27;;
+        const seedBase = {Live: 41, v4: 35, v3: 29, v2: 23, v1: 17}[version] || 41;
+        let seed = seedBase;
+        const random = () =&gt; { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+        ctx.fillStyle = paper;
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = cobalt;
+        ctx.lineWidth = 0.8;
+        ctx.globalAlpha = 0.55;
+        for (let wave = 0; wave &lt; 9; wave++) {
+          ctx.beginPath();
+          for (let x = -20; x &lt;= w + 20; x += 7) {
+            const y = h * 0.64 + wave * 8 + Math.sin(x * 0.018 + wave * 0.55) * 14;
+            if (x === -20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        const stems = Math.max(16, Math.floor(w / 44));
+        for (let i = 0; i &lt; stems; i++) {
+          const x = 18 + random() * (w - 36);
+          const stemH = h * (0.2 + random() * 0.42);
+          const base = h - 18;
+          const bend = (random() - 0.5) * 34;
+          ctx.strokeStyle = olive;
+          ctx.lineWidth = 1 + random() * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(x, base);
+          ctx.quadraticCurveTo(x + bend * 0.4, base - stemH * 0.55, x + bend, base - stemH);
+          ctx.stroke();
+          const leaves = 3 + Math.floor(random() * 5);
+          for (let leaf = 1; leaf &lt;= leaves; leaf++) {
+            const t = leaf / (leaves + 1);
+            const lx = x + bend * t;
+            const ly = base - stemH * t;
+            const side = leaf % 2 ? -1 : 1;
+            ctx.beginPath();
+            ctx.moveTo(lx, ly);
+            ctx.quadraticCurveTo(lx + side * 14, ly - 10, lx + side * 19, ly - 3);
+            ctx.quadraticCurveTo(lx + side * 9, ly + 3, lx, ly);
+            ctx.stroke();
+          }
+          if (random() &gt; 0.36) {
+            ctx.fillStyle = random() &gt; 0.7 ? accent : olive;
+            ctx.beginPath();
+            ctx.arc(x + bend, base - stemH, 2.5 + random() * 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.fillStyle = accent;
+        for (let i = 0; i &lt; 13; i++) {
+          const x = random() * w;
+          const y = 35 + random() * h * 0.4;
+          ctx.fillRect(x, y, 2, 2);
+        }
+        canvas.dataset.drawn = &#x27;true&#x27;;
+      }
+
+      function sendSignal(event) {
+        const canvas = event.currentTarget;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const ctx = canvas.getContext(&#x27;2d&#x27;);
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        ctx.save();
+        ctx.scale(ratio, ratio);
+        ctx.strokeStyle = root.dataset.theme === &#x27;dark&#x27; ? &#x27;#d6a846&#x27; : &#x27;#d8512d&#x27;;
+        ctx.lineWidth = 1.5;
+        [12, 28, 46].forEach(radius =&gt; { ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke(); });
+        ctx.restore();
+      }
+
+      root.addEventListener(&#x27;click&#x27;, event =&gt; {
+        const mezes = event.target.closest(&#x27;[data-mezes]&#x27;);
+        if (mezes) { openMezes(mezes.dataset.mezes); return; }
+        const view = event.target.closest(&#x27;[data-view]&#x27;);
+        if (view) { setView(view.dataset.view); return; }
+        const version = event.target.closest(&#x27;[data-version]&#x27;);
+        if (version) { selectVersion(version.dataset.version); return; }
+        const action = event.target.closest(&#x27;[data-action]&#x27;)?.dataset.action;
+        if (!action) return;
+        if (action === &#x27;home&#x27;) goHome();
+        if (action === &#x27;theme&#x27;) toggleTheme();
+        if (action === &#x27;account&#x27;) { const open = accountMenu.hidden; closeMenus(); accountMenu.hidden = !open; event.target.closest(&#x27;button&#x27;).setAttribute(&#x27;aria-expanded&#x27;, String(open)); }
+        if (action === &#x27;overflow&#x27;) { const open = overflowMenu.hidden; closeMenus(); overflowMenu.hidden = !open; event.target.closest(&#x27;button&#x27;).setAttribute(&#x27;aria-expanded&#x27;, String(open)); }
+        if (action === &#x27;versions&#x27;) openSheet();
+        if (action === &#x27;close-sheet&#x27;) closeSheet();
+        if (action === &#x27;settings&#x27;) openSettings();
+        if (action === &#x27;save-settings&#x27;) saveSettings();
+        if (action === &#x27;close-settings&#x27;) settingsDialog.close();
+        if (action === &#x27;delete&#x27;) openDelete();
+        if (action === &#x27;confirm-delete&#x27;) confirmDelete();
+        if (action === &#x27;close-delete&#x27;) deleteDialog.close();
+        if (action === &#x27;open-live&#x27;) openLive();
+        if (action === &#x27;close-live&#x27;) liveView.hidden = true;
+        if (action === &#x27;signout&#x27;) { closeMenus(); showToast(&#x27;Signed out in the real product&#x27;); }
+      });
+
+      deleteInput.addEventListener(&#x27;input&#x27;, () =&gt; { deleteButton.disabled = deleteInput.value !== currentName; });
+      root.querySelectorAll(&#x27;[data-file]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        root.querySelectorAll(&#x27;[data-file]&#x27;).forEach(item =&gt; item.setAttribute(&#x27;aria-current&#x27;, String(item === button)));
+        codeTarget.innerHTML = codeFiles[button.dataset.file];
+      }));
+      root.querySelector(&#x27;#mz-garden&#x27;).addEventListener(&#x27;click&#x27;, sendSignal);
+      root.querySelector(&#x27;#mz-live-garden&#x27;).addEventListener(&#x27;click&#x27;, sendSignal);
+      window.addEventListener(&#x27;resize&#x27;, () =&gt; {
+        if (root.dataset.route === &#x27;detail&#x27; &amp;&amp; !previewPane.hidden) drawGarden(root.querySelector(&#x27;#mz-garden&#x27;), currentVersion);
+        if (!liveView.hidden) drawGarden(root.querySelector(&#x27;#mz-live-garden&#x27;), currentVersion);
+      });
+
+      codeTarget.innerHTML = codeFiles[&#x27;App.tsx&#x27;];
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

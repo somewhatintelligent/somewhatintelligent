@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mezedes": {
+      "type": "http",
+      "url": "https://mezedes.example.com/mcp"
+    }
+  }
+}

@@ -1,0 +1,1168 @@
+/**
+ * The shell's whole stylesheet. The same token names index.html paints the
+ * first frame with, redefined here once this file lands.
+ *
+ * Order is load-bearing: the media query is scoped to `:not([data-theme])` so
+ * an explicit choice from the header wins in BOTH directions — a light choice
+ * on a dark system is as valid as the reverse, and relying on source order
+ * alone only handles one of them.
+ */
+
+@font-face {
+  font-family: Manrope;
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/manrope-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: Manrope;
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/manrope-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+:root {
+  color-scheme: light dark;
+
+  --mz-paper: #f3eddd;
+  --mz-paper-strong: #fffaf0;
+  --mz-ink: #183f79;
+  --mz-line: #174e91;
+  --mz-olive: #65704c;
+  --mz-accent: #d8512d;
+  --mz-danger: #b53f2c;
+  --mz-text: #27231c;
+  --mz-muted: #6a6558;
+  --mz-dim: rgba(34, 29, 22, 0.42);
+  --mz-shadow: rgba(37, 31, 24, 0.2);
+
+  --mz-serif: Georgia, "Times New Roman", serif;
+  --mz-sans: Manrope, system-ui, sans-serif;
+  --mz-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --mz-header: 72px;
+  --mz-gutter: clamp(1rem, 4vw, 2.1rem);
+  --mz-code-line: 1.32rem;
+
+  /* The code surface is dark in both themes: it is a terminal, not a page. */
+  --mz-code-paper: #111811;
+  --mz-code-panel: #161e15;
+  --mz-code-edge: #3d4a36;
+  --mz-code-text: #dee3d1;
+  --mz-code-faint: #8d9a80;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --mz-paper: #172017;
+    --mz-paper-strong: #222c21;
+    --mz-ink: #f1eadc;
+    --mz-line: #a6ba75;
+    --mz-olive: #a6ba75;
+    --mz-accent: #d6a846;
+    --mz-danger: #d4775d;
+    --mz-text: #f1eadc;
+    --mz-muted: #b2b6a3;
+    --mz-dim: rgba(5, 8, 5, 0.66);
+    --mz-shadow: rgba(0, 0, 0, 0.48);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --mz-paper: #172017;
+  --mz-paper-strong: #222c21;
+  --mz-ink: #f1eadc;
+  --mz-line: #a6ba75;
+  --mz-olive: #a6ba75;
+  --mz-accent: #d6a846;
+  --mz-danger: #d4775d;
+  --mz-text: #f1eadc;
+  --mz-muted: #b2b6a3;
+  --mz-dim: rgba(5, 8, 5, 0.66);
+  --mz-shadow: rgba(0, 0, 0, 0.48);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--mz-paper);
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+  color: var(--mz-text);
+  /* Ruled paper: the grid the whole layout is set on, at 4% so it reads as
+     texture rather than as a table. */
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--mz-line) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--mz-line) 3%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  font-family: var(--mz-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+a {
+  color: var(--mz-ink);
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mz-accent);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--mz-accent) 28%, transparent);
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+
+.mz-header {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  min-height: var(--mz-header);
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 var(--mz-gutter);
+  border-bottom: 1px solid var(--mz-line);
+  background: color-mix(in srgb, var(--mz-paper) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.mz-brand {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  font-family: var(--mz-serif);
+  font-size: clamp(1.3rem, 3.2vw, 1.85rem);
+  line-height: 1.1;
+}
+
+.mz-brand-root {
+  flex: none;
+  color: var(--mz-ink);
+}
+
+.mz-brand-root:not(.is-here):hover {
+  color: var(--mz-accent);
+}
+
+.mz-brand-slash {
+  color: var(--mz-muted);
+}
+
+/* A long name truncates rather than wrapping: the header's height is what the
+   versions sheet is positioned against. */
+.mz-crumb {
+  overflow: hidden;
+  color: var(--mz-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mz-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.mz-header-rule {
+  width: 1px;
+  height: 24px;
+  margin: 0 0.4rem;
+  background: color-mix(in srgb, var(--mz-line) 45%, transparent);
+}
+
+/* Where the open mezes hangs its gear. Empty — and absent — everywhere else. */
+.mz-header-slot {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mz-text-action,
+.mz-icon-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--mz-ink);
+  font-size: 0.92rem;
+}
+
+.mz-text-action:hover,
+.mz-icon-action:hover {
+  color: var(--mz-accent);
+}
+
+/* ── collection ─────────────────────────────────────────────────────────── */
+
+.mz-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--mz-gutter);
+}
+
+.mz-page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: clamp(1rem, 2.4vw, 1.6rem);
+}
+
+.mz-page-title {
+  margin: 0;
+  color: var(--mz-ink);
+  font-family: var(--mz-serif);
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.mz-search {
+  width: min(220px, 42vw);
+  padding: 0.35rem 0.2rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--mz-line) 45%, transparent);
+  background: transparent;
+  color: var(--mz-text);
+  font-size: 0.85rem;
+}
+
+.mz-search::placeholder {
+  color: var(--mz-muted);
+}
+
+.mz-search:focus-visible {
+  border-bottom-color: var(--mz-accent);
+  outline: none;
+}
+
+.mz-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.8rem, 1.8vw, 1.35rem);
+}
+
+.mz-card {
+  position: relative;
+  display: grid;
+  min-height: 250px;
+  padding: 1.15rem;
+  border: 1px solid var(--mz-line);
+  gap: 0.8rem 1rem;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(140px, 1.2fr);
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  background: var(--mz-paper);
+}
+
+.mz-card-title {
+  z-index: 2;
+  display: flex;
+  align-self: start;
+  flex-direction: column;
+  margin: 0;
+  color: var(--mz-ink);
+  font-family: var(--mz-serif);
+  font-size: clamp(1.85rem, 4.2vw, 3rem);
+  font-weight: 400;
+  line-height: 0.88;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.mz-card:hover .mz-card-title {
+  color: var(--mz-accent);
+  transform: translateX(4px);
+}
+
+.mz-word {
+  display: block;
+}
+
+.mz-card-art {
+  /* Bleeds to the card's own edge; the border is the frame. */
+  margin: -1.15rem -1.15rem -1.15rem 0;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  min-height: 150px;
+}
+
+.mz-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mz-art path {
+  vector-effect: non-scaling-stroke;
+}
+
+.mz-a-ink {
+  fill: none;
+  stroke: var(--mz-line);
+  opacity: 0.8;
+}
+
+.mz-a-olive {
+  fill: none;
+  stroke: var(--mz-olive);
+  opacity: 0.9;
+}
+
+.mz-a-accent {
+  fill: none;
+  stroke: var(--mz-accent);
+  opacity: 0.85;
+}
+
+.mz-f-ink {
+  fill: var(--mz-line);
+  stroke: none;
+}
+
+.mz-f-olive {
+  fill: var(--mz-olive);
+  stroke: none;
+}
+
+.mz-f-accent {
+  fill: var(--mz-accent);
+  stroke: none;
+}
+
+.mz-card-meta {
+  z-index: 2;
+  align-self: end;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--mz-line);
+  grid-column: 1;
+  grid-row: 2;
+  color: var(--mz-ink);
+  font-size: 0.78rem;
+}
+
+/* ── mezes ───────────────────────────────────────────────────────────────── */
+
+/* The mezes is the page: everything the shell has to say is in the one header
+   above it, so the workspace takes the rest of the viewport exactly. */
+.mz-detail {
+  display: flex;
+  height: calc(100dvh - var(--mz-header));
+  flex-direction: column;
+}
+
+.mz-detail-bare {
+  align-items: center;
+  justify-content: center;
+}
+
+.mz-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.mz-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  display: block;
+  min-width: 150px;
+  padding: 0.35rem;
+  border: 1px solid var(--mz-line);
+  background: var(--mz-paper-strong);
+  box-shadow: 8px 8px 0 color-mix(in srgb, var(--mz-line) 14%, transparent);
+}
+
+.mz-menu button,
+.mz-menu a {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 0.6rem 0.7rem;
+  border: 0;
+  background: transparent;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.mz-menu button:hover,
+.mz-menu a:hover {
+  background: color-mix(in srgb, var(--mz-line) 10%, transparent);
+}
+
+.mz-menu button[aria-current="true"] {
+  color: var(--mz-accent);
+}
+
+.mz-menu-label {
+  display: block;
+  padding: 0.4rem 0.7rem 0.2rem;
+  color: var(--mz-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+}
+
+.mz-menu-rule {
+  display: block;
+  height: 1px;
+  margin: 0.35rem 0.4rem;
+  background: color-mix(in srgb, var(--mz-line) 30%, transparent);
+}
+
+.mz-workspace {
+  min-height: 0;
+  flex: 1;
+}
+
+/* ── preview ────────────────────────────────────────────────────────────── */
+
+/* Full bleed: the workspace is the viewport's remainder, and a frame drawn
+   around something that already reaches every edge is just a second border. */
+.mz-frame {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--mz-paper-strong);
+}
+
+/* States the property the iframe's sandbox attribute sets. Not decoration. */
+/* A preview that could not be minted says so inside the frame, where the frame
+   would have been — not as a silently empty workspace. */
+.mz-frame-note {
+  position: absolute;
+  z-index: 2;
+  inset: 50% 1.5rem auto;
+  margin: 0;
+  transform: translateY(-50%);
+  color: var(--mz-danger);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.mz-frame-label {
+  position: absolute;
+  z-index: 2;
+  top: 0.5rem;
+  left: 0.7rem;
+  color: var(--mz-ink);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.mz-frame-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--mz-paper-strong);
+}
+
+/* ── code ───────────────────────────────────────────────────────────────── */
+
+.mz-code {
+  display: grid;
+  height: 100%;
+  grid-template-columns: minmax(160px, 21%) minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--mz-code-paper);
+  color: var(--mz-code-text);
+}
+
+.mz-tree {
+  padding: 0.7rem;
+  border-right: 1px solid var(--mz-code-edge);
+  overflow: auto;
+}
+
+.mz-tree-group + .mz-tree-group {
+  margin-top: 0.5rem;
+}
+
+.mz-tree-dir {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.15rem;
+  padding: 0.45rem 0.5rem;
+  color: var(--mz-code-faint);
+  font-size: 0.82rem;
+}
+
+.mz-tree-file {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.55rem;
+  border: 0;
+  background: transparent;
+  color: #c9cdb9;
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+.mz-tree-file:hover {
+  background: var(--mz-code-panel);
+  color: #f3eddf;
+}
+
+.mz-tree-file[aria-current="true"] {
+  background: #27331f;
+  color: #f3eddf;
+}
+
+.mz-tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mz-tree-note,
+.mz-source-note {
+  padding: 0.6rem;
+  color: var(--mz-code-faint);
+  font-size: 0.82rem;
+}
+
+.mz-glyph {
+  display: inline-flex;
+  min-width: 21px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: #8fa269;
+  font-family: var(--mz-mono);
+  font-size: 0.7rem;
+}
+
+.mz-glyph-boxed {
+  border: 1px solid #56684a;
+  font-size: 0.56rem;
+  letter-spacing: 0.03em;
+}
+
+.mz-source {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.mz-readonly {
+  position: absolute;
+  z-index: 2;
+  top: 0.7rem;
+  right: 1rem;
+  color: var(--mz-code-faint);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.mz-source-scroll {
+  display: flex;
+  width: 100%;
+  padding: 0.9rem 0 1.4rem;
+  overflow: auto;
+}
+
+.mz-gutter {
+  position: sticky;
+  z-index: 1;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.9rem 0 1rem;
+  background: var(--mz-code-paper);
+  color: #5d6b52;
+  font-family: var(--mz-mono);
+  font-size: 0.72rem;
+  /* Shared with the code block: two font sizes, one line box. */
+  line-height: var(--mz-code-line);
+  text-align: right;
+  user-select: none;
+}
+
+.mz-pre {
+  margin: 0;
+  padding: 0 1.4rem 0 0;
+  font-family: var(--mz-mono);
+  font-size: 0.75rem;
+  line-height: var(--mz-code-line);
+  white-space: pre;
+}
+
+.tk-comment {
+  color: #7d8b71;
+  font-style: italic;
+}
+
+.tk-string {
+  color: #a8bc75;
+}
+
+.tk-number {
+  color: #d6a846;
+}
+
+.tk-keyword {
+  color: #e37b52;
+}
+
+.tk-tag {
+  color: #9fc08d;
+}
+
+.tk-attr {
+  color: #c6cfae;
+}
+
+/* ── versions sheet ─────────────────────────────────────────────────────── */
+
+.mz-scrim {
+  position: fixed;
+  z-index: 30;
+  inset: var(--mz-header) 0 0 0;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: var(--mz-dim);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 180ms;
+}
+
+.mz-scrim.is-open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 180ms ease;
+}
+
+.mz-sheet {
+  position: fixed;
+  z-index: 35;
+  top: var(--mz-header);
+  right: 0;
+  bottom: 0;
+  display: flex;
+  width: min(420px, 92vw);
+  flex-direction: column;
+  padding: 1.1rem 1.2rem 1.2rem;
+  border-left: 1px solid var(--mz-line);
+  background: var(--mz-paper-strong);
+  box-shadow: -18px 0 40px var(--mz-shadow);
+  /* `visibility` is what keeps a closed sheet out of the tab order. */
+  visibility: hidden;
+  transform: translateX(103%);
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 220ms;
+}
+
+.mz-sheet.is-open {
+  visibility: visible;
+  transform: none;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mz-sheet-grip {
+  display: none;
+}
+
+.mz-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--mz-line);
+}
+
+.mz-sheet h2 {
+  margin: 0;
+  color: var(--mz-ink);
+  font-family: var(--mz-serif);
+  font-size: 1.8rem;
+  font-weight: 400;
+}
+
+.mz-version-list {
+  flex: 1;
+  margin-top: 0.6rem;
+  overflow-y: auto;
+}
+
+.mz-version {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  gap: 0.8rem;
+  grid-template-columns: 24px minmax(0, 1fr) 22px;
+  padding: 0.9rem 0.3rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--mz-line) 22%, transparent);
+  background: transparent;
+  color: var(--mz-ink);
+  text-align: left;
+}
+
+.mz-version:hover {
+  color: var(--mz-accent);
+}
+
+.mz-version[aria-current="true"] {
+  color: var(--mz-accent);
+}
+
+.mz-version.is-live {
+  margin-bottom: 0.6rem;
+  padding: 0.9rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--mz-line) 30%, transparent);
+}
+
+.mz-version.is-live[aria-current="true"] {
+  border-color: var(--mz-accent);
+}
+
+.mz-version-mark {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.mz-version-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.16rem;
+}
+
+.mz-version-body strong {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.mz-version-body small {
+  overflow: hidden;
+  color: var(--mz-muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mz-dot {
+  color: var(--mz-muted);
+}
+
+.mz-age-short {
+  display: none;
+}
+
+.mz-sprig {
+  width: 22px;
+  height: 26px;
+  flex: none;
+  color: var(--mz-olive);
+}
+
+.mz-sprig path {
+  vector-effect: non-scaling-stroke;
+}
+
+.mz-version[aria-current="true"] .mz-sprig {
+  color: var(--mz-accent);
+}
+
+.mz-return {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+  padding: 0.9rem 0.2rem 0.2rem;
+  border: 0;
+  border-top: 1px solid var(--mz-line);
+  background: transparent;
+  color: var(--mz-ink);
+  font-size: 0.95rem;
+}
+
+.mz-return:hover {
+  color: var(--mz-accent);
+}
+
+/* ── settings ───────────────────────────────────────────────────────────── */
+
+.mz-modal {
+  width: min(520px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 3rem);
+  padding: 0;
+  border: 1px solid var(--mz-line);
+  border-radius: 0;
+  background: var(--mz-paper-strong);
+  box-shadow: 16px 16px 0 color-mix(in srgb, var(--mz-line) 22%, transparent);
+  color: var(--mz-text);
+  overflow: auto;
+}
+
+.mz-modal::backdrop {
+  background: var(--mz-dim);
+}
+
+.mz-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--mz-line) 30%, transparent);
+}
+
+.mz-modal h2 {
+  margin: 0;
+  color: var(--mz-ink);
+  font-family: var(--mz-serif);
+  font-size: 1.55rem;
+  font-weight: 400;
+}
+
+.mz-modal-body {
+  padding: 1.2rem;
+}
+
+.mz-field {
+  display: grid;
+  min-inline-size: 0;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  border: 0;
+  gap: 0.45rem;
+}
+
+/* Direct children only: the radio cards inside are labels too, and a
+   descendant selector here outranks their own rule and flattens them. */
+.mz-field > label,
+.mz-field > legend {
+  padding: 0;
+  color: var(--mz-ink);
+  font-size: 0.82rem;
+}
+
+.mz-field input[type="text"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--mz-line);
+  border-radius: 0;
+  background: var(--mz-paper);
+  color: var(--mz-text);
+  font-size: 0.95rem;
+}
+
+.mz-choices {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.mz-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--mz-line) 40%, transparent);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.mz-choice.is-on {
+  border-color: var(--mz-line);
+  background: color-mix(in srgb, var(--mz-line) 6%, transparent);
+}
+
+.mz-choice input {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin: 0;
+  appearance: none;
+  border: 1.6px solid var(--mz-line);
+  border-radius: 50%;
+  place-content: center;
+  cursor: pointer;
+}
+
+.mz-choice input:checked::after {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--mz-line);
+  content: "";
+}
+
+.mz-helper {
+  margin: 0.55rem 0 0;
+  color: var(--mz-muted);
+  font-size: 0.78rem;
+}
+
+.mz-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.2rem;
+  padding: 1rem 1.2rem;
+  border-top: 1px solid color-mix(in srgb, var(--mz-line) 30%, transparent);
+}
+
+.mz-quiet-action,
+.mz-strong-action,
+.mz-danger-action {
+  padding: 0.4rem 0.3rem;
+  border: 0;
+  background: transparent;
+  font-size: 0.95rem;
+}
+
+.mz-quiet-action {
+  color: var(--mz-muted);
+}
+
+.mz-quiet-action:hover {
+  color: var(--mz-text);
+}
+
+.mz-strong-action {
+  color: var(--mz-ink);
+  font-weight: 700;
+}
+
+.mz-strong-action:hover {
+  color: var(--mz-accent);
+}
+
+.mz-danger-action {
+  color: var(--mz-danger);
+}
+
+/* Separated on purpose: deleting is not one of the two actions above it. */
+.mz-modal-danger {
+  padding: 0.9rem 1.2rem;
+  border-top: 1px solid color-mix(in srgb, var(--mz-line) 30%, transparent);
+  text-align: center;
+}
+
+/* ── notices ────────────────────────────────────────────────────────────── */
+
+.mz-notice {
+  margin: 0;
+  padding: 1.2rem 0.1rem;
+  color: var(--mz-muted);
+  font-size: 0.9rem;
+}
+
+.mz-notice-bad {
+  color: var(--mz-danger);
+}
+
+.mz-inline-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mz-ink);
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+/* ── narrow ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  :root {
+    --mz-header: 60px;
+  }
+
+  .mz-header-actions .mz-label {
+    display: none;
+  }
+
+  .mz-scrim {
+    inset: 0;
+  }
+
+  .mz-sheet {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    height: min(72dvh, 620px);
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--mz-line);
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -18px 40px var(--mz-shadow);
+    transform: translateY(103%);
+  }
+
+  .mz-sheet-grip {
+    display: block;
+    width: 62px;
+    height: 5px;
+    margin: 0.3rem auto 0.8rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mz-muted) 55%, transparent);
+  }
+
+  .mz-sheet-head {
+    border-bottom: 0;
+  }
+
+  .mz-version {
+    grid-template-columns: 26px minmax(0, 1fr);
+    padding: 1rem 0.2rem;
+  }
+
+  .mz-version-mark {
+    width: 22px;
+    height: 22px;
+    border: 1.6px solid currentColor;
+    border-radius: 50%;
+  }
+
+  .mz-version-mark svg {
+    display: none;
+  }
+
+  .mz-version[aria-current="true"] .mz-version-mark::after {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+  }
+
+  .mz-version-body small,
+  .mz-age-long,
+  .mz-sprig {
+    display: none;
+  }
+
+  .mz-age-short {
+    display: inline;
+  }
+
+  .mz-return {
+    justify-content: center;
+    padding: 0.9rem;
+    border: 1px solid var(--mz-line);
+  }
+
+  .mz-code {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .mz-tree {
+    display: flex;
+    padding: 0.4rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--mz-code-edge);
+    overflow-x: auto;
+  }
+
+  .mz-tree-group {
+    display: flex;
+  }
+
+  .mz-tree-group + .mz-tree-group {
+    margin-top: 0;
+  }
+
+  .mz-tree-dir {
+    display: none;
+  }
+
+  .mz-tree-file {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .mz-choices {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .mz-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mz-card {
+    min-height: 200px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

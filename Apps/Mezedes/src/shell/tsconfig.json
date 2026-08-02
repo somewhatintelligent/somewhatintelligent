@@ -1,0 +1,11 @@
+{
+  // The browser half. Same strictness, different globals: DOM instead of the
+  // Workers runtime. Editors pick this up for everything under `src/shell`.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": [],
+    "jsx": "react-jsx"
+  },
+  "include": ["."]
+}
