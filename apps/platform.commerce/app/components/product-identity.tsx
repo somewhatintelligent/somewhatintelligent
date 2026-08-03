@@ -15,7 +15,6 @@ import { useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   Image as ImageIcon,
   ImageUp,
   MoreVertical,
@@ -33,6 +32,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "platform.ui/components/dropdown-menu";
@@ -378,33 +379,43 @@ function Gallery({
                   }
                 />
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Role</DropdownMenuLabel>
-                  {ROLES.map((role) => (
-                    <DropdownMenuItem
-                      key={role}
-                      disabled={busy || current.role === role}
-                      onClick={() =>
-                        void act(() =>
-                          setProductMediaRole({
-                            data: {
-                              productId,
-                              mediaId: current.id,
-                              role,
-                              commandId: commandId(),
-                            },
-                          }),
-                        )
-                      }
-                    >
-                      {role === "cover" ? (
-                        <Star className="size-4" />
-                      ) : (
-                        <ImageIcon className="size-4" />
-                      )}
-                      {role}
-                      {current.role === role ? <Check className="ml-auto size-4" /> : null}
-                    </DropdownMenuItem>
-                  ))}
+                  {/*
+                    A RADIO GROUP, and not only because Base UI demands one.
+                    `DropdownMenuLabel` is `Menu.GroupLabel`, which throws
+                    `MenuGroupContext is missing` outside a group — but the fix
+                    is not to wrap plain items in `Menu.Group`. An image has
+                    exactly one role, so this is a single-select: the radio
+                    group states that in the accessibility tree, renders the
+                    checked mark itself, and replaces the hand-rolled `Check`
+                    that only looked like one.
+                  */}
+                  <DropdownMenuRadioGroup
+                    value={current.role}
+                    onValueChange={(next) =>
+                      void act(() =>
+                        setProductMediaRole({
+                          data: {
+                            productId,
+                            mediaId: current.id,
+                            role: next as ProductMediaRole,
+                            commandId: commandId(),
+                          },
+                        }),
+                      )
+                    }
+                  >
+                    <DropdownMenuLabel>Role</DropdownMenuLabel>
+                    {ROLES.map((role) => (
+                      <DropdownMenuRadioItem key={role} value={role} disabled={busy}>
+                        {role === "cover" ? (
+                          <Star className="size-4" />
+                        ) : (
+                          <ImageIcon className="size-4" />
+                        )}
+                        {role}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem disabled={busy || index === 0} onClick={() => void shift(-1)}>
                     <ArrowLeft className="size-4" />
