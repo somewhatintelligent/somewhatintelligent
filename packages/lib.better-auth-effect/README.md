@@ -84,6 +84,39 @@ Each tag `X` exports its shape as `XService` — `DatabaseService`, `MailService
 `RateLimitStorageService`, `CaptchaService` — which is what a backing annotates
 its implementation with before handing it to `Layer.effect(X, …)`.
 
+### Providing one
+
+Two shapes, and which you need is decided by whether building the backing does
+any work. `X.of(…)` is the constructor every tag carries; it is an identity
+function that fixes the type, so a missing member is an error here rather than at
+the call site.
+
+```ts
+// Nothing to resolve — a credential you already hold.
+const CaptchaLive = Layer.succeed(Captcha, Captcha.of({ … }));
+
+// Something to resolve — a binding, a pool, a client.
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const d1 = yield* /* however your host reaches the binding */;
+    return Database.of({ dialect: "sqlite", betterAuthDatabase: drizzleAdapter(…) });
+  }),
+);
+```
+
+They are provided to **the configuration**, wherever you build it — the tags are
+in `authConfig`'s `R`, and `makeEffectAuth` passes `R` straight through:
+
+```ts
+Effect.gen(function* () {
+  const auth = yield* makeEffectAuth(authConfig);
+  return { fetch: Effect.orDie(auth.http) };
+}).pipe(Effect.provide(Layer.mergeAll(DatabaseLive, MailLive, CaptchaLive)));
+```
+
+Everything below gives the concrete wiring per tag.
+
 ### `Database` — `"bae/Database"`, always required
 
 `Bae` yields it unconditionally, so every configuration requires it.
@@ -98,6 +131,26 @@ value handed to `betterAuth({ database })` — **resolved, never a coloured
 Effect**. A backing needing per-invocation resolution supplies a façade whose
 methods resolve lazily.
 
+```ts
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const d1 = yield* /* your host's D1 binding */;
+    return Database.of({
+      dialect: "sqlite",
+      // Through an adapter, not the bare handle: a bare binding makes Better
+      // Auth use its built-in Kysely adapter, which names columns camelCase.
+      // If your migrations are snake_case, every query fails at runtime with
+      // `table verification has no column named expiresAt`.
+      betterAuthDatabase: drizzleAdapter(drizzle(d1, { relations }), {
+        provider: "sqlite",
+        schema,
+      }),
+    });
+  }),
+);
+```
+
 ### `Mail` — `"bae/Mail"`, required only if a callback yields it
 
 | Member | Type                                                |
@@ -106,6 +159,28 @@ methods resolve lazily.
 
 `MailMessage` is `{ to: readonly string[]; subject; text; html?; headers? }`.
 `MailError` is a plain tagged `Error`.
+
+```ts
+const MailLive = Layer.effect(
+  Mail,
+  Effect.gen(function* () {
+    const client = yield* /* your transport */;
+    return Mail.of({
+      // `MailError`, not a defect: a refused send is a failure the caller can
+      // answer, and Better Auth turns it into an API error the person sees
+      // rather than a 500 that tells them nothing.
+      send: (message) =>
+        Effect.tryPromise({
+          try: () => client.send({ from: FROM, ...message }),
+          catch: (reason) => new MailError(String(reason)),
+        }).pipe(Effect.asVoid),
+    });
+  }),
+);
+```
+
+`from` is yours, not the contract's — `MailMessage` carries no sender, because
+which address a deployment is allowed to send as is a property of the transport.
 
 ### `EmailTemplates` — `"bae/EmailTemplates"`
 
@@ -126,11 +201,58 @@ reset-password  verify-email  magic-link  email-otp  change-email
 delete-account  organization-invitation  two-factor-otp  phone-otp
 ```
 
+```ts
+const EmailTemplatesLive = Layer.succeed(
+  EmailTemplates,
+  EmailTemplates.of({
+    // Total over `Touchpoint` — a `switch` with no default is how a new
+    // touchpoint becomes a type error rather than a blank email.
+    render: ({ touchpoint, variables }) => Effect.succeed(templateFor(touchpoint)(variables)),
+  }),
+);
+```
+
+`render` cannot fail: a broken template is a defect, not a delivery outcome, and
+there is nothing a caller could do with it. `variables` is `Record<string,
+string>` because the set differs per touchpoint — a sender callback passes what
+that position gave it (`url`, `otp`, `email`, `expiresIn`, …).
+
+The two tags compose in your own helper rather than in `bae`, because which
+touchpoint uses which channel is a deployment's decision:
+
+```ts
+const deliverWith =
+  (mail: MailService, templates: EmailTemplatesService) =>
+  (touchpoint: Touchpoint, to: string, variables: Record<string, string>) =>
+    Effect.flatMap(templates.render({ touchpoint, variables }), (rendered) =>
+      mail.send({ to: [to], ...rendered }),
+    );
+```
+
 ### `Sms` — `"bae/Sms"`
 
 | Member | Type                                                    |
 | ------ | ------------------------------------------------------- |
 | `send` | `(to: string, body: string) => Effect<void, MailError>` |
+
+```ts
+const SmsLive = Layer.succeed(
+  Sms,
+  Sms.of({
+    send: (to, body) =>
+      Effect.tryPromise({
+        try: () => twilio.messages.create({ to, from: SENDER, body }),
+        catch: (reason) => new MailError(String(reason)),
+      }).pipe(Effect.asVoid),
+  }),
+);
+```
+
+`MailError` rather than an `SmsError` of its own: the two channels fail the same
+way from a callback's point of view, and a second error type would have to be
+handled identically everywhere. It is reached by `phoneNumber.sendOTP` and
+`twoFactor.otpOptions.sendOTP` — both of which you fill through a boundary like
+any other position; nothing wires them for you.
 
 ### `SecondaryStore` — `"bae/SecondaryStore"`, optional
 
@@ -148,7 +270,42 @@ Fills `secondaryStorage`. Read with `Effect.serviceOption`, so it never enters
 The two optional members exist so a substrate can **claim** atomicity rather than
 have it assumed. Cloudflare KV implements neither; DynamoDB implements both. The
 key set is mirrored rather than filled in, because Better Auth branches on
-whether the method is there.
+whether the method is there — **so omit what your substrate cannot do.** A stub
+that reads-then-deletes in two round trips satisfies the type and lies about
+atomicity, and Better Auth will have taken the atomic path on the strength of it.
+
+Over Cloudflare KV, which has neither:
+
+```ts
+const SecondaryStoreLive = Layer.effect(
+  SecondaryStore,
+  Effect.gen(function* () {
+    const kv = yield* /* your KV binding */;
+    return SecondaryStore.of({
+      get: (key) => Effect.promise(() => kv.get(key)),
+      set: (key, value, ttlSeconds) =>
+        Effect.promise(() =>
+          // KV's floor is 60s; a shorter TTL is rejected, not rounded.
+          kv.put(key, value, ttlSeconds === undefined ? {} : { expirationTtl: ttlSeconds }),
+        ).pipe(Effect.asVoid),
+      delete: (key) => Effect.promise(() => kv.delete(key)).pipe(Effect.asVoid),
+      // `getAndDelete` and `increment` deliberately absent — see above.
+    });
+  }),
+);
+```
+
+Then just add it to the Layer you provide. Nothing in `authConfig` changes:
+`secondaryStorage` is filled by `configure`, and the key is always present and
+set to `undefined` when the capability is absent, because Better Auth cannot
+distinguish `secondaryStorage: undefined` from an omitted key.
+
+**Providing it changes your schema.** Sessions move out of the database, so
+Better Auth stops generating the `session` and `verification` tables. Whatever
+generates your schema must therefore resolve the config against the _same_
+capability set the Worker gets — that is what a separate inert Layer set
+(`api/inert.ts` here) exists for. A missing Layer on one side and not the other
+changes the tables and raises no error.
 
 ### `RateLimitStorage` — `"bae/RateLimitStorage"`, optional
 
@@ -163,6 +320,38 @@ Fills `rateLimit.customStorage`.
 `RateLimitRow` is `{ key; count; lastRequest }`. Absent `consume` means Better
 Auth takes its documented non-atomic fallback.
 
+```ts
+const RateLimitStorageLive = Layer.effect(
+  RateLimitStorage,
+  Effect.gen(function* () {
+    const table = yield* /* your store */;
+    return RateLimitStorage.of({
+      get: (key) => /* Effect<RateLimitRow | null> */,
+      set: (key, value, update) => /* Effect<void> */,
+      // Supply `consume` ONLY if the substrate can decide-and-write in one
+      // operation — a DynamoDB conditional UpdateItem, a Redis script, a DO.
+      consume: (key, rule) =>
+        Effect.map(table.increment(key, rule.window), (count) => ({
+          allowed: count <= rule.max,
+          retryAfter: count <= rule.max ? null : rule.window,
+        })),
+    });
+  }),
+);
+```
+
+Providing this tag while also setting `rateLimit.storage` yourself is a
+`RateLimitStorageConflict` — two answers to where the state lives. Everything
+else about `rateLimit` stays yours:
+
+```ts
+bae.configure({
+  rateLimit: { enabled: true, window: 60, max: 100, customRules: { … } },
+  //          ^ policy, yours.   `customStorage` is the capability's and is
+  //            not in `BaeOptions` at all.
+})
+```
+
 ### `Captcha` — `"bae/Captcha"`, optional
 
 Providing it wires Better Auth's `captcha()` plugin; you never pass the plugin
@@ -174,9 +363,42 @@ yourself, and doing so is a `CapabilityPluginConflict`.
 | `secretKey` | `string`                                                                     | required |
 | `endpoints` | `readonly string[]`                                                          | optional |
 
-`endpoints` matters more than it looks: Better Auth defaults to `/sign-up/email`,
-`/sign-in/email` and `/request-password-reset`, so a deployment with a magic-link
-or OTP flow is unprotected unless it says so here.
+No async work, so `Layer.succeed` is enough:
+
+```ts
+const CaptchaLive = Layer.succeed(
+  Captcha,
+  Captcha.of({
+    provider: "cloudflare-turnstile",
+    secretKey: TURNSTILE_SECRET_KEY,
+    endpoints: [
+      "/sign-up/email",
+      "/sign-in/email",
+      "/request-password-reset",
+      "/sign-in/magic-link", // not covered by the default
+      "/two-factor/send-otp",
+    ],
+  }),
+);
+```
+
+`endpoints` **replaces** the default list, it does not extend it — Better Auth
+takes `options.endpoints?.length ? options.endpoints : defaultEndpoints`. So the
+first three above are not decoration; naming only `/sign-in/magic-link` would
+silently unprotect email sign-up. The default is `/sign-up/email`,
+`/sign-in/email` and `/request-password-reset`, which means a deployment whose
+real exposure is a magic-link or OTP flow is unprotected until it says so here.
+Paths are relative to `basePath`.
+
+That is the whole server side. `secretKey` is the _secret_, never the site key —
+the site key belongs to the widget in the browser, and the client is expected to
+send the token as an `x-captcha-response` header on the protected requests.
+
+Never pass `captcha()` in `plugins` as well; `configure` refuses that with a
+`CapabilityPluginConflict` rather than wiring two challenge checks. Providing the
+tag adds three `$ERROR_CODES` and nothing else — no models, no endpoints — which
+is why the plugin is absent from `configure`'s return _type_ while present in its
+value.
 
 ### Optional capabilities change your schema
 
@@ -363,12 +585,87 @@ Inference collapse is silent — `auth.api` degrades to a plugin-free client and
 nothing errors — so `test/types.test.ts` asserts a plugin-contributed field is
 present _and_ mutates the config to prove the assertion fails when it is not.
 
-## Tracing
+## Telemetry
 
 Not a capability: a tracer is fiber-ambient, every span is opened by machinery
 rather than by a body, and making it a tag would put `Tracer` in the requirement
 channel of all 226 callback positions to no end. It is a `Layer<never>` instead,
 and a deployment that provides nothing gets Effect's no-op tracer.
+
+### Wiring it, end to end
+
+Three edits, in three different places, and all three are needed — one names the
+spans, one opens their root, one decides where they go.
+
+```ts
+// 1. NAME. Post-process the options. Inert without a tracer, so this can stay
+//    in whether or not the deployment has a destination.
+const traced = Effect.map(authConfig, (options) => withTracing(options));
+
+// 2. ROOT + 3. DESTINATION. Both at the mount, because the tracer Layer's scope
+//    has to be the request — see below.
+Effect.gen(function* () {
+  const auth = yield* makeEffectAuth(traced);
+
+  const fetch = (request: Request) =>
+    withRequestSpan(request, auth.handle(request)).pipe(
+      Effect.provide(
+        layerOtlpWorker({
+          url: "https://api.axiom.co/v1/traces",
+          headers: { authorization: `Bearer ${token}`, "x-axiom-dataset": "auth" },
+          serviceName: "auth",
+        }),
+      ),
+    );
+
+  return { fetch: Effect.orDie(fetch) };
+}).pipe(Effect.provide(capabilities));
+```
+
+What you get: one `POST /api/auth/sign-in/email` server span per request, with a
+child span per callback the request actually reached —
+`bae.emailAndPassword.sendResetPassword`, `bae.databaseHooks.user.create.after`
+— each timed over the whole Effect, not just its synchronous head.
+
+Skip step 1 and the trace has a request span and nothing under it. Skip step 2
+and every callback span becomes its own root, so the trace is one span per
+callback with no request to hang them on. Skip step 3 and all of it is a no-op,
+which is exactly what "tracing is off" should cost.
+
+**On a long-lived server** — Node, Bun, a container — provide `layerOtlp` once at
+the top instead, and drop it from the request path. The per-request placement is
+a Cloudflare requirement, not the general shape.
+
+**From the environment**, when the destination is a deploy-time decision rather
+than a code one:
+
+```ts
+Effect.provide(layerOtlpFromEnv({ serviceName: "auth" }));
+```
+
+reads `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (or `OTEL_EXPORTER_OTLP_ENDPOINT`),
+`OTEL_EXPORTER_OTLP_HEADERS`, and `OTEL_SDK_DISABLED`. Absent or disabled yields
+`Layer.empty` — the no-op tracer — so an un-configured stage traces nothing
+rather than failing to boot. Note that `OTEL_SERVICE_NAME`, if set, **wins** over
+the `serviceName` you pass; the environment is checked first, which is the
+opposite of the usual precedence.
+
+**Instrumenting a plugin.** `withTracing` does not descend into `plugins` —
+those are functions Better Auth built, not callbacks you supplied. Name the
+plugin's own option object instead, with its own prefix and its own paths:
+
+```ts
+plugins: [
+  twoFactor(
+    withTracing(twoFactorOptions, {
+      prefix: "bae.twoFactor",
+      paths: ["otpOptions.sendOTP"],
+    }),
+  ),
+];
+```
+
+### The pieces
 
 **`withTracing(options, config?)`** post-processes a config object, naming each
 span after the config path it fills — a boundary cannot know which position it is
@@ -397,9 +694,9 @@ an `Adapter`), `advanced.database.generateId`, `logger.log`,
 `.getAndDelete`. Wrapping any of them substitutes `[object Promise]` for a row id
 or breaks the instance at init.
 
-`plugins` is not descended into, for a second reason: those are functions Better
-Auth built, not callbacks you supplied. Instrument one by naming its own option
-object — `twoFactor(withTracing(opts, { prefix: "bae.twoFactor", paths: [...] }))`.
+`plugins` is not descended into, for a second and independent reason: those are
+functions Better Auth built, not callbacks you supplied — hence the per-plugin
+form above.
 
 **The request root span.** `withRequestSpan(request, effect, options?)` opens it;
 without it every callback span becomes its own root. `options` is `name?`
