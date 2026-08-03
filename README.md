@@ -9,6 +9,7 @@ TypeScript with [alchemy](https://alchemy.run), built and checked with
 | Path                                               | What it is                                                             |
 | -------------------------------------------------- | ---------------------------------------------------------------------- |
 | `apps/platform.auth/`                              | The identity stack — Better Auth server, its D1 database, and the app  |
+| `apps/platform.commerce/`                          | The commerce substrate — catalogue, checkout, settlement, fulfilment   |
 | `apps/platform.inbox/`                             | The mail app — Durable Object mailboxes, an agent, and an MCP endpoint |
 | `apps/mezedes/`                                    | An MCP surface, an owner-only shell, and the artifacts its tools build |
 | `stacks/`                                          | What deploys each app: state key, providers, adopt policy              |

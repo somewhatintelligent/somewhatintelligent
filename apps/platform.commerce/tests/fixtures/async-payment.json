@@ -1,0 +1,44 @@
+{
+  "_meta": {
+    "template_version": 0
+  },
+  "fixtures": [
+    {
+      "name": "product",
+      "path": "/v1/products",
+      "method": "post",
+      "params": {
+        "name": "Spike async-payment probe"
+      }
+    },
+    {
+      "name": "price",
+      "path": "/v1/prices",
+      "method": "post",
+      "params": {
+        "product": "${product:id}",
+        "unit_amount": 2500,
+        "currency": "cad"
+      }
+    },
+    {
+      "name": "session",
+      "path": "/v1/checkout/sessions",
+      "method": "post",
+      "params": {
+        "mode": "payment",
+        "success_url": "http://localhost:5173/orders/PROBE",
+        "cancel_url": "http://localhost:5173/cart",
+        "line_items": [
+          {
+            "price": "${price:id}",
+            "quantity": 1
+          }
+        ],
+        "metadata": {
+          "storeOrderId": "FIXTURE_ORDER_ID"
+        }
+      }
+    }
+  ]
+}
