@@ -1,0 +1,6 @@
+# astro's generated types for its virtual modules
+.astro/
+
+# written by lib.astro-alchemy for `alchemy dev`
+.dev.wrangler.json
+.dev.registry/

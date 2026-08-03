@@ -1,0 +1,20 @@
+{
+  "name": "platform.site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./module": "./module.ts"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.1.7",
+    "alchemy": "catalog:",
+    "astro": "^7",
+    "effect": "catalog:",
+    "lib.astro-alchemy": "workspace:*",
+    "platform.design": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

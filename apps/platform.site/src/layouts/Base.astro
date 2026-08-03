@@ -1,0 +1,34 @@
+---
+import "../styles.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogType?: "website" | "article";
+  /** Document token theme. Light pages re-darken chrome via data-theme="dark" wrappers. */
+  theme?: "dark" | "light";
+}
+
+const {
+  title = "somewhatintelligent — objects, systems, texts",
+  description = "Objects, systems, texts, and other side effects by Apostoli.",
+  ogType = "website",
+  theme = "dark",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme={theme} style={`color-scheme: ${theme};`}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

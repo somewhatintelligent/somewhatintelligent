@@ -1,0 +1,15 @@
+---
+import Base from "../layouts/Base.astro";
+import HomeView from "../components/views/HomeView.astro";
+import { HOME_DOCUMENT } from "../lib/home-document.ts";
+
+// On-demand, not prerendered: `output: "server"` is forced by the stack and
+// this route opts out of nothing, so the Worker renders the page per request.
+// The document is committed rather than read from anywhere — see
+// `src/lib/home-document.ts`.
+const doc = HOME_DOCUMENT;
+---
+
+<Base title={doc.seo.title} description={doc.seo.description}>
+  <HomeView document={doc} />
+</Base>

@@ -1,0 +1,204 @@
+@import "platform.design/generated/css/reset.css";
+@import "platform.design/generated/css/tokens.css";
+
+/*
+ * The four faces the chrome actually uses, declared here rather than pulled in
+ * with `platform.design/theme.css` — that entry point is the Tailwind one, and
+ * this site is hand-written CSS. Relative paths into the package's `src/fonts/`
+ * rather than a bare specifier, matching the site this replaces.
+ */
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("../../../packages/platform.design/src/fonts/barlow-condensed/BarlowCondensed-Bold.ttf")
+    format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  src: url("../../../packages/platform.design/src/fonts/source-serif-4/SourceSerif4-Variable.ttf")
+    format("truetype");
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  src: url("../../../packages/platform.design/src/fonts/source-serif-4/SourceSerif4-Italic-Variable.ttf")
+    format("truetype");
+  font-style: italic;
+  font-weight: 200 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Iosevka";
+  src: url("../../../packages/platform.design/src/fonts/iosevka/Iosevka-Regular.woff2")
+    format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  font-family: var(--font-body);
+  background: var(--color-background);
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+body {
+  overflow: hidden;
+}
+
+a:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.site-frame {
+  display: grid;
+  grid-template-rows: 54px minmax(0, 1fr) 52px;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+.site-header,
+.site-footer {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  border-color: var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-mono);
+}
+
+.site-header {
+  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.wordmark {
+  letter-spacing: -0.055em;
+}
+
+.wordmark.is-active,
+.desktop-nav a.is-active {
+  border-bottom: 1px solid currentColor;
+}
+
+.desktop-nav {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  gap: 34px;
+  transform: translateX(-50%);
+}
+
+.desktop-nav a,
+.account-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-end {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  margin-left: auto;
+}
+
+.account-link {
+  text-transform: uppercase;
+}
+
+.site-footer {
+  padding: 0 26px;
+  border-top: 1px solid var(--color-border);
+  font-size: 10px;
+}
+
+.site-footer > span:nth-child(2) {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.site-footer nav {
+  display: flex;
+  gap: 34px;
+  margin-left: auto;
+}
+
+@media (max-width: 1023px) {
+  body {
+    overflow: auto;
+  }
+
+  .site-frame {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .site-header {
+    position: sticky;
+    top: 0;
+    height: 56px;
+  }
+
+  .desktop-nav {
+    display: none;
+  }
+
+  .account-link {
+    display: none;
+  }
+
+  .site-footer {
+    min-height: 54px;
+  }
+
+  .site-footer > span:nth-child(2),
+  .site-footer nav {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

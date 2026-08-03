@@ -139,6 +139,21 @@
         "vite-plus": "catalog:",
       },
     },
+    "apps/platform.site": {
+      "name": "platform.site",
+      "version": "0.0.0",
+      "dependencies": {
+        "@astrojs/cloudflare": "^14.1.7",
+        "alchemy": "catalog:",
+        "astro": "^7",
+        "effect": "catalog:",
+        "lib.astro-alchemy": "workspace:*",
+        "platform.design": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "catalog:",
+      },
+    },
     "packages/lib.astro-alchemy": {
       "name": "lib.astro-alchemy",
       "version": "0.0.0",
@@ -2750,6 +2765,8 @@
     "platform.inbox": ["platform.inbox@workspace:apps/platform.inbox"],
 
     "platform.names": ["platform.names@workspace:packages/platform.names"],
+
+    "platform.site": ["platform.site@workspace:apps/platform.site"],
 
     "platform.ui": ["platform.ui@workspace:packages/platform.ui"],
 

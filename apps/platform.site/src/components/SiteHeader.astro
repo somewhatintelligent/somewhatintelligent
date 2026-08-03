@@ -1,0 +1,49 @@
+---
+// Carried over from the site this replaces, minus the cart: the count was
+// rendered by a client script over `lib/cart-client`, which belongs to the
+// store and has no scaffold to hang off. The nav is the full one on purpose —
+// it is the chrome the home page sits in, and the four links become live as
+// their routes land.
+//
+// A table rather than four hand-written anchors and a nested ternary, which is
+// what the original was. The section name IS the path prefix, so the active
+// lookup falls out of the same table and nothing has to agree with anything by
+// hand. The old `data-nav` attributes are gone with the script that read them.
+const NAV = [
+  { section: "shop", href: "/shop/", label: "Shop" },
+  { section: "software", href: "/software/", label: "Software" },
+  { section: "writing", href: "/writing/", label: "Writing" },
+  { section: "about", href: "/about/", label: "About" },
+] as const;
+
+const path = Astro.url.pathname;
+const active =
+  path === "/" ? "home" : (NAV.find(({ section }) => path.startsWith(`/${section}`))?.section ?? "");
+---
+
+<header class="site-header">
+  <a
+    class:list={["wordmark", { "is-active": active === "home" }]}
+    href="/"
+    aria-current={active === "home" ? "page" : undefined}
+    aria-label="somewhatintelligent home"
+  >
+    somewhatintelligent
+  </a>
+  <nav class="desktop-nav" aria-label="Primary">
+    {
+      NAV.map(({ section, href, label }) => (
+        <a
+          class:list={{ "is-active": active === section }}
+          href={href}
+          aria-current={active === section ? "page" : undefined}
+        >
+          {label}
+        </a>
+      ))
+    }
+  </nav>
+  <div class="header-end">
+    <a class="account-link" href="/account">Account</a>
+  </div>
+</header>

@@ -1,0 +1,310 @@
+---
+// The home composition, carried over verbatim. The SVG wordmark and the hero
+// image are site-owned compositional surfaces — layout, not document content;
+// the document drives the tagline, the section copy, and the action labels.
+import SiteFooter from "../SiteFooter.astro";
+import SiteHeader from "../SiteHeader.astro";
+import type { HomeDocument } from "../../lib/home-document.ts";
+import heroImage from "../../assets/01-friend-elevator-incident.png";
+
+interface Props {
+  document: HomeDocument;
+}
+
+const { document: doc } = Astro.props;
+
+const records = [
+  { s: doc.sections.objects, href: "/shop/", id: "objects" },
+  { s: doc.sections.systems, href: "/software/", id: "systems" },
+  { s: doc.sections.texts, href: "/writing/", id: "texts" },
+  { s: doc.sections.about, href: "/about/", id: "apostoli" },
+];
+---
+
+<div class="site-frame">
+  <SiteHeader />
+
+  <main class="home-main">
+    <section class="hero" aria-labelledby="home-title">
+      <div class="hero-claim">
+        <h1 id="home-title">
+          <span class="sr-only">Somewhat Intelligent</span>
+          <svg
+            aria-hidden="true"
+            class="claim-plane"
+            preserveAspectRatio="none"
+            viewBox="0 0 1000 1000"
+          >
+            <text x="30" y="500" font-size="650" lengthAdjust="spacingAndGlyphs" textLength="870">
+              SOMEWHAT
+            </text>
+            <text x="30" y="960" font-size="650" lengthAdjust="spacingAndGlyphs" textLength="935">
+              INTELLIGENT
+            </text>
+          </svg>
+        </h1>
+        <p class="publishing-scope">{doc.tagline}</p>
+      </div>
+      <figure class="hero-image">
+        <img src={heroImage.src} alt="Friend 001 garment photographed in an elevator" />
+      </figure>
+    </section>
+
+    <section class="record-grid" aria-label="Current records">
+      {
+        records.map(({ s, href, id }) => (
+          <article class="record" id={id}>
+            <p class="record-label">{s.eyebrow}</p>
+            <div class="record-visual record-scaffold" aria-hidden="true">
+              <strong>{s.eyebrow}</strong>
+            </div>
+            <div class="record-copy">
+              <p>{s.body}</p>
+              <a href={href}>
+                {s.actionLabel} <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </article>
+        ))
+      }
+    </section>
+  </main>
+
+  <SiteFooter />
+</div>
+
+<style>
+  .home-main {
+    display: grid;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) 244px;
+  }
+
+  .hero {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: 48% 52%;
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .hero-claim {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--color-background);
+  }
+
+  .hero-claim h1 {
+    position: absolute;
+    inset: 0;
+    color: var(--color-foreground);
+  }
+
+  .claim-plane {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .claim-plane text {
+    fill: currentColor;
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+
+  .publishing-scope {
+    position: absolute;
+    z-index: 3;
+    bottom: 0;
+    left: 0;
+    width: fit-content;
+    max-width: 100%;
+    padding: 14px 30px 13px 24px;
+    border-top-right-radius: 48px;
+    background: var(--color-background);
+    font-family: var(--font-editorial);
+    font-size: clamp(18px, 1.35vw, 22px);
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .hero-image {
+    min-width: 0;
+    overflow: hidden;
+    border-left: 1px solid var(--color-border);
+  }
+
+  .hero-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 44%;
+  }
+
+  .record-grid {
+    --record-scaffold-size: min(calc(12vw - 28px), 190px);
+
+    display: grid;
+    min-height: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .record {
+    position: relative;
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 48% 52%;
+    gap: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--color-border);
+  }
+
+  .record:last-child {
+    border-right: 0;
+  }
+
+  .record-label {
+    position: absolute;
+    z-index: 2;
+    top: 14px;
+    left: 24px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .record-visual {
+    min-width: 0;
+    margin-top: 40px;
+    margin-bottom: 14px;
+    margin-left: 14px;
+    overflow: hidden;
+  }
+
+  .record-scaffold {
+    position: relative;
+    display: flex;
+    width: var(--record-scaffold-size);
+    height: var(--record-scaffold-size);
+    align-self: end;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0;
+    margin-right: 14px;
+    margin-bottom: 18px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-sunken);
+    font-family: var(--font-display);
+    line-height: 0.82;
+    text-align: center;
+  }
+
+  .record-scaffold::before,
+  .record-scaffold::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 150%;
+    height: 1px;
+    background: var(--color-border);
+    content: "";
+  }
+
+  .record-scaffold::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+
+  .record-scaffold::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+  }
+
+  .record-scaffold strong {
+    position: relative;
+    z-index: 1;
+    padding: 7px 10px;
+    background: var(--color-surface-sunken);
+    font-family: var(--font-mono);
+    font-size: clamp(16px, 1.45vw, 23px);
+    font-weight: 400;
+    line-height: 0.9;
+  }
+
+  .record-copy {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 44px 18px 50px;
+  }
+
+  .record-copy p {
+    font-family: var(--font-editorial);
+    font-size: clamp(13px, 0.94vw, 15.5px);
+    line-height: 1.15;
+  }
+
+  .record-copy a {
+    position: absolute;
+    bottom: 18px;
+    left: 18px;
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  @media (max-width: 1023px) {
+    .home-main {
+      display: block;
+    }
+
+    .hero {
+      display: block;
+      height: calc(100dvh - 56px);
+      min-height: 620px;
+    }
+
+    .hero-claim {
+      height: 100%;
+    }
+
+    .hero-image {
+      display: none;
+    }
+
+    .publishing-scope {
+      max-width: 92%;
+      padding-left: 18px;
+      font-size: clamp(17px, 4.8vw, 23px);
+      white-space: normal;
+    }
+
+    .record-grid {
+      --record-scaffold-size: calc(52vw - 28px);
+
+      display: block;
+    }
+
+    .record {
+      min-height: 294px;
+      grid-template-columns: 52% 48%;
+      border-right: 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .record-label {
+      left: 54%;
+    }
+
+    .record-copy {
+      padding-right: 22px;
+    }
+
+    .record-copy p {
+      font-size: 16px;
+      line-height: 1.15;
+    }
+  }
+</style>
