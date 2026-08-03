@@ -394,6 +394,299 @@
         "count": 1
       }
     },
+    "apps/platform.inbox/app/components/AgentPanel.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/AgentSidebar.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/ComposeEmail.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/ComposePanel.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/EmailAttachmentList.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/EmailIframe.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/EmailPanel.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "apps/platform.inbox/app/components/Header.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/MailboxSplitView.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/RichTextEditor.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/Sidebar.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/email-panel/EmailPanelDialogs.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/email-panel/EmailPanelToolbar.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/components/email-panel/ThreadMessage.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/hooks/useComposeForm.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/platform.inbox/app/hooks/useUIStore.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/lib/search-parser.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/lib/utils.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/queries/emails.ts": {
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/platform.inbox/app/queries/search.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/root.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/routes/email-list.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/platform.inbox/app/routes/home.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/routes/search-results.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/routes/settings.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/app/services/api.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/platform.inbox/workers/agent/index.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/workers/app.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/workers/durableObject/index.ts": {
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "apps/platform.inbox/workers/email-sender.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/workers/index.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "apps/platform.inbox/workers/lib/ai.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/workers/lib/attachments.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/workers/lib/email-helpers.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/platform.inbox/workers/lib/tools.ts": {
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.inbox/workers/mcp/index.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/platform.inbox/workers/routes/reply-forward.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      }
+    },
     "packages/platform.ui/src/components/form/checkbox-field.tsx": {
       "crap_moderate": {
         "count": 1
@@ -547,10 +840,13 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
+    "apps/platform.inbox/app/components/EmailPanel.tsx:untested risk",
     "apps/mezedes/src/shell/components/router.ts:high impact",
     "apps/mezedes/src/shell/components/format.ts:untested risk",
     "packages/platform.ui/src/components/ui/editor/markdown-editor.tsx:complexity",
     "apps/mezedes/src/shell/components/theme.ts:high impact",
-    "apps/platform.auth/app/lib/relative-time.ts:untested risk"
+    "apps/platform.auth/app/lib/relative-time.ts:untested risk",
+    "apps/platform.inbox/workers/index.ts:complexity",
+    "apps/platform.inbox/app/routes/home.tsx:complexity"
   ]
 }

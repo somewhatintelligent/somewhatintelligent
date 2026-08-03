@@ -1,0 +1,36 @@
+/*
+ * THE REPO ROOT's node_modules, three levels up — bun hoists `@cloudflare/kumo`
+ * there rather than into this package. `@source` is a plain filesystem glob
+ * with no package resolution behind it, so a wrong path is not an error: it
+ * matches nothing, Tailwind generates none of Kumo's utility classes, and the
+ * app renders unstyled with a clean build. Verified by `ls` after install, not
+ * by inference. If Kumo ever gets nested here by a version conflict (as
+ * `agents` already is), this needs the old `../node_modules` form back.
+ */
+@source "../../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+@import "@cloudflare/kumo/styles/tailwind";
+@import "tailwindcss";
+
+body {
+  margin: 0;
+}
+
+/* TipTap list styles */
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}

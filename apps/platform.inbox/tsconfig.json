@@ -1,0 +1,48 @@
+{
+  // ONE project, matching the other apps here. The React Router template ships
+  // three — a root of pure `references` over a `node` project and a `composite`
+  // `cloudflare` project — which existed to give `vite.config.ts` node globals
+  // and everything else Workers globals. It also pulled in the gitignored
+  // `.react-router/types` via `rootDirs`, so a clean clone could not typecheck
+  // until someone ran typegen. Both are gone; `app/vite-env.d.ts` carries the
+  // one declaration typegen was supplying.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "types": ["node", "@cloudflare/workers-types/experimental", "vite/client"],
+    "paths": {
+      "~/*": ["./app/*"],
+      "shared/*": ["./shared/*"]
+    },
+
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+
+    "strict": true,
+    // The template's own loosening, kept rather than quietly tightened during a
+    // port. Turning it on is a real change with real findings — worth doing, but
+    // as its own commit where the diff is the point.
+    "noImplicitAny": false,
+
+    "skipLibCheck": true
+  },
+  "include": [
+    "module.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "react-router.config.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "workers/**/*.ts",
+    "shared/**/*.ts"
+  ]
+}

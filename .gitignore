@@ -10,6 +10,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# React Router's build output (platform.inbox) and its typegen directory. The
+# typegen output is not depended on — see apps/platform.inbox/tsconfig.json —
+# but running `react-router typegen` still writes it.
+build
+.react-router
 *.local
 
 # dotenv environment variable files

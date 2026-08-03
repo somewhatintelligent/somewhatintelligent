@@ -8,6 +8,12 @@
     "apps/platform.auth/app/routeTree.gen.ts",
     "apps/platform.auth/api/schema.gen.ts",
     "apps/platform.auth/test/**/*.test.ts",
+    // The deployed Worker's entry. React Router's own entries are discovered
+    // by fallow's framework plugin, but this one is named as a STRING in
+    // `module.ts` (`main`) precisely so the script exports the Durable Object
+    // classes and the `email()` handler that the framework build does not.
+    // No import reaches it, so without this line its whole tree reads as dead.
+    "apps/platform.inbox/workers/app.ts",
     "packages/*/src/index.ts",
     "apps/*/src/server/entry.ts",
     "apps/*/src/shell/main.tsx",
@@ -90,6 +96,10 @@
     "unused-files": "error",
     "unused-dependencies": "error",
   },
+  // A method reached through a Durable Object STUB or invoked by a framework is
+  // called by a name no import graph carries. The bare strings apply to every
+  // class; the scoped entries apply only to a matching `extends`, which is the
+  // form to prefer — a global `get` silences a genuinely dead `get` anywhere.
   "usedClassMembers": [
     "list",
     "get",
@@ -100,6 +110,36 @@
     "remove",
     "fetch",
     "alarm",
+    // platform.inbox's mailbox. Every one of these has a real `stub.<name>()`
+    // call site in `workers/`; fallow cannot follow a member through
+    // `DurableObjectStub<MailboxDO>`. Listed rather than globbed on purpose:
+    // a NEW method that never gets wired up should still fail the gate.
+    {
+      "extends": "DurableObject",
+      "members": [
+        "countEmails",
+        "getThreadedEmails",
+        "countThreadedEmails",
+        "getThreadEmails",
+        "updateEmail",
+        "markThreadRead",
+        "deleteEmail",
+        "getAttachment",
+        "getFolders",
+        "createFolder",
+        "updateFolder",
+        "deleteFolder",
+        "moveEmail",
+        "searchEmails",
+        "countSearchResults",
+        "findThreadBySubject",
+        "checkSendRateLimit",
+        "createEmail",
+      ],
+    },
+    // Lifecycle overrides the `agents` runtime calls, never the app.
+    { "extends": "AIChatAgent", "members": ["onChatMessage", "onRequest"] },
+    { "extends": "McpAgent", "members": ["init"] },
   ],
   "ignoreDependencies": [
     "@effect/platform-bun",
