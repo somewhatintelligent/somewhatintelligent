@@ -32,6 +32,7 @@ import type {
   OperatorCall,
   OrderListInput,
   PlanProductReleaseDeletionInput,
+  ProductMediaRole,
   ProductStatus,
   PublishProductInput,
   PutVariantInput,
@@ -252,6 +253,23 @@ export const commerceSurface = Effect.fn("commerceSurface")(function* (provider:
       Effect.gen(function* () {
         const database = yield* Database;
         return yield* Media.operatorMediaContentType(database.db, mediaId);
+      }).pipe(Effect.provide(layer)),
+
+    /** Which image leads. Decided after looking at them, not at upload. */
+    setProductMediaRole: (
+      call: OperatorCall<{ productId: string; mediaId: string; role: ProductMediaRole }>,
+    ) =>
+      Effect.gen(function* () {
+        const audit = yield* Audit;
+        const database = yield* Database;
+        return yield* audit.command(
+          "setProductMediaRole",
+          call,
+          Effect.gen(function* () {
+            const now = yield* Effect.clockWith((clock) => clock.currentTimeMillis);
+            return yield* Media.setProductMediaRole(database.db, call.input, now);
+          }),
+        );
       }).pipe(Effect.provide(layer)),
 
     reorderProductMedia: (call: OperatorCall<ReorderProductMediaInput>) =>

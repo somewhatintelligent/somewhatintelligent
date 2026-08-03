@@ -508,6 +508,16 @@ export class OperatorRpcs extends RpcGroup.make(
     success: ProductMedia,
     error: Schema.Union([NotFound, MediaRefused]),
   }),
+  Rpc.make("setProductMediaRole", {
+    payload: call({
+      productId: Schema.String,
+      mediaId: Schema.String,
+      role: MediaRole,
+    }),
+    success: Schema.Struct({ mediaId: Schema.String, role: MediaRole }),
+    error: Schema.Union([NotFound, MediaRefused]),
+  }),
+
   Rpc.make("reorderProductMedia", {
     payload: call({ productId: Schema.String, mediaIds: Schema.Array(Schema.String) }),
     success: Schema.Struct({ ok: Schema.Boolean }),

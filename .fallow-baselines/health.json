@@ -415,9 +415,23 @@
         "count": 1
       }
     },
-    "apps/platform.commerce/app/components/variant-editor.tsx": {
+    "apps/platform.commerce/app/components/product-identity.tsx": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
       "crap_moderate": {
         "count": 1
+      }
+    },
+    "apps/platform.commerce/app/components/variant-editor.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
       }
     },
     "apps/platform.commerce/app/lib/context.functions.ts": {
@@ -452,10 +466,7 @@
     },
     "apps/platform.commerce/app/routes/products.$productId.tsx": {
       "crap_high": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
+        "count": 3
       }
     },
     "apps/platform.commerce/app/routes/products.index.tsx": {

@@ -86,7 +86,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const { actor, paymentsEnvironment } = Route.useRouteContext();
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-6">
+    <div className="flex min-h-screen w-full flex-col gap-4 px-4 py-4 xl:px-6">
       <nav className="flex flex-wrap items-center gap-x-1 gap-y-2 border-b border-border pb-3">
         <span className="mr-3 font-display text-sm font-bold tracking-widest uppercase">
           Commerce
@@ -123,7 +123,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      <main className="flex flex-1 flex-col gap-6">{children}</main>
+      <main className="flex flex-1 flex-col gap-4">{children}</main>
     </div>
   );
 }

@@ -221,6 +221,17 @@ export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
             ),
         ),
 
+      setProductMediaRole: ({ commandId, ...input }) =>
+        Effect.flatMap(
+          commerce.setProductMediaRole(envelope("setProductMediaRole", commandId, input)),
+          (result) =>
+            lift(result, (error) =>
+              error === "not_found"
+                ? new NotFound({ what: "media", id: input.mediaId })
+                : new MediaRefused({ reason: "invalid_role" }),
+            ),
+        ),
+
       reorderProductMedia: ({ commandId, ...input }) =>
         Effect.flatMap(
           commerce.reorderProductMedia(

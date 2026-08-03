@@ -216,6 +216,19 @@ export const ingestProductMedia = createServerFn({ method: "POST" })
     );
   });
 
+export const setProductMediaRole = createServerFn({ method: "POST" })
+  .middleware([requireOperator])
+  .validator(
+    (data: { productId: string; mediaId: string; role: ProductMediaRole; commandId: string }) =>
+      data,
+  )
+  .handler(async ({ context, data }) => {
+    const { commandId, ...input } = data;
+    return commerce().setProductMediaRole(
+      operatorCall(context.actor, "setProductMediaRole", commandId, input),
+    );
+  });
+
 export const reorderProductMedia = createServerFn({ method: "POST" })
   .middleware([requireOperator])
   .validator((data: ReorderProductMediaInput & { commandId: string }) => data)

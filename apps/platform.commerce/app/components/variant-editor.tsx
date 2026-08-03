@@ -12,7 +12,7 @@
  * an opening stock, editing must never touch it.
  */
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 
 import { Button } from "platform.ui/components/button";
 import {
@@ -199,6 +199,159 @@ export function VariantEditor({
               </Button>
               <Button type="submit" disabled={busy}>
                 {busy ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/**
+ * ADDING A SIZE, in a dialog rather than a row of fields under the table.
+ *
+ * Inline, it doubled the panel's height for something used a handful of times
+ * per product and never again — and it sat below the table, so the control that
+ * fills an empty table was hidden underneath the empty table.
+ *
+ * NEITHER MODE NOR STOCK IS ASKED FOR ON A RUN. Both are already decided: the
+ * product sells as a run of N, so a new size joins that run with the run's
+ * headroom. "How many smalls" is the number a run exists to discover, not one
+ * to type.
+ */
+export function AddSize({
+  productId,
+  slug,
+  runCap,
+  onAdded,
+}: {
+  productId: string;
+  slug: string;
+  runCap: number | null;
+  onAdded: () => Promise<void>;
+}) {
+  const isRun = runCap !== null;
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [form, setForm] = useState({ size: "", sku: "", stock: "10", expectedShipAt: "" });
+
+  const onOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      setForm({ size: "", sku: "", stock: "10", expectedShipAt: "" });
+      setError(null);
+    }
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const size = form.size.trim();
+    if (!size) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await putVariant({
+        data: {
+          productId,
+          size,
+          // Derived rather than demanded — it has to be unique globally, which
+          // `slug-size` is.
+          sku: form.sku.trim() || `${slug}-${size}`.toLowerCase(),
+          stock: isRun ? runCap : Number(form.stock) || 0,
+          mode: isRun ? "preorder" : "stock",
+          expectedShipAt:
+            isRun && form.expectedShipAt ? new Date(form.expectedShipAt).getTime() : null,
+          commandId: commandId(),
+        },
+      });
+      if (!result.ok) {
+        setError(new Error(refusalText(result.error, result.message)));
+        return;
+      }
+      setOpen(false);
+      await onAdded();
+    } catch (cause) {
+      setError(cause);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button size="xs" onClick={() => onOpenChange(true)}>
+        <Plus />
+        Add size
+      </Button>
+
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add a size</DialogTitle>
+            <DialogDescription>
+              {isRun
+                ? `Joins the run of ${runCap}. Any size mix, capped in total.`
+                : "Sells what you give it, and runs out on its own."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <Label htmlFor="add-size">Size</Label>
+                <Input
+                  id="add-size"
+                  autoFocus
+                  value={form.size}
+                  onChange={(e) => setForm({ ...form, size: e.target.value })}
+                  placeholder="M"
+                  required
+                />
+              </Field>
+              {isRun ? (
+                <Field>
+                  <Label htmlFor="add-ship">Expected ship</Label>
+                  <Input
+                    id="add-ship"
+                    type="date"
+                    value={form.expectedShipAt}
+                    onChange={(e) => setForm({ ...form, expectedShipAt: e.target.value })}
+                  />
+                </Field>
+              ) : (
+                <Field>
+                  <Label htmlFor="add-stock">In stock</Label>
+                  <Input
+                    id="add-stock"
+                    inputMode="numeric"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  />
+                </Field>
+              )}
+            </div>
+
+            <Field>
+              <Label htmlFor="add-sku">SKU</Label>
+              <Input
+                id="add-sku"
+                value={form.sku}
+                onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                placeholder={`${slug}-${form.size.trim().toLowerCase() || "m"}`}
+              />
+              <FieldDescription>Leave blank to derive it from the slug and size.</FieldDescription>
+            </Field>
+
+            <Outcome error={error} />
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy || !form.size.trim()}>
+                {busy ? "Adding…" : "Add size"}
               </Button>
             </DialogFooter>
           </form>

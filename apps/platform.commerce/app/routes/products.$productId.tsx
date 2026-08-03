@@ -21,11 +21,10 @@
  */
 import { useState } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { GripVertical, Upload } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "platform.ui/components/alert";
 import { Button } from "platform.ui/components/button";
-import { Field, FieldDescription } from "platform.ui/components/field";
+import { Field } from "platform.ui/components/field";
 import { Input } from "platform.ui/components/input";
 import { Label } from "platform.ui/components/label";
 import {
@@ -35,40 +34,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "platform.ui/components/select";
-import { Textarea } from "platform.ui/components/textarea";
 
-import type { ProductDetail, ProductMediaRole, ProductStatus } from "../../domain/Contracts.ts";
+import type { ProductDetail, ProductStatus } from "../../domain/Contracts.ts";
 import { Empty, Facts, PageHeader, Section } from "../components/page.tsx";
 import { Hint, Outcome } from "../components/outcome.tsx";
-import { ProductStatusBadge, RoleBadge } from "../components/badges.tsx";
+import { ProductStatusBadge } from "../components/badges.tsx";
 import { DeletionDialog } from "../components/deletion-dialog.tsx";
-import { VariantEditor } from "../components/variant-editor.tsx";
+import { AddSize, VariantEditor } from "../components/variant-editor.tsx";
+import { Identity } from "../components/product-identity.tsx";
 import { DataTable, Td, type Column } from "../components/table.tsx";
 import {
   adjustStock,
   getProduct,
-  ingestProductMedia,
   publishProduct,
   putVariant,
-  reorderProductMedia,
-  saveProductDraft,
   setPreorderCap,
   setProductStatus,
 } from "../lib/catalog.functions.ts";
 import {
   deleteProduct,
-  deleteProductMedia,
   deleteProductRelease,
   deleteVariant,
   planProductDeletion,
-  planProductMediaDeletion,
   planProductReleaseDeletion,
   planVariantDeletion,
 } from "../lib/deletion.functions.ts";
-import { centsFrom, commandId, dollarsFrom, refusalText, when } from "../lib/format.ts";
+import { commandId, refusalText, when } from "../lib/format.ts";
 
 const STATUSES: ProductStatus[] = ["draft", "active", "unavailable", "archived"];
-const ROLES: ProductMediaRole[] = ["cover", "gallery", "evidence"];
 
 const VARIANT_COLUMNS: Column[] = [
   { label: "Size" },
@@ -171,15 +164,47 @@ function Product() {
 
       <Readiness detail={detail} />
 
-      <Draft draft={draft} refresh={refresh} />
+      {/*
+        ORDERED BY WHAT HAS TO HAPPEN, not by what the tables are called. The
+        previous layout put Publish above the three things publish refuses
+        without, so the first thing an operator could press was the one thing
+        that could not yet work.
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Lifecycle draft={draft} releases={releases} refresh={refresh} />
-        <Preorder productId={productId} preorder={preorder} refresh={refresh} />
+          1  details      already filled in by the create form
+          2  how it sells decides what step 3 even asks for
+          3  sizes        publish refuses without one
+          4  images       publish refuses without one
+          5  publish      and, in the same statement, goes on sale
+      */}
+      {/*
+        WHAT IT IS, then WHERE IT IS. Not a form per table.
+
+        The identity band is the product as a person thinks of it — the
+        photograph, the name, the words, the price — and the sizes sit beside it
+        because "what versions are there" is the next question anyone asks. What
+        the DATABASE calls a draft row, an image table and a variant table is an
+        implementation detail none of those questions mention.
+
+        Lifecycle is the second half of the page rather than a panel inside the
+        first: where a product is between draft and on sale is a different kind
+        of fact from what it is, and it is the one an operator opens the page to
+        change.
+      */}
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(26rem,34rem)]">
+        <Identity productId={productId} draft={draft} media={media} refresh={refresh} />
+        <Variants
+          productId={productId}
+          slug={draft.slug}
+          variants={variants}
+          runCap={preorder.cap}
+          refresh={refresh}
+        />
       </div>
 
-      <Variants productId={productId} variants={variants} refresh={refresh} />
-      <Media productId={productId} media={media} status={draft.status} refresh={refresh} />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
+        <Lifecycle draft={draft} releases={releases} refresh={refresh} />
+        <SellsAs productId={productId} preorder={preorder} variants={variants} refresh={refresh} />
+      </div>
     </>
   );
 }
@@ -246,100 +271,6 @@ function Readiness({ detail }: { detail: ProductDetail }) {
   );
 }
 
-// ── Draft ────────────────────────────────────────────────────────────────────
-
-function Draft({
-  draft,
-  refresh,
-}: {
-  draft: ProductDetail["draft"];
-  refresh: () => Promise<void>;
-}) {
-  const { busy, error, done, run } = useAction(refresh);
-  const [form, setForm] = useState({
-    title: draft.title,
-    slug: draft.slug,
-    price: dollarsFrom(draft.priceCents),
-    descriptionMarkdown: draft.descriptionMarkdown ?? "",
-  });
-
-  const save = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const priceCents = centsFrom(form.price);
-    if (priceCents === null || priceCents < 0) return;
-    await run(
-      () =>
-        saveProductDraft({
-          data: {
-            productId: draft.productId,
-            /** From the read this form was rendered from — that is the whole guard. */
-            expectedRevision: draft.revision,
-            title: form.title,
-            slug: form.slug,
-            priceCents,
-            descriptionMarkdown: form.descriptionMarkdown || null,
-            commandId: commandId(),
-          },
-        }),
-      "Draft saved",
-    );
-  };
-
-  return (
-    <Section
-      title="Draft"
-      description="Edits land here. What a shopper sees does not move until publish."
-    >
-      <form onSubmit={save} className="flex flex-col gap-4">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field>
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <Label htmlFor="slug">Slug</Label>
-            <Input
-              id="slug"
-              value={form.slug}
-              onChange={(e) => setForm({ ...form, slug: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <Label htmlFor="price">Price</Label>
-            <Input
-              id="price"
-              inputMode="decimal"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-            />
-            <FieldDescription>Dollars. Stored as cents.</FieldDescription>
-          </Field>
-        </div>
-        <Field>
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            rows={5}
-            value={form.descriptionMarkdown}
-            onChange={(e) => setForm({ ...form, descriptionMarkdown: e.target.value })}
-            placeholder="Markdown. Shown on the product page."
-          />
-        </Field>
-        <Outcome error={error} done={done} />
-        <div>
-          <Button type="submit" disabled={busy}>
-            {busy ? "Saving…" : "Save draft"}
-          </Button>
-        </div>
-      </form>
-    </Section>
-  );
-}
-
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
 function Lifecycle({
@@ -355,10 +286,7 @@ function Lifecycle({
   const [bump, setBump] = useState<"major" | "minor" | "patch">("minor");
 
   return (
-    <Section
-      title="Lifecycle"
-      description="Publishing freezes the draft into an immutable release."
-    >
+    <Section title="Publish" description="Freezes the draft into a release, and puts it on sale.">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end gap-2">
           <Field className="w-32">
@@ -418,11 +346,6 @@ function Lifecycle({
               </Button>
             ))}
           </div>
-          <Hint>
-            <strong>active</strong> is on sale. <strong>unavailable</strong> is published but pulled
-            — its images stop being served too. <strong>archived</strong> is retired. Going active
-            needs a release.
-          </Hint>
         </div>
 
         <Outcome error={error} done={done} />
@@ -472,70 +395,197 @@ function Lifecycle({
   );
 }
 
-// ── Pre-order ────────────────────────────────────────────────────────────────
+// ── How it sells ─────────────────────────────────────────────────────────────
 
-function Preorder({
+/**
+ * THE ONE DECISION THIS PRODUCT TURNS ON: do you have these, or are you taking
+ * orders and making them after?
+ *
+ * It is one question to a person and two facts to the database — a cap on the
+ * PRODUCT and a mode on every VARIANT — which is why it was previously two
+ * panels that could disagree, and why a size could end up `preorder` under a
+ * product with no cap and refuse every buyer. Asking once and writing both is
+ * what makes that unreachable through the console rather than merely refused.
+ *
+ * ORDER MATTERS IN BOTH DIRECTIONS, and it is the same rule each way: never
+ * leave the product in the shape where a pre-order size has no run to claim
+ * against.
+ *
+ *   → run    cap FIRST, then flip the sizes
+ *   → stock  sizes FIRST, then clear the cap
+ */
+function SellsAs({
   productId,
   preorder,
+  variants,
   refresh,
 }: {
   productId: string;
   preorder: ProductDetail["preorder"];
+  variants: ProductDetail["variants"];
   refresh: () => Promise<void>;
 }) {
-  const { busy, error, done, run } = useAction(refresh);
-  const [cap, setCap] = useState(preorder.cap === null ? "" : String(preorder.cap));
+  const isRun = preorder.cap !== null;
+  const [cap, setCap] = useState(preorder.cap === null ? "50" : String(preorder.cap));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  /** Every step is a `DomainResult`; the first refusal stops the sequence. */
+  const step = async (
+    call: () => Promise<{ ok: true } | { ok: false; error: string; message?: string }>,
+  ): Promise<boolean> => {
+    const result = await call();
+    if (result.ok) return true;
+    setError(new Error(refusalText(result.error, result.message)));
+    return false;
+  };
+
+  const setMode = (variant: ProductDetail["variants"][number], mode: "stock" | "preorder") =>
+    step(() =>
+      putVariant({
+        data: {
+          productId,
+          variantId: variant.id,
+          size: variant.size,
+          sku: variant.sku,
+          mode,
+          // Omitted deliberately — `putVariant` writes stock ABSOLUTELY, and
+          // this gesture is about how the product sells, not how many exist.
+          commandId: commandId(),
+        },
+      }),
+    );
+
+  /**
+   * TO A RUN: the cap FIRST, so the sizes are never pre-order with nothing to
+   * claim against — the shape both `publishProduct` and `setProductStatus`
+   * refuse. Then top each size up to the run by a RELATIVE delta, so a sale
+   * landing mid-gesture is not rolled back by an absolute write.
+   */
+  const toRun = async (): Promise<boolean> => {
+    const size = Number(cap);
+    if (!Number.isInteger(size) || size < 1) {
+      setError(new Error("A run needs a whole number of pieces — 50."));
+      return false;
+    }
+    const opened = await step(() =>
+      setPreorderCap({ data: { productId, cap: size, commandId: commandId() } }),
+    );
+    if (!opened) return false;
+
+    for (const variant of variants) if (!(await setMode(variant, "preorder"))) return false;
+
+    for (const variant of variants) {
+      const short = size - variant.stock;
+      if (short <= 0) continue;
+      const topped = await step(() =>
+        adjustStock({
+          data: {
+            variantId: variant.id,
+            delta: short,
+            reason: `run of ${size}`,
+            commandId: commandId(),
+          },
+        }),
+      );
+      if (!topped) return false;
+    }
+    setDone(`Selling as a run of ${size}. Any size mix, ${size} pieces total.`);
+    return true;
+  };
+
+  /** TO STOCK: the sizes first, then clear the cap — the same rule, reversed. */
+  const toStock = async (): Promise<boolean> => {
+    for (const variant of variants) if (!(await setMode(variant, "stock"))) return false;
+    const closed = await step(() =>
+      setPreorderCap({ data: { productId, cap: null, commandId: commandId() } }),
+    );
+    if (!closed) return false;
+    setDone("Selling from stock. Each size sells what it has.");
+    return true;
+  };
+
+  const apply = async (target: "stock" | "run") => {
+    setBusy(true);
+    setError(null);
+    setDone(null);
+    try {
+      if (await (target === "run" ? toRun() : toStock())) await refresh();
+    } catch (cause) {
+      setError(cause);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Section
-      title="Pre-order run"
-      description="A capped manufacturing run, rather than shelf stock."
+      title="How it sells"
+      description="The one thing that decides what everything else means."
     >
       <div className="flex flex-col gap-4">
-        <Facts
-          rows={[
-            ["Cap", preorder.cap === null ? "not a pre-order" : preorder.cap],
-            ["Claimed", preorder.claimed],
-            ["Remaining", preorder.remaining ?? "—"],
-          ]}
-        />
-        <div className="flex items-end gap-2">
-          <Field className="w-32">
-            <Label htmlFor="cap">Cap</Label>
-            <Input
-              id="cap"
-              inputMode="numeric"
-              value={cap}
-              placeholder="no cap"
-              onChange={(e) => setCap(e.target.value)}
-            />
-          </Field>
-          <Button
-            variant="outline"
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
             disabled={busy}
-            onClick={() =>
-              void run(
-                () =>
-                  setPreorderCap({
-                    data: {
-                      productId,
-                      cap: cap.trim() === "" ? null : Number(cap),
-                      commandId: commandId(),
-                    },
-                  }),
-                "Cap set",
-              )
-            }
+            onClick={() => void apply("stock")}
+            className={`flex flex-col gap-1 rounded-md border-2 p-3 text-left transition-colors ${
+              isRun ? "border-border hover:bg-surface-sunken" : "border-primary bg-surface-sunken"
+            }`}
           >
-            Set cap
-          </Button>
+            <span className="font-display text-sm font-semibold">From stock</span>
+            <span className="text-xs text-muted-foreground">
+              You have them. Each size sells what it has, and runs out on its own.
+            </span>
+          </button>
+
+          <div
+            className={`flex flex-col gap-2 rounded-md border-2 p-3 ${
+              isRun ? "border-primary bg-surface-sunken" : "border-border"
+            }`}
+          >
+            <span className="font-display text-sm font-semibold">As a run</span>
+            <span className="text-xs text-muted-foreground">
+              Take orders now, make them after. Any size mix, capped in total.
+            </span>
+            <div className="flex items-end gap-2">
+              <Field className="w-24">
+                <Label htmlFor="cap" className="text-xs">
+                  Pieces
+                </Label>
+                <Input
+                  id="cap"
+                  inputMode="numeric"
+                  value={cap}
+                  onChange={(e) => setCap(e.target.value)}
+                />
+              </Field>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => void apply("run")}>
+                {isRun ? "Update run" : "Sell as a run"}
+              </Button>
+            </div>
+          </div>
         </div>
+
+        {isRun ? (
+          <Facts
+            rows={[
+              ["Run size", preorder.cap],
+              ["Sold", preorder.claimed],
+              ["Left", preorder.remaining ?? "—"],
+            ]}
+          />
+        ) : null}
+
         <Outcome error={error} done={done} />
-        <Hint>
-          Empty means this product is not sold as a pre-order. Lowering the cap below what buyers
-          have already claimed is refused with <code>cap_below_claimed</code> — the run keeps its
-          promises.
-        </Hint>
+
+        {isRun && preorder.claimed > 0 ? (
+          <Hint>
+            Sold never resets — a second run means raising this to{" "}
+            <strong>{preorder.claimed} + however many more</strong>.
+          </Hint>
+        ) : null}
       </div>
     </Section>
   );
@@ -545,28 +595,30 @@ function Preorder({
 
 function Variants({
   productId,
+  slug,
   variants,
+  runCap,
   refresh,
 }: {
   productId: string;
+  /** For deriving a SKU nobody typed. */
+  slug: string;
   variants: ProductDetail["variants"];
+  /** The run this product sells against, or `null` for shelf stock. */
+  runCap: number | null;
   refresh: () => Promise<void>;
 }) {
   const { busy, error, done, run } = useAction(refresh);
-  const [form, setForm] = useState({
-    size: "M",
-    sku: "",
-    stock: "10",
-    mode: "stock" as "stock" | "preorder",
-    expectedShipAt: "",
-  });
   const [deltas, setDeltas] = useState<Record<string, string>>({});
 
   const delta = (variantId: string) => Number(deltas[variantId] ?? "1") || 1;
 
   return (
-    <Section title="Variants" description="Size, SKU and what is left to sell.">
-      <div className="flex flex-col gap-4">
+    <Section
+      title="Sizes"
+      actions={<AddSize productId={productId} slug={slug} runCap={runCap} onAdded={refresh} />}
+    >
+      <div className="flex flex-col gap-3">
         <DataTable columns={VARIANT_COLUMNS}>
           {variants.map((variant) => (
             <tr key={variant.id}>
@@ -657,306 +709,14 @@ function Variants({
           ))}
           {variants.length === 0 ? (
             <tr>
-              <Td colSpan={6} className="py-4 text-center text-muted-foreground">
-                None — publish refuses with <code>missing_variant</code>.
+              <Td colSpan={6} className="py-6 text-center text-muted-foreground">
+                No sizes yet. Publish refuses without one — add it above.
               </Td>
             </tr>
           ) : null}
         </DataTable>
 
-        <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
-          <Field className="w-20">
-            <Label htmlFor="v-size">Size</Label>
-            <Input
-              id="v-size"
-              value={form.size}
-              onChange={(e) => setForm({ ...form, size: e.target.value })}
-            />
-          </Field>
-          <Field className="w-44">
-            <Label htmlFor="v-sku">SKU</Label>
-            <Input
-              id="v-sku"
-              value={form.sku}
-              onChange={(e) => setForm({ ...form, sku: e.target.value })}
-              placeholder="TEE-CHR-M"
-            />
-          </Field>
-          <Field className="w-24">
-            <Label htmlFor="v-stock">Opening stock</Label>
-            <Input
-              id="v-stock"
-              inputMode="numeric"
-              value={form.stock}
-              onChange={(e) => setForm({ ...form, stock: e.target.value })}
-            />
-          </Field>
-          <Field className="w-32">
-            <Label htmlFor="v-mode">Mode</Label>
-            <Select
-              value={form.mode}
-              onValueChange={(v) => v && setForm({ ...form, mode: v as "stock" | "preorder" })}
-            >
-              <SelectTrigger id="v-mode">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="stock">stock</SelectItem>
-                <SelectItem value="preorder">preorder</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          {form.mode === "preorder" ? (
-            <Field className="w-44">
-              <Label htmlFor="v-ship">Expected ship</Label>
-              <Input
-                id="v-ship"
-                type="date"
-                value={form.expectedShipAt}
-                onChange={(e) => setForm({ ...form, expectedShipAt: e.target.value })}
-              />
-            </Field>
-          ) : null}
-          <Button
-            disabled={busy || !form.sku}
-            onClick={() =>
-              void run(
-                () =>
-                  putVariant({
-                    data: {
-                      productId,
-                      size: form.size,
-                      sku: form.sku,
-                      stock: Number(form.stock) || 0,
-                      mode: form.mode,
-                      expectedShipAt:
-                        form.mode === "preorder" && form.expectedShipAt
-                          ? new Date(form.expectedShipAt).getTime()
-                          : null,
-                      commandId: commandId(),
-                    },
-                  }),
-                "Variant added",
-              )
-            }
-          >
-            Add size
-          </Button>
-        </div>
-
         <Outcome error={error} done={done} />
-        <Hint>
-          This form only ADDS. A duplicate size or SKU is refused rather than merged — use Edit on
-          the row to change one. After that, stock only moves by a RELATIVE ± delta, never a value
-          typed from a stale read, so two people adjusting at once both land.
-        </Hint>
-      </div>
-    </Section>
-  );
-}
-
-// ── Media ────────────────────────────────────────────────────────────────────
-
-function Media({
-  productId,
-  media,
-  status,
-  refresh,
-}: {
-  productId: string;
-  media: ProductDetail["media"];
-  status: ProductStatus;
-  refresh: () => Promise<void>;
-}) {
-  const { busy, error, done, run } = useAction(refresh);
-  const [role, setRole] = useState<ProductMediaRole>("cover");
-  const [alt, setAlt] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<unknown>(null);
-
-  const upload = async (file: File) => {
-    setUploading(true);
-    setUploadError(null);
-    const body = new FormData();
-    body.set("file", file);
-    body.set("productId", productId);
-    body.set("role", role);
-    body.set("alt", alt);
-    body.set("commandId", commandId());
-    try {
-      const result = await ingestProductMedia({ data: body });
-      if (!result.ok) {
-        setUploadError(new Error(refusalText(result.error, result.message)));
-        return;
-      }
-      setAlt("");
-      await refresh();
-    } catch (cause) {
-      setUploadError(cause);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  /** Move one image up or down and commit the whole order — the domain takes a full list. */
-  const move = async (index: number, direction: -1 | 1) => {
-    const next = [...media];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    const [moved] = next.splice(index, 1);
-    if (!moved) return;
-    next.splice(target, 0, moved);
-    await run(
-      () =>
-        reorderProductMedia({
-          data: {
-            productId,
-            mediaIds: next.map((item) => item.id),
-            commandId: commandId(),
-          },
-        }),
-      "Order saved",
-    );
-  };
-
-  return (
-    <Section
-      title="Media"
-      description="Ordered. The cover is what a listing shows; gallery and evidence both reach shoppers."
-    >
-      <div className="flex flex-col gap-4">
-        {media.length === 0 ? (
-          <Empty>
-            None — publish refuses with <code>missing_media</code> until a cover exists.
-          </Empty>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {media.map((item, index) => (
-              <li
-                key={item.id}
-                className="flex flex-col gap-2 rounded-md border border-border bg-surface-raised p-2"
-              >
-                {/*
-                 * `item.href` is the root-relative `/media/<id>` the domain
-                 * spells. On this hostname that path is served by the console's
-                 * OWN worker from a binding-only read with no status gate — so
-                 * a draft's cover is visible here even though the public route
-                 * would 404 it. See `app/worker.ts`.
-                 */}
-                <img
-                  src={item.href}
-                  alt={item.alt}
-                  className="aspect-square w-full rounded-sm object-cover"
-                  loading="lazy"
-                />
-                <div className="flex items-center gap-2">
-                  <RoleBadge role={item.role} />
-                  <span className="truncate text-xs text-muted-foreground" title={item.alt}>
-                    {item.alt}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    disabled={busy || index === 0}
-                    onClick={() => void move(index, -1)}
-                    title="Move earlier"
-                  >
-                    <GripVertical className="rotate-90" />↑
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    disabled={busy || index === media.length - 1}
-                    onClick={() => void move(index, 1)}
-                    title="Move later"
-                  >
-                    ↓
-                  </Button>
-                  <div className="ml-auto">
-                    <DeletionDialog
-                      label="image"
-                      plan={() =>
-                        planProductMediaDeletion({
-                          data: { productId, mediaId: item.id, commandId: commandId() },
-                        })
-                      }
-                      confirm={(input) => deleteProductMedia({ data: input })}
-                      onDeleted={refresh}
-                      trigger={
-                        <Button variant="ghost" size="xs">
-                          Delete
-                        </Button>
-                      }
-                    />
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
-          <Field className="w-32">
-            <Label htmlFor="m-role">Role</Label>
-            <Select value={role} onValueChange={(v) => v && setRole(v as ProductMediaRole)}>
-              <SelectTrigger id="m-role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLES.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field className="min-w-52 flex-1">
-            <Label htmlFor="m-alt">Alt text</Label>
-            <Input
-              id="m-alt"
-              value={alt}
-              onChange={(e) => setAlt(e.target.value)}
-              placeholder="Charcoal tee, front, on a hanger"
-            />
-          </Field>
-          <Field>
-            <Label htmlFor="m-file" className="sr-only">
-              Image
-            </Label>
-            <label
-              htmlFor="m-file"
-              className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-sm border-[1.5px] border-border-strong px-[22px] text-[15px] font-semibold hover:bg-surface-sunken"
-            >
-              <Upload className="size-4" />
-              {uploading ? "Uploading…" : "Choose image"}
-            </label>
-            <input
-              id="m-file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              className="sr-only"
-              disabled={uploading}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file) void upload(file);
-              }}
-            />
-          </Field>
-        </div>
-
-        <Outcome error={uploadError ?? error} done={done} />
-
-        <Hint>
-          JPEG, PNG, WebP or AVIF, up to 10 MB. Bytes go to R2 and are streamed back through a
-          Worker, so the key never leaves the system and access stays revocable.{" "}
-          {status !== "active"
-            ? "On the live storefront these images stay dark until the product is active — /media/:id joins on active status, which is what makes withdrawing a product also kill every image link anyone already had."
-            : "Withdrawing this product also stops its images being served publicly."}
-        </Hint>
       </div>
     </Section>
   );

@@ -38,6 +38,7 @@
     "apps/platform.auth/app/routes/_dashboard/admin/orgs/$id.tsx:201-221|apps/platform.auth/app/routes/_dashboard/admin/users.tsx:86-106",
     "apps/platform.auth/app/routes/orgs/accept/$invitationId.tsx:49-62|apps/platform.auth/app/routes/orgs/accept/$invitationId.tsx:71-80",
     "apps/platform.auth/paths.ts:17-37|apps/platform.commerce/paths.ts:16-36",
+    "apps/platform.commerce/app/components/variant-editor.tsx:102-113|apps/platform.commerce/app/components/variant-editor.tsx:265-274",
     "apps/platform.commerce/app/lib/deletion.functions.ts:100-103|apps/platform.commerce/app/lib/deletion.functions.ts:105-109|apps/platform.commerce/app/lib/deletion.functions.ts:112-115|apps/platform.commerce/app/lib/deletion.functions.ts:117-120",
     "apps/platform.commerce/app/routes/orders.index.tsx:61-69|apps/platform.commerce/app/routes/products.index.tsx:175-183",
     "apps/platform.commerce/domain/Catalog.ts:140-146|apps/platform.commerce/domain/Orders.ts:136-142",

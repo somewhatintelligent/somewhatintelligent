@@ -28,6 +28,7 @@ import {
   type IngestProductMediaInput,
   type MediaMutationError,
   type ProductMediaDTO,
+  type ProductMediaRole,
 } from "./Contracts.ts";
 import { product, productImage } from "./Schema.ts";
 
@@ -215,4 +216,55 @@ export const operatorMediaContentType = Effect.fn("Media.operatorMediaContentTyp
       .limit(1),
   );
   return rows[0]?.contentType ?? null;
+});
+
+/**
+ * WHICH IMAGE IS THE COVER, decided after looking at them.
+ *
+ * `ingestProductMedia` takes a role at upload, and until now that was the only
+ * time it could be set — so an operator who uploaded three photographs and then
+ * decided which one should lead had to delete and re-upload. The cover is what
+ * a listing shows, so that is not a cosmetic gap.
+ *
+ * Scoped by BOTH ids. `mediaId` alone would let a caller re-role an image
+ * belonging to another product by guessing an id; requiring the pair means the
+ * caller must already know what they are editing.
+ *
+ * No uniqueness rule on `cover`. Several covers is a display question the
+ * storefront answers by taking the first, and enforcing one here would mean a
+ * second write to demote the incumbent — two statements that can disagree, to
+ * prevent something harmless.
+ */
+export const setProductMediaRole = Effect.fn("Media.setProductMediaRole")(function* (
+  db: ClassicDb,
+  input: { productId: string; mediaId: string; role: ProductMediaRole },
+  now: number,
+): Effect.fn.Return<CoreOutcome<{ mediaId: string; role: ProductMediaRole }, MediaMutationError>> {
+  const rows = yield* query(() =>
+    db
+      .select({ id: productImage.id })
+      .from(productImage)
+      .where(and(eq(productImage.id, input.mediaId), eq(productImage.productId, input.productId)))
+      .limit(1),
+  );
+  if (!rows[0]) return { failure: err("not_found") };
+
+  return {
+    statements: [
+      db
+        .update(productImage)
+        .set({ role: input.role })
+        .where(eq(productImage.id, input.mediaId)) as unknown as DbStatement,
+      db
+        .update(product)
+        .set({ updatedAt: now })
+        .where(eq(product.id, input.productId)) as unknown as DbStatement,
+    ],
+    response: ok({ mediaId: input.mediaId, role: input.role }),
+    facts: {
+      targetType: "media",
+      targetId: input.mediaId,
+      detail: { productId: input.productId, role: input.role },
+    },
+  };
 });
