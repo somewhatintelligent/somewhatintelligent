@@ -1,0 +1,17 @@
+@import "platform.design/theme.css";
+
+/**
+ * THREE levels up. This file is at apps/platform.commerce/app/, so ../../.. is
+ * the repo root. A wrong @source is SILENT — Tailwind simply stops emitting the
+ * utilities only platform.ui uses, and the console renders with pieces missing
+ * rather than failing the build.
+ */
+@source "../../../packages/platform.ui/src/**/*.tsx";
+@source "../../../packages/platform.ui/src/**/*.ts";
+@source "../**/*.tsx";
+@source "../**/*.ts";
+
+/* Tabular figures wherever a column of money or stock is compared down the page. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,7 +1,12 @@
 import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
+import * as Cloudflare from "alchemy/Cloudflare";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import { CLOUDFLARE_IDP, PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
+import { workerSafeStage } from "platform.names";
 
+import { PACKAGE_DIR } from "./paths.ts";
 import { CommerceDatabase, CommerceSchema, MediaBucket } from "./runtime.ts";
 import { environmentFor, type StripeEnvironment } from "./services/StripeConfig.ts";
 import CommerceWorker from "./workers/Commerce.ts";
@@ -55,9 +60,184 @@ import SettlementWorker from "./workers/Settlement.ts";
  * mints `meta.actor` from its own session. That app has to be declared in the
  * SAME stack: a service binding names a resource its stack owns and does not
  * cross a stack boundary, which is the same reason `Auth` publishes an origin
- * rather than a binding. `stacks/platform.commerce/alchemy.run.ts` is where it
- * would go.
+ * rather than a binding. THE OPERATOR CONSOLE IS THAT APP, and it is why it
+ * lives in this package rather than beside it — see {@link Operator}.
  */
+
+/**
+ * The hostnames this deploy owns, derived from the stage so two stages can
+ * never advertise the same one.
+ *
+ * EVERY STAGE CLAIMS ONE, which is the opposite of what `mezedes` does and the
+ * difference matters. Mezedes lets non-prod stages answer on workers.dev alone;
+ * this app must never do that, because a workers.dev hostname is on
+ * Cloudflare's zone rather than this account's and NO ACCESS APPLICATION CAN
+ * EVER SIT IN FRONT OF ONE. An operator console reachable without the edge gate
+ * is unauthenticated write access to the catalogue and the order book — the
+ * exact thing `workers/Commerce.ts` has no address in order to prevent.
+ *
+ * `workerSafeStage` because a stage name carries characters DNS will not take;
+ * `dev_stoli` is the common one and a bare interpolation fails the deploy.
+ */
+const Hostnames = Effect.gen(function* () {
+  const { stage } = yield* Alchemy.Stack;
+  const prod = stage === PRODUCTION_STAGE;
+  return {
+    /** `desk`, the same label the app this replaces answered on. */
+    operator: prod
+      ? `desk.${PRODUCTION_ZONE}`
+      : `desk-${workerSafeStage(stage)}.${PRODUCTION_ZONE}`,
+  };
+});
+
+/**
+ * The account's staff policy, owned by `stacks/platform.access`. A REQUIREMENT
+ * rather than an import, because an app may not reach into `stacks/` — the
+ * stack resolves the ref and provides it, exactly as `platform.inbox` and
+ * `mezedes` take theirs. `Output` because the id comes from upstream state.
+ */
+export class StaffPolicy extends Context.Service<
+  StaffPolicy,
+  { readonly policyId: Output.Output<string> }
+>()("platform.commerce/StaffPolicy") {}
+
+/**
+ * THE EDGE GATE in front of the console, and one per hostname because that is
+ * what an Access application is in Cloudflare's API.
+ *
+ * NO `oauthConfiguration` here, unlike the inbox's and mezedes'. Managed OAuth
+ * exists so an MCP client can authenticate without a cookie flow; this surface
+ * is a browser and nothing else, and leaving it off keeps this app off the
+ * `patches/alchemy@…` dependency those two carry.
+ *
+ * `autoRedirectToIdentity` with a single IdP skips the chooser.
+ *
+ * WORTH KNOWING BEFORE YOU TRUST THIS: `Access.Application`'s reconcile observes
+ * only by a persisted `applicationId`, so declaring one against a hostname that
+ * ALREADY has an application plans a blind `create` and Cloudflare accepts a
+ * second application on the same domain with a fresh `aud`. The gate then still
+ * stands, but `POLICY_AUD` below is whichever `aud` this resource minted, and
+ * requests carrying the other application's token fail verification with
+ * `Invalid or expired Access token`. If `desk.` ever gets a hand-made
+ * application, delete it rather than layering this on top.
+ */
+const OperatorAccess = Cloudflare.Access.Application(
+  "OperatorAccess",
+  Effect.gen(function* () {
+    const staff = yield* StaffPolicy;
+    const { operator } = yield* Hostnames;
+    return {
+      type: "self_hosted" as const,
+      domain: operator,
+      allowedIdps: [CLOUDFLARE_IDP],
+      autoRedirectToIdentity: true,
+      policies: [staff.policyId],
+    };
+  }),
+);
+
+/**
+ * THE OPERATOR CONSOLE — TanStack Start, and the only thing in this package
+ * that renders.
+ *
+ * It lives HERE, in the commerce package, for one reason: a service binding
+ * names a resource its own stack owns. Commerce has no address at all, so the
+ * only way to reach its thirty methods is to be declared alongside it. An
+ * `apps/platform.commerce.operator` would have had to reach Commerce over a URL
+ * — which means giving Commerce a URL — and the whole design rests on it not
+ * having one. `platform.auth` splits the same way: `api/` is the worker, `app/`
+ * is the surface in front of it.
+ *
+ * TWO BINDINGS AND NO OTHERS. No D1, no R2, no Stripe key. Everything the
+ * console can do, it does by asking Commerce or Settlement, which is what keeps
+ * the domain's guards — revision conflicts, publish gates, stock arithmetic —
+ * on the far side of a boundary the UI cannot route around.
+ *
+ * `workersDev: false` UNCONDITIONALLY, and it is load-bearing rather than
+ * tidy: see {@link Hostnames}.
+ */
+export class Operator extends Cloudflare.Website.Vite<Operator>()(
+  "CommerceOperator",
+  Effect.gen(function* () {
+    const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+    const { stage } = yield* Alchemy.Stack;
+    const { operator } = yield* Hostnames;
+    const access = yield* OperatorAccess;
+
+    return {
+      name: `si-commerce-operator-${workerSafeStage(stage)}`,
+      /**
+       * ANCHORED, both of them. `rootDir` is Vite's root and defaults to
+       * `process.cwd()` — the repo root under `alchemy deploy
+       * stacks/platform.commerce/alchemy.run.ts`; `main` is the one path here
+       * that resolves from `rootDir` rather than from cwd. A wrong root fails
+       * at BUILD, not at plan, so no `alchemy plan` will report it.
+       */
+      rootDir: PACKAGE_DIR,
+      main: "./app/worker.ts",
+      compatibility: { flags: ["nodejs_compat"] },
+      /**
+       * The hostname is claimed by a real deploy only. `alchemy dev` serves on
+       * a local port and would otherwise still reconcile the custom domain,
+       * repointing the live `desk.` record at whatever the dev session happens
+       * to be.
+       */
+      ...(local ? {} : { domain: operator }),
+      workersDev: false,
+      observability: { enabled: true },
+      env: {
+        /**
+         * THE WHOLE DOMAIN, over a binding and nothing else. `app/worker.ts`
+         * wraps this stub with `toRpcAsync` so the thirty methods are checked
+         * against what `workers/CommerceSurface.ts` implements rather than a
+         * re-declared interface.
+         */
+        COMMERCE: CommerceWorker,
+        /** `sweepNow` and `provider` — the two admin operations. Binding-only there too. */
+        SETTLEMENT: SettlementWorker,
+        /**
+         * The application's OWN aud, not a copy of it. `app/lib/access.server.ts`
+         * verifies the Access JWT against this, so the value the worker checks
+         * and the value Access mints are the same output and cannot drift — the
+         * failure a hand-copied literal produces is a silent
+         * `Invalid or expired Access token` on every request.
+         *
+         * THE CAST IS THE POINT, and it is not a lie: it declares what the
+         * WORKER receives, which is the resolved string, not the Output the
+         * deploy passes. An Output-valued binding fails `WorkerBindingProps`'s
+         * constraint, inference falls back to `{}`, and `InferEnv` below
+         * degrades to a union of every binding type alchemy knows — which
+         * surfaces as errors all over `app/` that never name this line.
+         */
+        POLICY_AUD: access.aud.as<string>() as unknown as string,
+        TEAM_DOMAIN,
+        /**
+         * `"none"` in local dev, so the gate is ABSENT from the request path
+         * rather than present and declining to act — the same split mezedes
+         * makes. Read by `app/lib/access.server.ts`, which fails closed on any
+         * other value.
+         */
+        OPERATOR_AUTH: local ? "none" : "access",
+        /** Which Stripe account this deployment settles against. Rendered, never acted on. */
+        PAYMENTS_ENVIRONMENT: environmentFor(stage) satisfies StripeEnvironment,
+        /** The build fingerprint the UI renders. */
+        CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
+      },
+    };
+    /**
+     * `orDie` is not decoration. `Website.Vite`'s props overload accepts only an
+     * Effect whose ERROR channel is `never`; yielding `OperatorAccess` widens
+     * it, inference falls back to `Bindings = {}`, and `InferEnv` silently
+     * degrades to a union of every binding type alchemy knows. A failure
+     * resolving the gate is a deploy-time fatal anyway — there is no console
+     * without it.
+     */
+  }).pipe(Effect.orDie),
+) {}
+
+/** The console worker's runtime env, derived from the bindings above. */
+export type OperatorEnv = Cloudflare.Workers.InferEnv<Operator>;
+
 export const CommerceModule = Effect.gen(function* () {
   const { stage } = yield* Alchemy.Stack;
 
@@ -72,16 +252,27 @@ export const CommerceModule = Effect.gen(function* () {
   yield* MediaBucket;
 
   /**
-   * YIELDED EXPLICITLY, and it has to be. Nothing in this module binds Commerce
-   * — Settlement and Media reach D1 and R2 directly — so without this line the
-   * one Worker the whole package exists to publish is never in the resource
-   * graph. It deploys with no caller, which is the correct state: the caller is
-   * a consuming app that does not exist yet.
+   * NO LONGER YIELDED FOR ITS OWN SAKE. Until the console landed, nothing in
+   * this module bound Commerce — Settlement and Media reach D1 and R2 directly
+   * — so an explicit yield was the only thing keeping the one Worker this
+   * package exists to publish in the resource graph. {@link Operator} binds it
+   * now, which puts it there by reference; the line stays because a caller
+   * that stops binding it should not silently take Commerce out of the deploy.
    */
   yield* CommerceWorker;
 
   const settlement = yield* SettlementWorker;
   const media = yield* MediaWorker;
+
+  /**
+   * The console, and the gate in front of it. Both come along with the Worker —
+   * `Operator` yields `OperatorAccess` for its `POLICY_AUD`, which yields
+   * `StaffPolicy` for its `policies` — so declaring them again here would be a
+   * second reference to the same resources rather than a second set.
+   */
+  const operator = yield* Operator;
+  const access = yield* OperatorAccess;
+  const { operator: operatorHost } = yield* Hostnames;
 
   return {
     /**
@@ -119,6 +310,24 @@ export const CommerceModule = Effect.gen(function* () {
     mediaOrigin: Output.map(media.url, (url: string | undefined) =>
       (url ?? "").replace(/\/+$/, ""),
     ),
+
+    /**
+     * WHERE TO LOG IN. The declared hostname rather than `operator.url`,
+     * because a deploy sets `workersDev: false` and has no workers.dev URL to
+     * report — and under `alchemy dev` the console answers on a local port that
+     * `operator.url` reports correctly and this constant would not.
+     */
+    operatorUrl: Output.map(operator.url, (url: string | undefined) =>
+      url === undefined || url === "" ? `https://${operatorHost}` : url.replace(/\/+$/, ""),
+    ),
+
+    /**
+     * The gate's audience tag. Published so a reader can check that the
+     * application in the Zero Trust dashboard is the one this deploy minted —
+     * a second application on the same hostname is invisible from here and
+     * shows up only as every request failing verification.
+     */
+    operatorAccessAud: access.aud,
 
     /**
      * The physical D1 name. Published so the integration suite can ARRANGE state

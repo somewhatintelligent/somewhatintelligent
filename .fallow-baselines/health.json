@@ -394,6 +394,91 @@
         "count": 1
       }
     },
+    "apps/platform.commerce/app/components/badges.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/components/deletion-dialog.tsx": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/components/outcome.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/lib/context.functions.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/lib/format.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/__root.tsx": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/index.tsx": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/orders.$orderNumber.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/orders.index.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/products.$productId.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/products.index.tsx": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/settings.index.tsx": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/routes/storefront.$slug.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/app/worker.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
     "apps/platform.commerce/domain/Deletion.ts": {
       "crap_high": {
         "count": 1
@@ -506,10 +591,7 @@
     },
     "apps/platform.inbox/app/components/Sidebar.tsx": {
       "crap_high": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
+        "count": 2
       }
     },
     "apps/platform.inbox/app/components/email-panel/EmailPanelDialogs.tsx": {
@@ -879,14 +961,14 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
-    "apps/mezedes/src/shell/components/format.ts:untested risk",
+    "apps/platform.inbox/app/components/EmailPanel.tsx:untested risk",
     "apps/mezedes/src/shell/components/router.ts:high impact",
+    "apps/mezedes/src/shell/components/format.ts:untested risk",
+    "packages/platform.ui/src/components/ui/editor/markdown-editor.tsx:complexity",
     "apps/mezedes/src/shell/components/theme.ts:high impact",
     "apps/platform.auth/app/lib/relative-time.ts:untested risk",
     "apps/platform.commerce/domain/Settlement.ts:complexity",
-    "apps/platform.inbox/app/components/EmailPanel.tsx:untested risk",
-    "apps/platform.inbox/app/routes/home.tsx:complexity",
     "apps/platform.inbox/workers/index.ts:complexity",
-    "packages/platform.ui/src/components/ui/editor/markdown-editor.tsx:complexity"
+    "apps/platform.inbox/app/routes/home.tsx:complexity"
   ]
 }

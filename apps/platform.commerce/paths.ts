@@ -37,3 +37,15 @@ export const schemaPath = inPackage("domain/Schema.ts");
 
 /** Where `drizzle-kit generate` writes, and what the D1's `migrationsDir` reads. */
 export const migrationsDir = inPackage("migrations");
+
+/**
+ * Vite's root for the operator console. `Website.Vite` defaults it to
+ * `process.cwd()`, which is the repo root under `alchemy deploy
+ * stacks/platform.commerce/alchemy.run.ts` — and a wrong root fails at BUILD
+ * rather than at plan, so no `alchemy plan` will report it.
+ *
+ * Not routed through `inPackage`: this is read only by `module.ts`, which never
+ * reaches a bundle, so the `__ALCHEMY_RUNTIME__` guard the two above need would
+ * be guarding nothing.
+ */
+export const PACKAGE_DIR = import.meta.dirname;

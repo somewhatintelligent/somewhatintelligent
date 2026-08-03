@@ -3,10 +3,17 @@
   "compilerOptions": {
     "target": "esnext",
     /**
-     * NO `DOM`. Nothing in this package renders — it is Workers and a domain
-     * core. `@cloudflare/workers-types` supplies `Request`, `Response`,
-     * `ReadableStream` and the rest, and adding `DOM` on top would shadow them
-     * with browser variants that disagree about `Request.cf` and R2 bodies.
+     * NO `DOM`, still. `@cloudflare/workers-types` supplies `Request`,
+     * `Response`, `ReadableStream` and the rest, and adding `DOM` on top shadows
+     * them with browser variants that disagree about `Request.cf` and R2 bodies.
+     *
+     * WHICH IS WHY THERE ARE NOW TWO PROJECTS. The operator console under
+     * `app/` does render and does need `DOM`, so it carries its OWN
+     * `app/tsconfig.json` — the nearest-ancestor config for every file in that
+     * tree — and this one keeps the substrate's guarantee intact. `include`
+     * below names the substrate's directories explicitly and `app/` is
+     * deliberately absent from it; the two projects meet only where `app/`
+     * imports `../module.ts` and `../domain/Contracts.ts` for their types.
      */
     "lib": ["esnext"],
     "moduleDetection": "force",
@@ -39,6 +46,13 @@
     "module.ts",
     "paths.ts",
     "runtime.ts",
+    /**
+     * Named so it resolves under THIS project's `bundler` resolution. Left out,
+     * the nearest config a language server finds for it is the repo root's,
+     * which is `nodenext` — and the plugin packages it imports resolve only
+     * under `bundler`, so every import in it reads as a missing module.
+     */
+    "vite.config.ts",
     "core/**/*.ts",
     "domain/**/*.ts",
     "infrastructure/**/*.ts",

@@ -1,0 +1,49 @@
+{
+  "extends": "../../../tsconfig.effect.json",
+  /**
+   * THE CONSOLE'S PROJECT, separate from the substrate's on purpose.
+   *
+   * `../tsconfig.json` deliberately omits `DOM` — `@cloudflare/workers-types`
+   * supplies `Request`, `Response` and `ReadableStream` for the Workers and the
+   * domain, and browser variants shadowing them disagree about `Request.cf` and
+   * R2 bodies. This tree renders and needs `DOM` anyway, so it gets its own
+   * config rather than forcing that trade on `domain/` and `workers/`.
+   *
+   * Being at `app/` rather than beside it is what makes the split work: a
+   * language server and `tsgo` both resolve a file against its NEAREST ancestor
+   * config, so everything under here lands in this project and everything above
+   * it stays in the substrate's. Two configs in one directory would not.
+   *
+   * The settings themselves match `apps/platform.auth/tsconfig.json`, which is
+   * the TanStack Start project this repo already runs — `DOM` and
+   * `@cloudflare/workers-types` coexisting is proven there rather than hoped
+   * for here.
+   */
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["es2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "moduleDetection": "force",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "types": ["node", "@cloudflare/workers-types", "vite/client"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noEmit": true,
+    "declaration": false,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}

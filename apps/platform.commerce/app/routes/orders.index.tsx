@@ -1,0 +1,102 @@
+/**
+ * The order book.
+ *
+ * Filtered by status through the URL, so a "what do I ship today" view is a
+ * link. `paid` is that view: money in, nothing sent.
+ */
+import { createFileRoute, Link } from "@tanstack/react-router";
+
+import type { OrderStatus } from "../../domain/Contracts.ts";
+import { PageHeader } from "../components/page.tsx";
+import { OrderStatusBadge, PaymentBadge } from "../components/badges.tsx";
+import { RecordList, Td, type Column } from "../components/table.tsx";
+import { listOrders } from "../lib/orders.functions.ts";
+import { money, refusalText, when } from "../lib/format.ts";
+
+const STATUSES: Array<OrderStatus | "all"> = [
+  "all",
+  "pending",
+  "paid",
+  "shipped",
+  "delivered",
+  "cancelled",
+];
+
+const COLUMNS: Column[] = [
+  { label: "Order" },
+  { label: "Buyer" },
+  { label: "Status" },
+  { label: "Payment" },
+  { label: "Total", align: "right" },
+  { label: "Placed" },
+];
+
+export const Route = createFileRoute("/orders/")({
+  validateSearch: (search: Record<string, unknown>): { status: OrderStatus | "all" } => {
+    const status = search["status"];
+    return {
+      status: STATUSES.includes(status as OrderStatus | "all")
+        ? (status as OrderStatus | "all")
+        : "all",
+    };
+  },
+  loaderDeps: ({ search }) => ({ status: search.status }),
+  loader: async ({ deps }) => listOrders({ data: { status: deps.status, limit: 200 } }),
+  component: Orders,
+});
+
+function Orders() {
+  const result = Route.useLoaderData();
+  const { status } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  const orders = result.ok ? result.value.orders : [];
+
+  return (
+    <>
+      <PageHeader title="Orders" subtitle="Every order this deployment has taken." />
+
+      <RecordList
+        title={status === "all" ? "All orders" : `${status} orders`}
+        description={`${orders.length} order${orders.length === 1 ? "" : "s"}`}
+        filter={{
+          value: status,
+          options: STATUSES,
+          onChange: (next) => void navigate({ search: { status: next } }),
+        }}
+        refusal={result.ok ? null : refusalText(result.error, result.message)}
+        columns={COLUMNS}
+        isEmpty={orders.length === 0}
+        empty="No orders here."
+      >
+        {orders.map((order) => (
+          <tr key={order.orderNumber} className="hover:bg-surface-sunken">
+            <Td>
+              <Link
+                to="/orders/$orderNumber"
+                params={{ orderNumber: order.orderNumber }}
+                className="font-medium underline-offset-4 hover:underline"
+              >
+                {order.orderNumber}
+              </Link>
+            </Td>
+            <Td>
+              <div className="truncate">{order.email}</div>
+              {order.shipName ? (
+                <div className="text-xs text-muted-foreground">{order.shipName}</div>
+              ) : null}
+            </Td>
+            <Td>
+              <OrderStatusBadge status={order.status} />
+            </Td>
+            <Td>
+              <PaymentBadge status={order.paymentStatus} />
+            </Td>
+            <Td align="right">{money(order.totalCents)}</Td>
+            <Td className="text-xs text-muted-foreground">{when(order.createdAt)}</Td>
+          </tr>
+        ))}
+      </RecordList>
+    </>
+  );
+}

@@ -20,6 +20,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Stream from "effect/Stream";
 
 import * as Catalog from "../domain/Catalog.ts";
 import type {
@@ -216,6 +217,41 @@ export const commerceSurface = Effect.fn("commerceSurface")(function* (provider:
             return yield* Media.ingestProductMedia(database.db, call.input, now, imageId);
           }),
         );
+      }).pipe(Effect.provide(layer)),
+
+    /**
+     * The bytes behind a media id, at ANY product status, as a STREAM. A read —
+     * no audit row, no idempotency key, no envelope.
+     *
+     * The console needs it because publish refuses without a cover and the
+     * public `/media/:id` refuses until the product is active, so the whole
+     * pre-publish window is a hole the public route cannot serve. See
+     * `domain/Media.ts` for why that gate stays exactly as it is and why this
+     * being binding-only is what makes a second reader safe.
+     *
+     * An empty stream for a miss, because the bridge types a stream method as
+     * `Promise<ReadableStream>` and has no null to give. The caller pairs this
+     * with {@link operatorMediaContentType}, whose `null` IS the 404 signal.
+     */
+    streamOperatorMedia: (mediaId: string) =>
+      Stream.unwrap(
+        Effect.gen(function* () {
+          const database = yield* Database;
+          const blob = yield* Media.openOperatorMedia(database.db, mediaId);
+          return blob === null
+            ? Stream.empty
+            : Stream.fromReadableStream({
+                evaluate: () => blob.body,
+                onError: (error) => error,
+              });
+        }).pipe(Effect.provide(layer)),
+      ),
+
+    /** The content type for {@link streamOperatorMedia}, and its existence check. */
+    operatorMediaContentType: (mediaId: string) =>
+      Effect.gen(function* () {
+        const database = yield* Database;
+        return yield* Media.operatorMediaContentType(database.db, mediaId);
       }).pipe(Effect.provide(layer)),
 
     reorderProductMedia: (call: OperatorCall<ReorderProductMediaInput>) =>

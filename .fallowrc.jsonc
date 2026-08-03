@@ -8,6 +8,13 @@
     "apps/platform.auth/app/routeTree.gen.ts",
     "apps/platform.auth/api/schema.gen.ts",
     "apps/platform.auth/test/**/*.test.ts",
+    // The commerce operator console. Same three entries a TanStack Start app
+    // needs: the Worker the deploy names as `main`, the start instance the
+    // framework loads by convention, and the generated route tree that reaches
+    // every route file. No import points at any of them.
+    "apps/platform.commerce/app/worker.ts",
+    "apps/platform.commerce/app/start.ts",
+    "apps/platform.commerce/app/routeTree.gen.ts",
     // The deployed Worker's entry. React Router's own entries are discovered
     // by fallow's framework plugin, but this one is named as a STRING in
     // `module.ts` (`main`) precisely so the script exports the Durable Object

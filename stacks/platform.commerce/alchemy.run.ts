@@ -4,8 +4,11 @@ import * as Drizzle from "alchemy/Drizzle";
 import * as Effect from "effect/Effect";
 import { Layer } from "effect";
 
-import { CommerceModule } from "platform.commerce/module";
+import { CommerceModule, StaffPolicy } from "platform.commerce/module";
 import * as StripeDev from "platform.commerce/infrastructure/StripeDev";
+import { PRODUCTION_STAGE } from "platform.names";
+
+import { PlatformAccess } from "../platform.access/index.ts";
 
 /**
  * `"PlatformCommerce"` is the state key — state is keyed by stack name and
@@ -18,15 +21,23 @@ import * as StripeDev from "platform.commerce/infrastructure/StripeDev";
  * No typed handle yet. `Auth` publishes one because a different stack acts on
  * its origin; nothing consumes commerce's outputs from outside, and the thing a
  * consumer will actually want is a SERVICE BINDING, which does not cross a stack
- * boundary. When the storefront and the operator console land they are declared
- * HERE, in this file, alongside the module — that is what lets them
- * `bindWorker(CommerceWorker)` instead of reaching Commerce over a URL.
+ * boundary. The operator console is exactly that consumer, which is why it is
+ * declared inside `apps/platform.commerce` and reaches Commerce by binding
+ * rather than over a URL — see `Operator` in `platform.commerce/module`. A
+ * storefront lands the same way when it does.
+ *
+ * `stage[PRODUCTION_STAGE]`, not a bare `yield*`: platform.access is a singleton
+ * deployed at prod alone, so every stage of this app pins to that one. The ref
+ * lives HERE because `apps/` may not import `stacks/`; the app only states the
+ * requirement.
  *
  * No `adopt`. Nothing here exists yet; every physical name is stage-derived, so
- * a `dev_*` deploy stands up its own database, bucket and queue rather than
- * touching another stage's. The day production holds real orders it wants what
- * `platform.auth`'s database has — a pinned name, an id guard, and a retain
- * policy — and that belongs in `runtime.ts` next to the resource.
+ * a `dev_*` deploy stands up its own database, bucket, queue, hostname and
+ * Access application rather than touching another stage's. Note the difference
+ * from `stacks/mezedes` and `stacks/platform.inbox`, which both adopt because
+ * their Access application sits on a hostname that already had one — `desk.`
+ * has never been claimed by this account, so a blind create is correct and a
+ * collision here would be a real conflict worth failing on.
  */
 
 /**
@@ -54,7 +65,11 @@ export default Alchemy.Stack(
     state: Cloudflare.state(),
   },
   Effect.gen(function* () {
-    const commerce = yield* CommerceModule;
+    const { staffPolicyId } = yield* PlatformAccess.stage[PRODUCTION_STAGE];
+
+    const commerce = yield* CommerceModule.pipe(
+      Effect.provideService(StaffPolicy, { policyId: staffPolicyId }),
+    );
 
     /**
      * The local forwarder, pointed at the address the provider will actually

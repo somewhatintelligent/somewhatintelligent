@@ -148,3 +148,71 @@ export const openMedia = Effect.fn("Media.openMedia")(function* (db: ClassicDb, 
   if (object._tag === "Failure" || object.success === null) return null;
   return object.success;
 });
+
+/**
+ * The same bytes, WITHOUT the status gate — for the operator console alone.
+ *
+ * WHY IT HAS TO EXIST. `publishProduct` refuses with `missing_media` until a
+ * product has a cover, and `openMedia` above serves nothing until the product
+ * is `active` — which it cannot become before it is published. So the one
+ * moment an operator most needs to see a photograph is precisely the window in
+ * which the public route is guaranteed to 404. Without this the console
+ * uploads blind and the first look at a product image is on the live
+ * storefront, which is not a workflow anyone should sell from.
+ *
+ * WHY IT IS SAFE. It is reachable only through `CommerceSurface`, which is
+ * reachable only over a service binding — `workers/Commerce.ts` sets
+ * `workersDev: false` and claims no domain, so nothing addresses it. The
+ * public `/media/:id` route is served by `workers/Media.ts` and calls
+ * {@link openMedia}, which is unchanged and still fail-closed. Withdrawing a
+ * product still kills every image link anyone already had.
+ *
+ * STREAMED, exactly like {@link openMedia} — the R2 body is handed on
+ * untouched and nothing is read into the isolate. The two differ in their
+ * WHERE clause and in nothing else.
+ */
+export const openOperatorMedia = Effect.fn("Media.openOperatorMedia")(function* (
+  db: ClassicDb,
+  mediaId: string,
+) {
+  const rows = yield* query(() =>
+    db
+      .select({ storageKey: productImage.storageKey })
+      .from(productImage)
+      .where(eq(productImage.id, mediaId))
+      .limit(1),
+  );
+  const row = rows[0];
+  if (!row) return null;
+
+  const blobs = yield* Blobs;
+  const object = yield* Effect.result(blobs.get(row.storageKey));
+  if (object._tag === "Failure" || object.success === null) return null;
+  return object.success;
+});
+
+/**
+ * The content type behind a media id, without opening the object.
+ *
+ * A SEPARATE CALL rather than a field beside the bytes, because the RPC bridge
+ * unwraps a stream envelope only at the TOP LEVEL of a result — a
+ * `{ body, contentType }` struct carrying a live `ReadableStream` does not
+ * survive the hop, and the alternative to two calls is buffering the image to
+ * put it in one. A D1 row read is the cheaper half of that trade.
+ *
+ * Same absence of a status gate, for the same reason, with the same
+ * binding-only reachability making it safe.
+ */
+export const operatorMediaContentType = Effect.fn("Media.operatorMediaContentType")(function* (
+  db: ClassicDb,
+  mediaId: string,
+) {
+  const rows = yield* query(() =>
+    db
+      .select({ contentType: productImage.contentType })
+      .from(productImage)
+      .where(eq(productImage.id, mediaId))
+      .limit(1),
+  );
+  return rows[0]?.contentType ?? null;
+});
