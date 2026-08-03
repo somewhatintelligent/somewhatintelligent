@@ -37,12 +37,12 @@ import {
 } from "platform.ui/components/select";
 
 import type { ProductDetail, ProductStatus } from "../../domain/Contracts.ts";
-import { Empty, Facts, PageHeader, Section } from "../components/page.tsx";
+import { Empty, PageHeader, Section } from "../components/page.tsx";
 import { Hint, Outcome } from "../components/outcome.tsx";
 import { ProductStatusBadge } from "../components/badges.tsx";
 import { DeletionDialog } from "../components/deletion-dialog.tsx";
 import { AddSize, VariantEditor } from "../components/variant-editor.tsx";
-import { Identity } from "../components/product-identity.tsx";
+import { Identity, ProductPrice } from "../components/product-identity.tsx";
 import { DataTable, Td, type Column } from "../components/table.tsx";
 import {
   adjustStock,
@@ -148,7 +148,7 @@ function Product() {
   const { draft, preorder, releases, variants, media } = detail;
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col gap-4 xl:h-[calc(100dvh-6rem)] xl:flex-none xl:overflow-hidden">
       <PageHeader
         back={
           <Button
@@ -215,45 +215,41 @@ function Product() {
         WHAT IT IS, then WHERE IT IS. Not a form per table.
 
         The identity band is the product as a person thinks of it — the
-        photograph, the name, the words, the price — and the sizes sit beside it
-        because "what versions are there" is the next question anyone asks. What
-        the DATABASE calls a draft row, an image table and a variant table is an
-        implementation detail none of those questions mention.
+        photograph, the name and the words. Price is product-level but gets its
+        own card so it stays prominent without stealing width from the identity
+        fields. Sizes follow the product because "what versions are there" is
+        the next question anyone asks. What the DATABASE calls a draft row, an
+        image table and a variant table is an implementation detail none of
+        those questions mention.
 
-        Lifecycle is the second half of the page rather than a panel inside the
-        first: where a product is between draft and on sale is a different kind
-        of fact from what it is, and it is the one an operator opens the page to
-        change.
+        Lifecycle sits beside the sizes beneath that editing row: where a
+        product is between draft and on sale is a different kind of fact from
+        what it is, and it is the one an operator opens the page to change.
       */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(23rem,29rem)]">
-        {/*
-          LEFT is the product and what happens to it; RIGHT is what it sells and
-          how much of it. `How it sells` sits directly above the sizes table
-          because it decides what a row in that table MEANS — apart, the two
-          read as unrelated panels and the operator has to remember the link.
-        */}
-        <div className="flex flex-col gap-4">
-          <Identity productId={productId} draft={draft} media={media} refresh={refresh} />
-          <Lifecycle draft={draft} releases={releases} refresh={refresh} />
-        </div>
+      <div className="grid min-h-0 flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(22rem,0.75fr)] xl:grid-rows-[minmax(0,3fr)_minmax(0,2fr)] xl:items-stretch">
+        <Identity productId={productId} draft={draft} media={media} refresh={refresh} />
 
-        <div className="flex flex-col gap-4">
+        <div className="grid min-h-0 min-w-0 gap-4 overflow-hidden xl:h-full xl:grid-rows-[minmax(9rem,0.8fr)_minmax(0,1.2fr)]">
+          <ProductPrice productId={productId} draft={draft} refresh={refresh} />
           <SellsAs
             productId={productId}
             preorder={preorder}
             variants={variants}
             refresh={refresh}
           />
-          <Variants
-            productId={productId}
-            slug={draft.slug}
-            variants={variants}
-            runCap={preorder.cap}
-            refresh={refresh}
-          />
         </div>
+
+        <Variants
+          productId={productId}
+          slug={draft.slug}
+          variants={variants}
+          runCap={preorder.cap}
+          refresh={refresh}
+        />
+
+        <Lifecycle draft={draft} releases={releases} refresh={refresh} />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -321,8 +317,12 @@ function Lifecycle({
   const [bump, setBump] = useState<"major" | "minor" | "patch">("minor");
 
   return (
-    <Section title="Publish" description="Freezes the draft into a release, and puts it on sale.">
-      <div className="flex flex-col gap-4">
+    <Section
+      title="Publish"
+      description="Freezes the draft into a release, and puts it on sale."
+      className="flex h-full self-stretch flex-col overflow-auto p-4"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
           <Field className="w-28">
             <Label htmlFor="bump">Version</Label>
@@ -385,14 +385,14 @@ function Lifecycle({
 
         <Outcome error={error} done={done} />
 
-        <div>
-          <h3 className="mb-1.5 text-sm font-semibold">Releases</h3>
+        <div className="mt-auto border-t border-border pt-2">
+          <h3 className="mb-1 text-sm font-semibold">Releases</h3>
           {releases.length === 0 ? (
             <Empty>Never published.</Empty>
           ) : (
             <ul className="divide-y divide-border text-sm">
               {releases.map((release) => (
-                <li key={release.id} className="flex items-center gap-3 py-1.5">
+                <li key={release.id} className="flex items-center gap-3 py-1">
                   <span className="font-medium">v{release.version}</span>
                   {draft.activeVersion === release.version ? (
                     <span className="text-xs font-semibold text-success">active</span>
@@ -555,8 +555,11 @@ function SellsAs({
   };
 
   return (
-    <Section title="Sales channel" description="Choose how this product is sold.">
-      <div className="flex flex-col gap-4">
+    <Section
+      title="Sales channel"
+      className="flex h-full min-h-0 w-full self-stretch flex-col overflow-auto p-4"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Channel
             selected={!isRun}
@@ -564,7 +567,7 @@ function SellsAs({
             onSelect={() => void apply("stock")}
             icon={<Package className="size-5" />}
             title="In stock"
-            body="Sell from available inventory. Manage sizes and stock levels."
+            body="Sell available inventory."
           />
           <Channel
             selected={isRun}
@@ -572,46 +575,9 @@ function SellsAs({
             onSelect={() => void apply("run")}
             icon={<Clock className="size-5" />}
             title="Made to order"
-            body="Take orders now and make them after. Define the run size."
-          >
-            {isRun ? (
-              <div className="flex items-end gap-2 pt-1">
-                <Field className="w-20">
-                  <Label htmlFor="cap" className="text-xs">
-                    Run size
-                  </Label>
-                  <Input
-                    id="cap"
-                    inputMode="numeric"
-                    value={cap}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setCap(e.target.value)}
-                    className="h-8"
-                  />
-                </Field>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void apply("run");
-                  }}
-                >
-                  Update
-                </Button>
-              </div>
-            ) : null}
-          </Channel>
+            body="Take orders, then make."
+          />
         </div>
-
-        <Facts
-          rows={[
-            ["Run size", preorder.cap ?? "—"],
-            ["Sold", preorder.claimed],
-            ["Left", preorder.remaining ?? "—"],
-          ]}
-        />
 
         <Outcome error={error} done={done} />
 
@@ -621,6 +587,54 @@ function SellsAs({
             <strong>{preorder.claimed} + however many more</strong>.
           </Hint>
         ) : null}
+
+        <div className="mt-auto grid grid-cols-[minmax(0,1.35fr)_minmax(4.5rem,0.65fr)_minmax(4.5rem,0.65fr)] overflow-hidden rounded-lg border border-border bg-surface-sunken">
+          {isRun ? (
+            <div className="p-3">
+              <Field>
+                <Label htmlFor="cap" className="text-xs text-muted-foreground">
+                  Run size
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="cap"
+                    inputMode="numeric"
+                    value={cap}
+                    onChange={(e) => setCap(e.target.value)}
+                    className="h-8 min-w-0 tnum"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy || cap === String(preorder.cap)}
+                    onClick={() => void apply("run")}
+                  >
+                    Update
+                  </Button>
+                </div>
+              </Field>
+            </div>
+          ) : (
+            <div className="flex flex-col justify-center p-3">
+              <span className="text-xs text-muted-foreground">Inventory</span>
+              <span className="text-sm font-semibold">Tracked by size</span>
+            </div>
+          )}
+
+          <dl className="contents">
+            <div className="flex flex-col justify-center border-l border-border p-3">
+              <dt className="text-xs text-muted-foreground">Sold</dt>
+              <dd className="tnum font-display text-2xl font-semibold">{preorder.claimed}</dd>
+            </div>
+            <div className="flex flex-col justify-center border-l border-border p-3">
+              <dt className="text-xs text-muted-foreground">Left</dt>
+              <dd className="tnum font-display text-2xl font-semibold">
+                {preorder.remaining ?? "—"}
+              </dd>
+            </div>
+          </dl>
+        </div>
       </div>
     </Section>
   );
@@ -638,7 +652,6 @@ function Channel({
   icon,
   title,
   body,
-  children,
 }: {
   selected: boolean;
   disabled: boolean;
@@ -646,7 +659,6 @@ function Channel({
   icon: React.ReactNode;
   title: string;
   body: string;
-  children?: React.ReactNode;
 }) {
   return (
     <div
@@ -661,12 +673,12 @@ function Channel({
           onSelect();
         }
       }}
-      className={`relative flex cursor-pointer flex-col gap-1.5 rounded-lg border p-3.5 pt-9 transition-colors ${
+      className={`relative flex min-h-16 cursor-pointer flex-col justify-center gap-0.5 rounded-lg border py-2 pr-10 pl-10 transition-colors ${
         selected ? "border-primary bg-primary/5" : "border-border hover:border-border-strong"
       } ${disabled ? "pointer-events-none opacity-60" : ""}`}
     >
       <span
-        className={`absolute top-3.5 left-3.5 flex size-4 items-center justify-center rounded-full border-2 ${
+        className={`absolute top-3 left-3 flex size-4 items-center justify-center rounded-full border-2 ${
           selected ? "border-primary" : "border-border-strong"
         }`}
       >
@@ -674,8 +686,7 @@ function Channel({
       </span>
       <span className="text-sm font-semibold">{title}</span>
       <span className="text-xs text-muted-foreground">{body}</span>
-      <span className="absolute right-3.5 bottom-3.5 text-muted-foreground">{icon}</span>
-      {children}
+      <span className="absolute top-3 right-3 text-muted-foreground">{icon}</span>
     </div>
   );
 }
@@ -701,14 +712,19 @@ function Variants({
   const [deltas, setDeltas] = useState<Record<string, string>>({});
 
   const delta = (variantId: string) => Number(deltas[variantId] ?? "1") || 1;
+  const inventorySummary =
+    runCap === null
+      ? `${variants.reduce((total, variant) => total + variant.stock, 0)} units across sizes`
+      : `${runCap}-piece run`;
 
   return (
     <Section
       title="Variants"
       description="Sizes, SKUs and inventory."
       actions={<AddSize productId={productId} slug={slug} runCap={runCap} onAdded={refresh} />}
+      className="flex h-full self-stretch flex-col overflow-auto"
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         <DataTable columns={VARIANT_COLUMNS}>
           {variants.map((variant) => (
             <tr key={variant.id}>
@@ -811,6 +827,14 @@ function Variants({
         </DataTable>
 
         <Outcome error={error} done={done} />
+
+        <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+          <span>
+            {variants.length} {variants.length === 1 ? "size" : "sizes"}
+          </span>
+          <span>One product price</span>
+          <span className="ml-auto tnum font-medium text-foreground">{inventorySummary}</span>
+        </div>
       </div>
     </Section>
   );

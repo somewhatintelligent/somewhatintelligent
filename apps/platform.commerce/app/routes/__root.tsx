@@ -123,7 +123,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      <main className="flex flex-1 flex-col gap-4">{children}</main>
+      <main className="flex min-h-0 flex-1 flex-col gap-4">{children}</main>
     </div>
   );
 }

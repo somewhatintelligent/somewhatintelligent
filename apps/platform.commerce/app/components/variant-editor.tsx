@@ -286,7 +286,7 @@ export function AddSize({
 
   return (
     <>
-      <Button size="xs" onClick={() => onOpenChange(true)}>
+      <Button size="xs" variant="outline" onClick={() => onOpenChange(true)}>
         <Plus />
         Add size
       </Button>

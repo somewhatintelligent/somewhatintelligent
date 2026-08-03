@@ -66,20 +66,18 @@ export function Identity({
   const [form, setForm] = useState({
     title: draft.title,
     slug: draft.slug,
-    price: dollarsFrom(draft.priceCents),
     descriptionMarkdown: draft.descriptionMarkdown ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [done, setDone] = useState<string | null>(null);
+  const dirty =
+    form.title !== draft.title ||
+    form.slug !== draft.slug ||
+    form.descriptionMarkdown !== (draft.descriptionMarkdown ?? "");
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    const priceCents = centsFrom(form.price);
-    if (priceCents === null || priceCents < 0) {
-      setError(new Error("Price must be a number of dollars — 45.00"));
-      return;
-    }
     setBusy(true);
     setError(null);
     setDone(null);
@@ -91,7 +89,6 @@ export function Identity({
           expectedRevision: draft.revision,
           title: form.title,
           slug: form.slug,
-          priceCents,
           descriptionMarkdown: form.descriptionMarkdown || null,
           commandId: commandId(),
         },
@@ -112,11 +109,11 @@ export function Identity({
   return (
     <form
       onSubmit={save}
-      className="flex flex-col gap-4 self-start rounded-md border border-border bg-card p-4 lg:flex-row lg:gap-6"
+      className="grid min-w-0 self-start gap-5 rounded-xl border border-border bg-card p-5 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-6 xl:h-full xl:min-h-0 xl:self-stretch xl:overflow-hidden"
     >
       <Gallery productId={productId} media={media} refresh={refresh} />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-4">
         <Field>
           <Label htmlFor="title" className="sr-only">
             Title
@@ -126,7 +123,7 @@ export function Identity({
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="Charcoal Tee"
-            className="h-auto border-0 px-0 font-display text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
+            className="h-auto w-full border-0 px-0 font-display text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
           />
         </Field>
 
@@ -140,12 +137,12 @@ export function Identity({
               id="slug"
               value={form.slug}
               onChange={(e) => setForm({ ...form, slug: e.target.value })}
-              className="h-8 flex-1"
+              className="h-9 min-w-0 flex-1"
             />
           </div>
         </Field>
 
-        <Field className="flex-1">
+        <Field className="flex min-h-0 flex-1 flex-col">
           <Label htmlFor="description" className="text-xs">
             Description
           </Label>
@@ -155,30 +152,108 @@ export function Identity({
             value={form.descriptionMarkdown}
             onChange={(e) => setForm({ ...form, descriptionMarkdown: e.target.value })}
             placeholder="Markdown. Shown on the product page."
+            className="min-h-32 flex-1 resize-y"
           />
         </Field>
-      </div>
 
-      <div className="flex w-full flex-col gap-3 lg:w-40">
-        <Field>
-          <Label htmlFor="price" className="text-xs">
-            Price
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+          <Outcome error={error} done={done} />
+          <Button type="submit" variant={dirty ? "default" : "outline"} disabled={busy || !dirty}>
+            {busy ? "Saving…" : "Save details"}
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * PRICE IS PRODUCT-LEVEL, not a variant column. It gets its own small card so
+ * it remains prominent without narrowing the title, address and description
+ * fields beside the gallery.
+ */
+export function ProductPrice({
+  productId,
+  draft,
+  refresh,
+}: {
+  productId: string;
+  draft: ProductDetail["draft"];
+  refresh: () => Promise<void>;
+}) {
+  const [price, setPrice] = useState(dollarsFrom(draft.priceCents));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const dirty = price !== dollarsFrom(draft.priceCents);
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const priceCents = centsFrom(price);
+    if (priceCents === null || priceCents < 0) {
+      setError(new Error("Price must be a number of dollars — 45.00"));
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setDone(null);
+    try {
+      const result = await saveProductDraft({
+        data: {
+          productId,
+          expectedRevision: draft.revision,
+          priceCents,
+          commandId: commandId(),
+        },
+      });
+      if (!result.ok) {
+        setError(new Error(refusalText(result.error, result.message)));
+        return;
+      }
+      setDone("Price saved");
+      await refresh();
+    } catch (cause) {
+      setError(cause);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={save}
+      className="flex h-full min-h-0 self-stretch flex-col overflow-auto rounded-xl border border-border bg-card p-5"
+    >
+      <div className="mb-4">
+        <h2 className="text-base font-semibold tracking-tight">Price</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">One price across every variant.</p>
+      </div>
+      <div className="flex flex-1 items-center">
+        <Field className="w-full">
+          <Label htmlFor="price" className="sr-only">
+            Price in dollars
           </Label>
-          <Input
-            id="price"
-            inputMode="decimal"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            className="font-display text-lg"
-          />
+          <div className="flex items-center gap-3">
+            <div className="relative min-w-0 flex-1">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-base text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="price"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="h-14 pl-7 font-display text-2xl tnum"
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={busy || !dirty} className="h-14">
+              {busy ? "Saving…" : "Save price"}
+            </Button>
+          </div>
         </Field>
-
-        <Button type="submit" disabled={busy} className="w-full">
-          {busy ? "Saving…" : "Save"}
-        </Button>
-
-        <Outcome error={error} done={done} />
       </div>
+      <Outcome error={error} done={done} />
     </form>
   );
 }
@@ -262,7 +337,7 @@ function Gallery({
   };
 
   return (
-    <div className="flex w-full flex-none flex-col gap-2.5 lg:w-[19rem]">
+    <div className="flex w-full flex-none flex-col gap-2.5 lg:w-[19rem] xl:min-h-0 xl:self-stretch">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -275,7 +350,7 @@ function Gallery({
           const file = e.dataTransfer.files[0];
           if (file) void upload(file);
         }}
-        className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border ${
+        className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border xl:min-h-0 xl:flex-1 xl:aspect-auto ${
           dragging ? "border-primary bg-primary/5" : "border-border"
         }`}
       >
