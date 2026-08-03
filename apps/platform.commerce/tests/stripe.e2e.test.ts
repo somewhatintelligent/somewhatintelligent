@@ -241,7 +241,16 @@ const withShopper = <A, E, R>(
 
 const RUN = Math.random().toString(36).slice(2, 8);
 let counter = 0;
-const cmd = (label: string) => `${label}-${RUN}-${(counter += 1)}`;
+/**
+ * A fresh command id.
+ *
+ * NO LABEL ARGUMENT, because it never carried information. `counter` already
+ * makes every id unique, so a label contributed nothing to identity — and it
+ * duplicated `command_event.action`, which records what the command was and is
+ * written by the ledger rather than typed at each call site. Two call sites
+ * even shared a label, so it did not identify them either.
+ */
+const cmd = () => `${RUN}-${(counter += 1)}`;
 
 const show = (title: string, body: unknown) => {
   console.log(`\n── ${title} ${"─".repeat(Math.max(0, 58 - title.length))}`);
@@ -266,13 +275,13 @@ const stockedProduct = (
     Effect.gen(function* () {
       const slug = `e2e-${RUN}-${(counter += 1)}`;
       const created = yield* client.createProduct({
-        commandId: cmd("create"),
+        commandId: cmd(),
         slug,
         title: `E2E ${slug}`,
         priceCents: 2500,
       });
       yield* client.ingestProductMedia({
-        commandId: cmd("media"),
+        commandId: cmd(),
         productId: created.productId,
         bytesBase64: PIXEL_PNG,
         contentType: "image/png",
@@ -280,7 +289,7 @@ const stockedProduct = (
         role: "cover",
       });
       const made = yield* client.putVariant({
-        commandId: cmd("variant"),
+        commandId: cmd(),
         productId: created.productId,
         size: "M",
         sku: `${slug}-M`,
@@ -302,13 +311,13 @@ const stockedProduct = (
        */
       if (variant.preorderCap !== undefined) {
         yield* client.setPreorderCap({
-          commandId: cmd("cap"),
+          commandId: cmd(),
           productId: created.productId,
           cap: variant.preorderCap,
         });
       }
       yield* client.publishProduct({
-        commandId: cmd("publish"),
+        commandId: cmd(),
         productId: created.productId,
         expectedRevision: 1,
         version: "1.0.0",
@@ -368,7 +377,7 @@ test.skipIf(!STRIPE_READY)(
      */
     const placed = yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("buy"),
+        commandId: cmd(),
         email: `e2e-${RUN}@spike.local`,
         destination: "CA",
         items: [{ variantId, quantity: 1 }],
@@ -433,7 +442,7 @@ test.skipIf(!STRIPE_READY)(
 
     const placed = yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("buy"),
+        commandId: cmd(),
         email: `e2e-${RUN}@spike.local`,
         destination: "US",
         items: [{ variantId, quantity: 2 }],
@@ -521,7 +530,7 @@ test.skipIf(!STRIPE_READY)(
 
     const first = yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("pre"),
+        commandId: cmd(),
         email: `e2e-${RUN}@spike.local`,
         destination: "CA",
         items: [{ variantId, quantity: 2 }],
@@ -542,7 +551,7 @@ test.skipIf(!STRIPE_READY)(
     const overflow = yield* Effect.result(
       withShopper(catalogUrl, (client) =>
         client.placeOrder({
-          commandId: cmd("pre"),
+          commandId: cmd(),
           email: `e2e-${RUN}@spike.local`,
           destination: "CA",
           items: [{ variantId, quantity: 1 }],
@@ -580,7 +589,7 @@ test.skipIf(!STRIPE_READY)(
 
     const placed = yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("track"),
+        commandId: cmd(),
         email,
         destination: "US",
         items: [{ variantId, quantity: 1 }],
@@ -601,7 +610,7 @@ test.skipIf(!STRIPE_READY)(
      */
     const shipped = yield* withOperator(edgeUrl, (client) =>
       client.fulfillOrder({
-        commandId: cmd("ship"),
+        commandId: cmd(),
         orderNumber: placed.orderNumber,
         carrier: "Canada Post",
         trackingNumber: `TRK-${RUN}`,
@@ -675,7 +684,7 @@ test.skipIf(!STRIPE_READY)(
 
     const placed = yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("refundme"),
+        commandId: cmd(),
         email: `e2e-${RUN}-refund@spike.local`,
         destination: "CA",
         items: [{ variantId, quantity: 2 }],
@@ -779,13 +788,13 @@ test.skipIf(!STRIPE_READY)(
     const { productId, medium, large } = yield* withOperator(edgeUrl, (client) =>
       Effect.gen(function* () {
         const created = yield* client.createProduct({
-          commandId: cmd("create"),
+          commandId: cmd(),
           slug,
           title: `Aggregate ${slug}`,
           priceCents: 3500,
         });
         yield* client.ingestProductMedia({
-          commandId: cmd("media"),
+          commandId: cmd(),
           productId: created.productId,
           bytesBase64: PIXEL_PNG,
           contentType: "image/png",
@@ -794,7 +803,7 @@ test.skipIf(!STRIPE_READY)(
         });
         // Each size has generous headroom of its own — only the run binds.
         const m = yield* client.putVariant({
-          commandId: cmd("m"),
+          commandId: cmd(),
           productId: created.productId,
           size: "M",
           sku: `${slug}-M`,
@@ -802,7 +811,7 @@ test.skipIf(!STRIPE_READY)(
           mode: "preorder",
         });
         const l = yield* client.putVariant({
-          commandId: cmd("l"),
+          commandId: cmd(),
           productId: created.productId,
           size: "L",
           sku: `${slug}-L`,
@@ -812,13 +821,13 @@ test.skipIf(!STRIPE_READY)(
         // The cap before the publish — `publishProduct` refuses a pre-order
         // product with no run to claim against. See the note in `liveProduct`.
         const run = yield* client.setPreorderCap({
-          commandId: cmd("cap"),
+          commandId: cmd(),
           productId: created.productId,
           cap: 3,
         });
         expect(run.remaining).toBe(3);
         yield* client.publishProduct({
-          commandId: cmd("publish"),
+          commandId: cmd(),
           productId: created.productId,
           expectedRevision: 1,
           version: "1.0.0",
@@ -830,7 +839,7 @@ test.skipIf(!STRIPE_READY)(
     // Two mediums: the run is down to one, and LARGE is affected too.
     yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("m2"),
+        commandId: cmd(),
         email: `agg-${RUN}@spike.local`,
         destination: "CA",
         items: [{ variantId: medium, quantity: 2 }],
@@ -842,7 +851,7 @@ test.skipIf(!STRIPE_READY)(
     const overflow = yield* Effect.result(
       withShopper(catalogUrl, (client) =>
         client.placeOrder({
-          commandId: cmd("l2"),
+          commandId: cmd(),
           email: `agg-${RUN}@spike.local`,
           destination: "CA",
           items: [{ variantId: large, quantity: 2 }],
@@ -866,7 +875,7 @@ test.skipIf(!STRIPE_READY)(
     // The last place sells, in the other size.
     yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("l1"),
+        commandId: cmd(),
         email: `agg-${RUN}@spike.local`,
         destination: "CA",
         items: [{ variantId: large, quantity: 1 }],
@@ -888,7 +897,7 @@ test.skipIf(!STRIPE_READY)(
     const { variantId } = yield* stockedProduct(edgeUrl, 5);
     const placed = yield* withShopper(catalogUrl, (client) =>
       client.placeOrder({
-        commandId: cmd("heal"),
+        commandId: cmd(),
         email: `heal-${RUN}@spike.local`,
         destination: "CA",
         items: [{ variantId, quantity: 1 }],
