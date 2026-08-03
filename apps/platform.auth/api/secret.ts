@@ -2,7 +2,7 @@ import { Random, Stack } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 
-import { PRODUCTION_STAGE, workerSafeStage } from "../shared/ingress.ts";
+import { PRODUCTION_STAGE, workerSafeStage } from "platform.names";
 
 /**
  * What Better Auth signs every session cookie and JWT with. Unset, it falls

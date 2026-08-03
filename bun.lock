@@ -22,6 +22,7 @@
         "@modelcontextprotocol/server": "2.0.0",
         "agents": "0.20.1",
         "jose": "6.2.6",
+        "platform.names": "workspace:*",
         "zod": "4.4.3",
       },
       "devDependencies": {
@@ -60,6 +61,7 @@
         "lucide-react": "catalog:",
         "next-themes": "catalog:",
         "platform.design": "workspace:*",
+        "platform.names": "workspace:*",
         "platform.ui": "workspace:*",
         "react": "catalog:",
         "react-dom": "catalog:",
@@ -121,6 +123,13 @@
       },
       "peerDependencies": {
         "react": "^19.0.0",
+      },
+    },
+    "packages/platform.names": {
+      "name": "platform.names",
+      "version": "0.0.0",
+      "devDependencies": {
+        "typescript": "catalog:",
       },
     },
     "packages/platform.ui": {
@@ -1916,6 +1925,8 @@
     "platform.auth": ["platform.auth@workspace:apps/platform.auth"],
 
     "platform.design": ["platform.design@workspace:packages/platform.design"],
+
+    "platform.names": ["platform.names@workspace:packages/platform.names"],
 
     "platform.ui": ["platform.ui@workspace:packages/platform.ui"],
 

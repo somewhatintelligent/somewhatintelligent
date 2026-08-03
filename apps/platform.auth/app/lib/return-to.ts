@@ -11,7 +11,7 @@
  * by construction.
  */
 
-import { PRODUCTION_ZONE } from "../../shared/ingress.ts";
+import { PRODUCTION_ZONE } from "platform.names";
 
 /**
  * The apex, WITHOUT a leading dot.

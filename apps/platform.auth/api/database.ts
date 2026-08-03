@@ -4,7 +4,7 @@ import * as Drizzle from "alchemy/Drizzle/Schema";
 import * as Effect from "effect/Effect";
 
 import { migrationsDir, schemaPath } from "../paths.ts";
-import { PRODUCTION_STAGE } from "../shared/ingress.ts";
+import { PRODUCTION_STAGE } from "platform.names";
 
 /**
  * The database production has always used, carried over from si's `guestlist`

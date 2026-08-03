@@ -28,6 +28,7 @@
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
     "platform.design": "workspace:*",
+    "platform.names": "workspace:*",
     "platform.ui": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",

@@ -1,8 +1,6 @@
+import { PRODUCTION_STAGE, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+
 const ACCOUNT_SUBDOMAIN = "apostoli-geyer";
-
-export const PRODUCTION_ZONE = "somewhatintelligent.ca";
-
-export const PRODUCTION_STAGE = "prod";
 
 const AUTH_SUBDOMAIN = "accounts";
 
@@ -17,13 +15,6 @@ export const MAX_AVATAR_BYTES = 8 * 1024 * 1024;
 export const ALLOWED_AVATAR_TYPES = ["image/webp", "image/png", "image/jpeg"] as const;
 
 export type AvatarContentType = (typeof ALLOWED_AVATAR_TYPES)[number];
-
-export const workerSafeStage = (stage: string): string =>
-  stage
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
 
 export interface Ingress {
   readonly name: string;

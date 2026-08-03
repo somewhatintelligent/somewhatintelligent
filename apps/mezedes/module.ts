@@ -6,9 +6,8 @@ import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import { Path } from "effect/Path";
+import { CLOUDFLARE_IDP, PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
-
-const ZONE = "somewhatintelligent.ca";
 
 /**
  * Artifacts get their OWN zone, and the separation is load-bearing twice over.
@@ -57,19 +56,6 @@ const COMPATIBILITY_DATE = "2026-07-01";
  */
 const DEV_PORT = 8787;
 
-/** `auth_domain` from GET /accounts/{account_id}/access/organizations. */
-const TEAM_DOMAIN = "https://geyerconsulting.cloudflareaccess.com";
-
-/**
- * The account's Cloudflare IdP, named so it is the ONLY one this application
- * accepts. `autoRedirectToIdentity` is honoured only when exactly one IdP is
- * allowed; One-time PIN also exists on the organisation and is excluded by not
- * being listed here.
- *
- * `type: "cloudflare"` from GET /accounts/{account_id}/access/identity_providers.
- */
-const CLOUDFLARE_IDP = "950ba8bd-98c6-498e-9866-3bb71fd771cc";
-
 /**
  * The hostnames this deploy owns. Derived from the stage so two stages can
  * never advertise the same one, and yielded rather than computed at module
@@ -91,11 +77,11 @@ const CLOUDFLARE_IDP = "950ba8bd-98c6-498e-9866-3bb71fd771cc";
  */
 const Hostnames = Effect.gen(function* () {
   const stage = yield* Alchemy.Stage;
-  const zone = yield* Config.string("MEZEDES_ZONE").pipe(Config.withDefault(ZONE));
+  const zone = yield* Config.string("MEZEDES_ZONE").pipe(Config.withDefault(PRODUCTION_ZONE));
   const artifactZone = yield* Config.string("MEZEDES_ARTIFACT_ZONE").pipe(
     Config.withDefault(ARTIFACT_ZONE),
   );
-  const prod = stage === "prod";
+  const prod = stage === PRODUCTION_STAGE;
   const suffix = prod ? "" : `-${stage}`;
   return {
     apex: `mezedes${suffix}.${zone}`,

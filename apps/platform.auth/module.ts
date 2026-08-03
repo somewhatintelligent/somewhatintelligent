@@ -9,7 +9,8 @@ import { AuthDatabase, PRODUCTION_DATABASE_ID, PRODUCTION_DATABASE_NAME } from "
 import { authFeatures } from "./api/options.ts";
 import { PACKAGE_DIR } from "./paths.ts";
 import AuthWorker from "./api/worker.ts";
-import { DEV_PORT, ingress, PRODUCTION_STAGE } from "./shared/ingress.ts";
+import { PRODUCTION_STAGE } from "platform.names";
+import { DEV_PORT, ingress } from "./shared/ingress.ts";
 import { authDefines } from "./shared/surfaces.ts";
 
 import { AuthSchema } from "./api/schema.ts";
