@@ -41,55 +41,80 @@
     "**/email/preview/**",
   ],
   // ── BOUNDARIES ───────────────────────────────────────────────────────────
-  // Tiers, not units. Adding apps/platform.store or apps/inbox changes nothing
-  // here — the dot-namespace makes the tier readable off the directory name.
+  // Tiers, not units. The dot-namespace makes the tier readable off the
+  // directory name: `platform.*` is platform, everything else is a product.
   //
   // ZONE ORDER IS SEMANTIC. A file belongs to the FIRST zone whose pattern
-  // matches. Verified experimentally, because two of these are counter-intuitive:
-  //   - autoDiscover IGNORES its own zone's `patterns` and claims every
-  //     immediate child of the named directory. It cannot be used on both apps
-  //     tiers: the first attempt swallowed a product app into the platform tier.
-  //   - An EARLIER zone's explicit pattern beats a later zone's discovered
-  //     child. That is the only reason platform-app and product-app can share
-  //     `apps/`.
-  //   - Allowing a parent zone DOES reach its discovered children.
-  //   - `root` scopes `patterns` only, NOT autoDiscover.
+  // matches — which is why app-core precedes the app tiers, and why the
+  // platform tiers precede nothing (their `platform.*` prefix already
+  // disambiguates them).
+  //
+  // NO autoDiscover HERE, deliberately. It reads as the right tool — one child
+  // zone per product, nothing written down per product — and it is not, because
+  // both tiers share `apps/`. Verified experimentally against fallow 3.10:
+  //   - autoDiscover mints a zone for EVERY immediate child of the named
+  //     directory. It has no exclusion list, and a glob (`apps/*`) is rejected
+  //     outright: "did not resolve to a readable directory".
+  //   - So pointing it at `apps` also mints product-app/platform.auth,
+  //     /platform.inbox, /platform.site. An earlier zone's explicit pattern
+  //     does beat a later zone's discovered child, so those files land in
+  //     platform-app correctly — but the phantom child zones survive and each
+  //     one warns "matched 0 reachable files" on every run. Eight warnings for
+  //     two autoDiscover parents.
+  //   - A zone carrying BOTH `patterns` and autoDiscover keeps its patterns as
+  //     a fallback zone that the children have already emptied — a ninth and
+  //     tenth warning. Drop `patterns` and the fallback zone disappears.
+  //   - `root` scopes `patterns` only, NOT autoDiscover, so it cannot narrow
+  //     what gets discovered either.
+  // Restoring autoDiscover means giving products a directory of their own
+  // (`products/`, `product-stacks/`) so the discovered set is products-only.
+  // Until then products are named here: two lines each, and the per-product
+  // sealing below is real rather than implied.
   "boundaries": {
     "zones": [
       // Pure domain. Isolated, and barred from I/O below — which is what makes
-      // a core testable without a Worker runtime.
+      // a core testable without a Worker runtime. FIRST, so it wins over the
+      // owning app's zone.
       { "name": "app-core", "patterns": ["apps/*/core/**", "apps/*/src/core/**"] },
 
       { "name": "lib", "patterns": ["packages/lib.*/**"] },
       { "name": "platform-pkg", "patterns": ["packages/platform.*/**"] },
 
       { "name": "platform-app", "patterns": ["apps/platform.*/**"] },
-      // autoDiscover gives each product its own child zone, so products are sealed
-      // from each other with nothing written down per product.
-      { "name": "product-app", "patterns": ["apps/**"], "autoDiscover": ["apps"] },
+      // One zone per product, so products stay sealed from each other. Add a
+      // zone AND a rule when a product lands; `coverage.requireAllFiles` below
+      // turns a forgotten one into a finding rather than a silent free pass.
+      { "name": "product-app/mezedes", "patterns": ["apps/mezedes/**"] },
 
       { "name": "platform-stack", "patterns": ["stacks/platform.*/**"] },
-      { "name": "product-stack", "patterns": ["stacks/**"], "autoDiscover": ["stacks"] },
+      { "name": "product-stack/mezedes", "patterns": ["stacks/mezedes/**"] },
     ],
     "rules": [
       { "from": "app-core", "allow": [] },
       { "from": "lib", "allow": [] },
       { "from": "platform-pkg", "allow": ["lib"] },
       { "from": "platform-app", "allow": ["app-core", "platform-pkg", "lib"] },
-      { "from": "product-app", "allow": ["app-core", "platform-app", "platform-pkg", "lib"] },
-      { "from": "platform-stack", "allow": ["platform-app", "platform-pkg", "lib"] },
       {
-        "from": "product-stack",
-        "allow": ["product-app", "platform-stack", "platform-app", "platform-pkg", "lib"],
+        "from": "product-app/mezedes",
+        "allow": ["app-core", "platform-app", "platform-pkg", "lib"],
+      },
+      { "from": "platform-stack", "allow": ["platform-app", "platform-pkg", "lib"] },
+      // A product's stack reaches ITS product, not the product tier at large.
+      // Under autoDiscover this could only be written as "product-app", which
+      // expanded to every discovered product — so every product stack could
+      // reach every product app.
+      {
+        "from": "product-stack/mezedes",
+        "allow": ["product-app/mezedes", "platform-stack", "platform-app", "platform-pkg", "lib"],
       },
     ],
     // Segment-aware, and matched THROUGH imports — not globs.
     //
     // `*.ref` confines cross-stack resource refs to `apps/<ns>/binding.ts`,
     // because a ref's target is a STRING LITERAL that no import graph can see.
-    // Absent from the two product tiers on purpose: forbidden-call rules do NOT
-    // inherit to autoDiscovered children, so a product would have to be named
-    // explicitly — add `product-app/<name>` the day one actually mints a ref.
+    // Still absent from the two product tiers — but now only because no product
+    // mints a ref yet, not because the config could not say so. The zones above
+    // are named, so this is a one-liner per product the day one does.
     "calls": {
       "forbidden": [
         {
