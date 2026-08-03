@@ -1,0 +1,112 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "**/alchemy.run.ts",
+    "apps/platform.auth/api/worker.ts",
+    "apps/platform.auth/app/worker.ts",
+    "apps/platform.auth/app/start.ts",
+    "apps/platform.auth/app/routeTree.gen.ts",
+    "apps/platform.auth/api/schema.gen.ts",
+    "apps/platform.auth/test/**/*.test.ts",
+    "packages/*/src/index.ts",
+    "apps/*/src/server/entry.ts",
+    "apps/*/src/shell/main.tsx",
+    "apps/*/test/**/*.test.ts",
+    "apps/*/integ/**/*.test.ts",
+  ],
+  "ignorePatterns": ["dist/**", "design/**", "plugin/**", "**/scripts/**", "**/generated/**"],
+  // ── BOUNDARIES ───────────────────────────────────────────────────────────
+  // Tiers, not units. Adding apps/platform.store or apps/inbox changes nothing
+  // here — the dot-namespace makes the tier readable off the directory name.
+  //
+  // ZONE ORDER IS SEMANTIC. A file belongs to the FIRST zone whose pattern
+  // matches. Verified experimentally, because two of these are counter-intuitive:
+  //   - autoDiscover IGNORES its own zone's `patterns` and claims every
+  //     immediate child of the named directory. It cannot be used on both apps
+  //     tiers: the first attempt swallowed a product app into the platform tier.
+  //   - An EARLIER zone's explicit pattern beats a later zone's discovered
+  //     child. That is the only reason platform-app and product-app can share
+  //     `apps/`.
+  //   - Allowing a parent zone DOES reach its discovered children.
+  //   - `root` scopes `patterns` only, NOT autoDiscover.
+  "boundaries": {
+    "zones": [
+      // Pure domain. Isolated, and barred from I/O below — which is what makes
+      // a core testable without a Worker runtime.
+      { "name": "app-core", "patterns": ["apps/*/core/**", "apps/*/src/core/**"] },
+
+      { "name": "lib", "patterns": ["packages/lib.*/**"] },
+      { "name": "platform-pkg", "patterns": ["packages/platform.*/**"] },
+
+      { "name": "platform-app", "patterns": ["apps/platform.*/**"] },
+      // autoDiscover gives each product its own child zone, so products are sealed
+      // from each other with nothing written down per product.
+      { "name": "product-app", "patterns": ["apps/**"], "autoDiscover": ["apps"] },
+
+      { "name": "platform-stack", "patterns": ["stacks/platform.*/**"] },
+      { "name": "product-stack", "patterns": ["stacks/**"], "autoDiscover": ["stacks"] },
+    ],
+    "rules": [
+      { "from": "app-core", "allow": [] },
+      { "from": "lib", "allow": [] },
+      { "from": "platform-pkg", "allow": ["lib"] },
+      { "from": "platform-app", "allow": ["app-core", "platform-pkg", "lib"] },
+      { "from": "product-app", "allow": ["app-core", "platform-app", "platform-pkg", "lib"] },
+      { "from": "platform-stack", "allow": ["platform-app", "platform-pkg", "lib"] },
+      {
+        "from": "product-stack",
+        "allow": ["product-app", "platform-stack", "platform-app", "platform-pkg", "lib"],
+      },
+    ],
+    // Segment-aware, and matched THROUGH imports — not globs.
+    //
+    // `*.ref` confines cross-stack resource refs to `apps/<ns>/binding.ts`,
+    // because a ref's target is a STRING LITERAL that no import graph can see.
+    // Absent from the two product tiers on purpose: forbidden-call rules do NOT
+    // inherit to autoDiscovered children, so a product would have to be named
+    // explicitly — add `product-app/<name>` the day one actually mints a ref.
+    "calls": {
+      "forbidden": [
+        {
+          "from": "app-core",
+          "callee": ["fetch", "caches.*", "crypto.subtle.*", "cloudflare:workers.*"],
+        },
+        { "from": "platform-app", "callee": "*.ref" },
+        { "from": "platform-stack", "callee": "*.ref" },
+        { "from": "platform-pkg", "callee": "*.ref" },
+        { "from": "lib", "callee": "*.ref" },
+      ],
+    },
+    // A file in a location no zone claims is a FINDING, not a silently
+    // unrestricted file.
+    "coverage": {
+      "requireAllFiles": true,
+      "allowUnmatched": ["vite.config.ts", "tools/**"],
+    },
+  },
+  "rules": {
+    "boundary-violation": "error",
+    "unused-exports": "error",
+    "unused-files": "error",
+    "unused-dependencies": "error",
+  },
+  "usedClassMembers": [
+    "list",
+    "get",
+    "versionOf",
+    "allocate",
+    "commit",
+    "update",
+    "remove",
+    "fetch",
+    "alarm",
+  ],
+  "ignoreDependencies": [
+    "@effect/platform-bun",
+    "@effect/platform-node",
+    "alchemy",
+    "effect",
+    "react",
+    "react-dom",
+  ],
+}
