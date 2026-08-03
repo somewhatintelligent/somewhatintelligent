@@ -8,6 +8,7 @@ import { live } from "./capabilities.ts";
 import { authConfig } from "./config.ts";
 import { AuthEmail } from "./email/Mail.ts";
 import { AUTH_COOKIE_DOMAIN, AUTH_ORIGIN } from "./origin.ts";
+import { deadline, orDieLogged, step, traced } from "./observe.ts";
 import { authRpc } from "./rpc.ts";
 
 const addressing = Effect.gen(function* () {
@@ -34,8 +35,22 @@ export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
     },
   },
   Effect.gen(function* () {
-    const auth = yield* makeEffectAuth(authConfig);
-    const methods = yield* Effect.fnUntraced(authRpc)(auth);
+    /**
+     * NAMED STEPS, because the failure that produced this was a hang: the
+     * runtime killed the isolate and printed `undefined`, so there was no way
+     * to tell which of these never returned. Each one announces itself and
+     * carries a deadline that turns silence into a logged failure.
+     */
+    const auth = yield* deadline(
+      "resolve auth config",
+      20,
+      step("resolve auth config", makeEffectAuth(authConfig)),
+    );
+    const methods = yield* deadline(
+      "build rpc surface",
+      10,
+      step("build rpc surface", Effect.fnUntraced(authRpc)(auth)),
+    );
 
     if (Object.hasOwn(methods, "fetch")) {
       const collision = new TypeError(
@@ -46,6 +61,18 @@ export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
       return yield* Effect.flatMap(Effect.logError(collision.message), () => Effect.die(collision));
     }
 
-    return { ...methods, fetch: Effect.orDie(auth.http) };
-  }).pipe(Effect.provide(live)),
+    /**
+     * `orDieLogged`, never bare `orDie`. A request that fails here used to
+     * become a defect with no record of what went wrong.
+     */
+    return { ...methods, fetch: orDieLogged("http handler", auth.http) };
+  }).pipe(
+    Effect.provide(live),
+    /**
+     * The outermost net. Layer construction happens inside `provide`, so a
+     * capability that fails or hangs while being built is only visible from
+     * out here.
+     */
+    (worker) => traced("worker startup", worker),
+  ),
 ) {}
