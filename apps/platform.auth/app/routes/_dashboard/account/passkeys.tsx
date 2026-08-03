@@ -78,10 +78,6 @@ function PasskeysPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-grid">
-        <h1 className="type-page-title">Passkeys</h1>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Your Passkeys</CardTitle>

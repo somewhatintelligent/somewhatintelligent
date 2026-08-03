@@ -81,10 +81,6 @@ function ApiKeysPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-grid">
-        <h1 className="type-page-title">API Keys</h1>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Your API Keys</CardTitle>
