@@ -78,7 +78,7 @@ export default Alchemy.Stack(
   Effect.gen(function* () {
     const worker = yield* Cloudflare.Worker("Mezedes", {
       main: ENTRY,
-      url: true,
+      workersDev: true,
       /**
        * Two Workers in one stack both default to 1337 and race for the next
        * free port; pinning them apart is what keeps the reported URL and the
@@ -136,7 +136,7 @@ export default Alchemy.Stack(
      */
     const vantage = yield* Cloudflare.Worker("Vantage", {
       main: VANTAGE_ENTRY,
-      url: true,
+      workersDev: true,
       dev: { port: 14338 },
       compatibility: { date: COMPATIBILITY_DATE },
       env: { MEZEDES: worker },

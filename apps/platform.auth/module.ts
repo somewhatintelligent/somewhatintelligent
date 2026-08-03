@@ -54,8 +54,8 @@ export class Identity extends Cloudflare.Website.Vite<Identity>()(
        * does not also answer on workers.dev, because a second public address
        * for the login is a second origin the cookie is not scoped to.
        */
-      ...(hostname === null ? {} : { domain: [hostname] }),
-      url: hostname === null,
+      ...(hostname === null ? {} : { domain: hostname }),
+      workersDev: hostname === null,
     };
   }),
 ) {}

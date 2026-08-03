@@ -20,7 +20,7 @@ export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
   "AuthWorker",
   {
     main: import.meta.url,
-    url: false,
+    workersDev: false,
     observability: { enabled: true },
     compatibility: { flags: ["nodejs_compat"] },
     env: {

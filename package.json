@@ -52,7 +52,7 @@
   "catalog": {
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.7",
     "vite-plus": "0.2.7",
-    "alchemy": "2.0.0-beta.65",
+    "alchemy": "2.0.0-beta.67",
     "effect": "4.0.0-beta.101",
     "@effect/platform-bun": "4.0.0-beta.101",
     "@effect/platform-node": "4.0.0-beta.101",
@@ -72,6 +72,6 @@
     "tailwindcss": "^4"
   },
   "patchedDependencies": {
-    "alchemy@2.0.0-beta.65": "patches/alchemy@2.0.0-beta.65.patch"
+    "alchemy@2.0.0-beta.67": "patches/alchemy@2.0.0-beta.67.patch"
   }
 }

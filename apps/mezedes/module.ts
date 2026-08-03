@@ -229,7 +229,7 @@ export const MezedesModule = Effect.gen(function* () {
      */
     ...(named
       ? {
-          domain: [apex],
+          domain: apex,
           routes: [{ pattern: `*.${artifactSuffix}/*`, zoneName: artifactSuffix }],
         }
       : {}),
@@ -242,7 +242,7 @@ export const MezedesModule = Effect.gen(function* () {
      * the boundary. Off wherever a real hostname exists; on everywhere else,
      * because a stage with neither is a Worker nothing can reach.
      */
-    url: !named,
+    workersDev: !named,
     /** The shell. The SPA fallback is what lets a deep link into the client router resolve. */
     /**
      * `runWorkerFirst` because the asset router runs BEFORE the Worker on every

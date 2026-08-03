@@ -100,8 +100,8 @@ export class StaffPolicy extends Context.Service<
  * carry a pre-provisioned id — the inbox serves an MCP endpoint that, until
  * now, only a browser session could reach.
  *
- * `oauthConfiguration` is absent from alchemy 2.0.0-beta.65 as published and
- * comes from `patches/alchemy@2.0.0-beta.65.patch`. The provider builds its
+ * `oauthConfiguration` is absent from alchemy 2.0.0-beta.67 as published and
+ * comes from `patches/alchemy@2.0.0-beta.67.patch`. The provider builds its
  * request body from an explicit field allowlist, so an unpatched install drops
  * the prop SILENTLY. Re-check with `grep oauthConfiguration` in
  * `node_modules/alchemy/src/Cloudflare/Access/Application.ts` after any bump.
@@ -164,12 +164,12 @@ export class Inbox extends Cloudflare.Website.Vite<Inbox>()(
        * The hostname is claimed by a real deploy only. `alchemy dev` serves on a
        * local port and would otherwise still reconcile the custom domain — which
        * for this app means repointing the live `mail.` record at whatever the dev
-       * session happens to be. `url: false` for the deploy because
+       * session happens to be. `workersDev: false` for the deploy because
        * `mail.<zone>` is the single Access-gated surface, and a workers.dev
        * hostname is on Cloudflare's zone where no Access application can sit.
        */
       ...(local ? {} : { domain: APP_DOMAIN }),
-      url: false,
+      workersDev: false,
       observability: { enabled: true },
       env: {
         DOMAINS: APP_DOMAIN,
