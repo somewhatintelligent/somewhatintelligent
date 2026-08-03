@@ -1,6 +1,12 @@
 @import "platform.design/theme.css";
-@source "../../packages/ui/src/**/*.tsx";
-@source "../../packages/ui/src/**/*.ts";
+/**
+ * THREE levels up, not two. This file used to live at Auth/app/, where ../..
+ * was the repo root; it is now apps/platform.auth/app/, where ../.. is apps/.
+ * A wrong @source is silent — Tailwind simply stops emitting the utilities that
+ * only platform.ui uses, and the page renders with pieces missing.
+ */
+@source "../../../packages/platform.ui/src/**/*.tsx";
+@source "../../../packages/platform.ui/src/**/*.ts";
 @source "../**/*.tsx";
 @source "../**/*.ts";
 

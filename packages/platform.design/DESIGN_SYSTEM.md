@@ -50,7 +50,7 @@ Raw theme-invariant ramps for illustration/OG surfaces: `--color-neutral-*`,
 UI chrome — semantic tokens only (enforced by `bun run brand-lint
 --strict-semantic` on ui component directories).
 
-Contrast is enforced: `bun run audit:contrast` in `packages/design` must
+Contrast is enforced: `bun run audit:contrast` in `packages/platform.design` must
 report zero WCAG-AA failures (run automatically by `bun run build`).
 
 ## 3. Shadows are lines
