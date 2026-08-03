@@ -7,9 +7,12 @@ import * as Alchemy from "alchemy";
  */
 interface PlatformAccessRouting {
   /**
-   * The reusable staff policy every non-public surface cites — preprod stages,
-   * internal tools, unreleased work. One definition, so widening or narrowing
-   * who counts as staff is one edit rather than a search.
+   * THE staff policy — one per account, not one per stage. It gates a preprod
+   * deployment of a public app and the prod deployment of an internal one
+   * alike, so consumers pin to the single deployment rather than resolving
+   * their own stage:
+   *
+   *     yield* PlatformAccess.stage[PRODUCTION_STAGE]
    */
   readonly staffPolicyId: string;
 }
