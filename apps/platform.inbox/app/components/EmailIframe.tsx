@@ -144,7 +144,24 @@ ul, ol { padding-left: 20px; margin: 4px 0; }
       ref={iframeRef}
       className="block w-full border-0"
       style={autoSize ? { height: `${height}px` } : { height: "100%" }}
-      sandbox="allow-scripts allow-popups allow-top-navigation-by-user-activation"
+      /*
+       * `allow-popups-to-escape-sandbox` is not a loosening of this frame — it
+       * is what stops the sandbox LEAKING OUT of it. A document opened from a
+       * sandboxed frame inherits its flags unless this is set, and inheriting a
+       * sandbox with no `allow-same-origin` gives the destination an OPAQUE
+       * origin: `Origin: null` on every request, so each module script, font
+       * and fetch made in CORS mode is refused by the browser.
+       *
+       * Which means every link in every email led to a broken page — a sign-in
+       * link most visibly, since auth is the thing people follow mail into.
+       * Pasting the same URL worked, because that opens a normal context.
+       *
+       * The email content stays sandboxed either way: no `allow-same-origin`
+       * here, so it still cannot reach this document. The frame could already
+       * open popups and take the top level on a user gesture; this only decides
+       * whether the destination arrives intact.
+       */
+      sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
       title="Email content"
     />
   );
