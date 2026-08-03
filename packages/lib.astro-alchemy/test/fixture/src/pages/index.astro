@@ -1,0 +1,13 @@
+---
+// Prerendered at build time — must be served by the ASSETS layer, not the
+// Worker. The build stamp is baked in, so it is identical across requests.
+export const prerender = true;
+import Layout from "../layouts/Layout.astro";
+
+const builtAt = new Date().toISOString();
+---
+
+<Layout title="static page">
+  <h1>static page</h1>
+  <p data-built-at={builtAt}>built {builtAt}</p>
+</Layout>

@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["es2023", "dom"],
+    "moduleDetection": "force",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolveJsonModule": true,
+    "types": ["node", "bun"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "includeSuggestionsInTsc": true,
+        "ignoreEffectSuggestionsInTscExitCode": false,
+        "ignoreEffectWarningsInTscExitCode": false,
+        "ignoreEffectErrorsInTscExitCode": false
+      }
+    ]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  // The fixture is a real Astro app: its pages import virtual modules
+  // (`astro:content`, `astro:actions`) that only exist once astro has
+  // generated `.astro/types.d.ts`. It carries its own tsconfig instead.
+  // Files the tests import directly (`fixture/infra/*`) are still checked,
+  // because tsc follows imports.
+  "exclude": ["test/fixture/src/**", "test/fixture/dist/**"]
+}

@@ -15,6 +15,16 @@
     // No import reaches it, so without this line its whole tree reads as dead.
     "apps/platform.inbox/workers/app.ts",
     "packages/*/src/index.ts",
+    "packages/*/test/**/*.test.ts",
+    // A test fixture that is a real Astro app. Astro finds its routes,
+    // middleware, actions and content config by directory scan, so no import
+    // reaches them — same situation as the inbox Worker entry above. Declared
+    // as entries rather than ignored, so the fixture's own imports still count
+    // (otherwise `svelte` / `@astrojs/svelte` read as unused devDependencies).
+    "packages/*/test/fixture/src/pages/**",
+    "packages/*/test/fixture/src/middleware.ts",
+    "packages/*/test/fixture/src/content.config.ts",
+    "packages/*/test/fixture/src/actions/index.ts",
     "apps/*/src/server/entry.ts",
     "apps/*/src/shell/main.tsx",
     "apps/*/test/**/*.test.ts",

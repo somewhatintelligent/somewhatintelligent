@@ -1,0 +1,9 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    // Needed for `import { env } from "cloudflare:workers"`.
+    "types": ["@cloudflare/workers-types", "@types/bun"]
+  }
+}
