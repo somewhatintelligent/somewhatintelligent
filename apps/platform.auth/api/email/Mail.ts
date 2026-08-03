@@ -24,8 +24,16 @@ import { PRODUCTION_ZONE } from "platform.names";
 /** The descriptor the worker binds. Unrestricted: auth mails strangers. */
 export const AuthEmail = Cloudflare.Email.SendEmail("EMAIL");
 
-/** Must be on the onboarded sending domain, or every send is refused. */
-const FROM = `no-reply@${PRODUCTION_ZONE}`;
+/**
+ * Carried over from the old repo's production `EMAIL_FROM`, display name and
+ * all. `hello@` is also the brand's support address, which is the point: a
+ * reply to an account email should reach a person rather than a void.
+ *
+ * The address must sit on a domain onboarded to Email Sending or every send is
+ * refused. Lowercase display name — the brand takes capitals only in the
+ * institutional register, and this is the from-line, not a garment label.
+ */
+const FROM = { email: `hello@${PRODUCTION_ZONE}`, name: "somewhatintelligent" };
 
 export const mail = Effect.gen(function* () {
   const client = yield* Cloudflare.Email.Send(yield* AuthEmail);

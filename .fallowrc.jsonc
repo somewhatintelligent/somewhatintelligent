@@ -20,7 +20,16 @@
     "apps/*/test/**/*.test.ts",
     "apps/*/integ/**/*.test.ts",
   ],
-  "ignorePatterns": ["dist/**", "design/**", "plugin/**", "**/scripts/**", "**/generated/**"],
+  // `email/preview/**` is the react-email dev harness: default exports the CLI
+  // loads by directory scan, never imported, and not shipped.
+  "ignorePatterns": [
+    "dist/**",
+    "design/**",
+    "plugin/**",
+    "**/scripts/**",
+    "**/generated/**",
+    "**/email/preview/**",
+  ],
   // ── BOUNDARIES ───────────────────────────────────────────────────────────
   // Tiers, not units. Adding apps/platform.store or apps/inbox changes nothing
   // here — the dot-namespace makes the tier readable off the directory name.
@@ -142,6 +151,9 @@
     { "extends": "McpAgent", "members": ["init"] },
   ],
   "ignoreDependencies": [
+    // Resolved at runtime by the `email dev` CLI, never imported. The old repo
+    // carried the same entry for the same reason.
+    "@react-email/preview-server",
     "@effect/platform-bun",
     "@effect/platform-node",
     "alchemy",

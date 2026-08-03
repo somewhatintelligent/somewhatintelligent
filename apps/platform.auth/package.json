@@ -8,7 +8,8 @@
     "./shared/*": "./shared/*.ts"
   },
   "scripts": {
-    "dev": "alchemy dev"
+    "dev": "alchemy dev",
+    "email": "email dev --dir api/email/preview --port 3001"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.6.25",
@@ -38,12 +39,14 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5",
+    "@react-email/preview-server": "5.2.11",
     "@tailwindcss/vite": "^4",
     "@types/node": "^26.1.1",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^6.0.1",
     "auth": "^1.6.25",
+    "react-email": "^5.0.5",
     "tailwindcss": "catalog:",
     "vite-plus": "catalog:"
   }
