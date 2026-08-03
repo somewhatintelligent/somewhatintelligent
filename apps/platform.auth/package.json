@@ -8,10 +8,7 @@
     "./shared/*": "./shared/*.ts"
   },
   "scripts": {
-    "deploy": "alchemy deploy",
-    "dev": "alchemy dev",
-    "destroy": "alchemy destroy",
-    "plan": "alchemy plan"
+    "dev": "alchemy dev"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.6.25",

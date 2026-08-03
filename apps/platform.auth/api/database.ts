@@ -3,9 +3,8 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Drizzle from "alchemy/Drizzle/Schema";
 import * as Effect from "effect/Effect";
 
+import { MIGRATIONS_DIR, SCHEMA_PATH } from "../paths.ts";
 import { PRODUCTION_STAGE } from "../shared/ingress.ts";
-
-export const schemaPath = "./api/schema.gen.ts";
 
 /**
  * The database production has always used, carried over from si's `guestlist`
@@ -32,8 +31,15 @@ export const AuthDatabase = Effect.gen(function* () {
   const production = stage === PRODUCTION_STAGE;
 
   const migrations = yield* Drizzle.Schema("AuthMigrations", {
-    schema: schemaPath,
-    out: "./api/migrations",
+    /**
+     * REPO-ROOT-RELATIVE, not absolute. Alchemy resolves both against
+     * `process.cwd()` and PERSISTS them as props, so an absolute path here
+     * would write this machine's filesystem into shared state. The invariant
+     * that makes relative correct is that alchemy runs from the repo root —
+     * see `../paths.ts`.
+     */
+    schema: SCHEMA_PATH,
+    out: MIGRATIONS_DIR,
     dialect: "sqlite",
   });
 

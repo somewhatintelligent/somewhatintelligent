@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve as resolvePath } from "node:path";
+import { dirname } from "node:path";
 
 import * as Alchemy from "alchemy";
 import { generateSchema as generate } from "auth/api";
 import type { BetterAuthOptions } from "better-auth";
 import * as Effect from "effect/Effect";
+import type { Path } from "effect/Path";
 
-import { schemaPath } from "./database.ts";
+import { fromRepoRoot, SCHEMA_PATH } from "../paths.ts";
 import { authOptions } from "./options.ts";
 import { toDrizzleV1, type PatchedModule } from "./drizzle-v1.ts";
 
@@ -64,7 +65,7 @@ const render: Effect.Effect<PatchedModule> = Effect.runSync(
             options: { provider: "sqlite", camelCase: false },
           },
           options,
-          file: schemaPath,
+          file: SCHEMA_PATH,
         }),
       );
       if (generated.code === undefined || generated.code.trim() === "") {
@@ -75,20 +76,24 @@ const render: Effect.Effect<PatchedModule> = Effect.runSync(
   ),
 );
 
-const observeArtifact = (out: string, desired: string): Effect.Effect<string> =>
-  Effect.promise(async () => {
-    const current = await readFile(resolvePath(process.cwd(), out), "utf8").catch(() => undefined);
-    if (current === undefined) return "absent";
-    if (current === desired) return "match";
-    return `stale:${sha256(current)}`;
+const observeArtifact = (out: string, desired: string): Effect.Effect<string, never, Path> =>
+  Effect.gen(function* () {
+    /** Anchored off this file, not off cwd — see `../paths.ts`. */
+    const target = yield* fromRepoRoot(out);
+    return yield* Effect.promise(async () => {
+      const current = await readFile(target, "utf8").catch(() => undefined);
+      if (current === undefined) return "absent";
+      if (current === desired) return "match";
+      return `stale:${sha256(current)}`;
+    });
   });
 
 const input = Effect.gen(function* () {
   const rendered = yield* render;
   return {
-    out: schemaPath,
+    out: SCHEMA_PATH,
     fingerprint: sha256(rendered.code),
-    artifact: yield* observeArtifact(schemaPath, rendered.code),
+    artifact: yield* observeArtifact(SCHEMA_PATH, rendered.code),
   } satisfies GenerateAuthSchemaInput;
 });
 
@@ -96,7 +101,9 @@ const layer = GenerateAuthSchema.make(
   Effect.gen(function* () {
     const rendered = yield* render;
     return Effect.fn("Auth/GenerateAuthSchema")(function* (given: GenerateAuthSchemaInput) {
-      const target = resolvePath(process.cwd(), given.out);
+      /** THE WRITE. Unanchored this lands schema.gen.ts in whatever
+       *  directory the deploy started in — `stacks/platform.auth/api/`. */
+      const target = yield* fromRepoRoot(given.out);
       yield* Effect.promise(() => mkdir(dirname(target), { recursive: true }));
       yield* Effect.promise(() => writeFile(target, rendered.code, "utf8"));
 

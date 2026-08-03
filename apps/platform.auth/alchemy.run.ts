@@ -8,6 +8,7 @@ import * as Drizzle from "alchemy/Drizzle";
 import { AvatarBucket } from "./api/avatars.ts";
 import { AuthDatabase, PRODUCTION_DATABASE_ID, PRODUCTION_DATABASE_NAME } from "./api/database.ts";
 import { authFeatures } from "./api/options.ts";
+import { PACKAGE_DIR } from "./paths.ts";
 import AuthWorker from "./api/worker.ts";
 import { DEV_PORT, ingress, PRODUCTION_STAGE } from "./shared/ingress.ts";
 import { authDefines } from "./shared/surfaces.ts";
@@ -24,6 +25,18 @@ export class Identity extends Cloudflare.Website.Vite<Identity>()(
 
     return {
       name,
+      /**
+       * `rootDir` is Vite's root and defaults to `process.cwd()`; `main` is the
+       * ONE path here that resolves from `rootDir` rather than from cwd. Both
+       * were left implicit while this package was also the directory alchemy
+       * ran in — and stopped being true the moment the deploy scripts moved to
+       * the repo root. Stated now, and repo-root-relative because it is a
+       * persisted prop like the others (see `./paths.ts`).
+       *
+       * A wrong root fails at BUILD, not at plan, so no `alchemy plan` will
+       * ever tell you this is broken. `alchemy dev` will.
+       */
+      rootDir: PACKAGE_DIR,
       main: "./app/worker.ts",
       compatibility: { flags: ["nodejs_compat"] },
       env: {
