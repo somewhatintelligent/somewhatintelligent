@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { PlatformNav, type PlatformApp } from "@/components/platform-nav";
 import { SidebarUserMenu } from "@/components/dashboard/sidebar-user-menu";
-import { APP_COMMIT, APP_VERSION } from "@/lib/version";
+import { type AppVersion, describeAppVersion, formatAppVersion } from "@/lib/version";
 import { isAdminRole } from "@/lib/session";
 
 // Only the apps this fork actually ships. The source template shipped extra
@@ -56,7 +56,13 @@ function isActive(pathname: string, href: string, isIndex: boolean) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export function AppSidebar({ session }: { session: IdentitySession }) {
+export function AppSidebar({
+  session,
+  version,
+}: {
+  session: IdentitySession;
+  version: AppVersion | null;
+}) {
   const pathname = useLocation({ select: (s) => s.pathname });
 
   const user = {
@@ -125,8 +131,11 @@ export function AppSidebar({ session }: { session: IdentitySession }) {
       <SidebarFooter>
         <SidebarUserMenu user={user} />
         {/* Build fingerprint, rendered subtly (exec plan 0001). */}
-        <div className="px-2 pb-1 font-mono text-[10px] text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
-          v{APP_VERSION} · {APP_COMMIT}
+        <div
+          className="px-2 pb-1 font-mono text-[10px] text-muted-foreground/60 group-data-[collapsible=icon]:hidden"
+          title={describeAppVersion(version)}
+        >
+          {formatAppVersion(version)}
         </div>
       </SidebarFooter>
       <SidebarRail />

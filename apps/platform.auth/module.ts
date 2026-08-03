@@ -41,6 +41,8 @@ export class Identity extends Cloudflare.Website.Vite<Identity>()(
       env: {
         AUTH: AuthWorker,
         AVATARS: yield* AvatarBucket,
+        /** The build fingerprint the UI renders — see `app/lib/version.ts`. */
+        CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
         // `VITE_` entries are inlined as `import.meta.env.*` literals before
         // rolldown runs. Derived from the options the worker actually runs, so
         // the app cannot advertise a flow the server would answer 404 for.

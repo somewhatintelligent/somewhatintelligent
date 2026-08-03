@@ -7,6 +7,7 @@ import { WarningIcon } from "@phosphor-icons/react";
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { forwardRef, useState } from "react";
 import {
+  type AppLoadContext,
   isRouteErrorResponse,
   Links,
   Meta,
@@ -15,8 +16,18 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import type { AppVersion } from "~/lib/version";
 import { ApiError } from "~/services/api";
 import "./index.css";
+
+/**
+ * The deployed version, read off the binding once per document and read back by
+ * `Sidebar` through `useRouteLoaderData("root")`. It is the only thing this app
+ * loads on the server — everything else goes through the API and react-query.
+ */
+export function loader({ context }: { context: AppLoadContext }): { version: AppVersion } {
+  return { version: context.cloudflare.env.CF_VERSION_METADATA };
+}
 
 function makeQueryClient() {
   return new QueryClient({

@@ -200,6 +200,8 @@ export class Inbox extends Cloudflare.Website.Vite<Inbox>()(
          */
         POLICY_AUD: access.aud.as<string>() as unknown as string,
         TEAM_DOMAIN,
+        /** The build fingerprint the UI renders — see `app/lib/version.ts`. */
+        CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
         /** Pinned to the live bucket's name, and adopted in place. */
         BUCKET: Cloudflare.R2.Bucket("Bucket", { name: WORKER_NAME }),
         /**

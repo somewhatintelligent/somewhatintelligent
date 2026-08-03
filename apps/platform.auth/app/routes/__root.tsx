@@ -6,6 +6,7 @@ import { appConfig } from "@/app.config";
 import type { RouterContext } from "@/router";
 import { AppError, AppNotFound } from "@/components/app-status-pages";
 import { loadSession } from "@/lib/session.functions";
+import { appVersion } from "@/lib/version";
 
 const SITE_TITLE = `Identity — ${appConfig.brand.name}`;
 const SITE_DESCRIPTION = `Sign in, manage your account, and control access across ${appConfig.brand.name}'s platform.`;
@@ -16,8 +17,8 @@ const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getIte
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   beforeLoad: async () => {
-    const session = await loadSession();
-    return { session };
+    const [session, version] = await Promise.all([loadSession(), appVersion()]);
+    return { session, version };
   },
   head: () => ({
     meta: [

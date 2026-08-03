@@ -3,15 +3,30 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 /**
- * Build-time app version, for the small "vX.Y.Z (sha)" label shown in the
- * sidebar footer. `__APP_VERSION__`/`__APP_COMMIT__` are injected by
- * vite.config.ts's `define` from package.json + `git rev-parse --short HEAD`,
- * with safe fallbacks baked in at build time when either is unavailable.
+ * The deployed Worker version, from the `CF_VERSION_METADATA` binding declared
+ * in `module.ts` and handed to the document by `root.tsx`'s loader.
+ *
+ * This replaced a package.json version and a `git rev-parse --short HEAD` baked
+ * in by vite `define`, which described the builder's checkout rather than the
+ * deployment. A version id resolves back to a deployment; a sha did not.
  */
-const APP_VERSION: string = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "0.0.0";
-const APP_COMMIT: string = typeof __APP_COMMIT__ === "string" ? __APP_COMMIT__ : "unknown";
+export interface AppVersion {
+  readonly id: string;
+  readonly tag: string;
+  readonly timestamp: string;
+}
 
-/** "v0.1.0 (abc1234)" — or just "v0.1.0" if the commit sha is unavailable. */
-export function formatAppVersion(): string {
-  return APP_COMMIT === "unknown" ? `v${APP_VERSION}` : `v${APP_VERSION} (${APP_COMMIT})`;
+/**
+ * "a1b2c3d4" — the id's first 8, prefixed by the tag when one is set. `null` is
+ * a render with no binding to read; `alchemy dev` binds it like the deploy does.
+ */
+export function formatAppVersion(version: AppVersion | null): string {
+  if (version === null) return "dev";
+  const short = version.id.slice(0, 8);
+  return version.tag === "" ? short : `${version.tag} (${short})`;
+}
+
+/** The whole id and the deploy time, for the label's `title`. */
+export function describeAppVersion(version: AppVersion | null): string | undefined {
+  return version === null ? undefined : `${version.id} — deployed ${version.timestamp}`;
 }

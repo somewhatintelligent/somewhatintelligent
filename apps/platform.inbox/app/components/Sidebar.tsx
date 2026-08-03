@@ -15,9 +15,9 @@ import {
   TrayIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
-import { NavLink, useNavigate, useParams } from "react-router";
+import { NavLink, useNavigate, useParams, useRouteLoaderData } from "react-router";
 import { Folders, SYSTEM_FOLDER_IDS } from "shared/folders";
-import { formatAppVersion } from "~/lib/version";
+import { type AppVersion, describeAppVersion, formatAppVersion } from "~/lib/version";
 import { useCreateFolder, useFolders } from "~/queries/folders";
 import { useMailbox } from "~/queries/mailboxes";
 import { useUIStore } from "~/hooks/useUIStore";
@@ -75,6 +75,8 @@ export default function Sidebar() {
   const { data: currentMailbox } = useMailbox(mailboxId);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+
+  const version = useRouteLoaderData<{ version: AppVersion }>("root")?.version ?? null;
 
   const customFolders = useMemo(
     () => folders.filter((f) => !(SYSTEM_FOLDER_IDS as readonly string[]).includes(f.id)),
@@ -214,7 +216,12 @@ export default function Sidebar() {
       </nav>
 
       {/* App version footer — small and unobtrusive */}
-      <div className="px-4 py-2 text-xs text-kumo-inactive select-none">{formatAppVersion()}</div>
+      <div
+        className="px-4 py-2 text-xs text-kumo-inactive select-none"
+        title={describeAppVersion(version)}
+      >
+        {formatAppVersion(version)}
+      </div>
 
       {/* Create folder dialog */}
       <Dialog.Root open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>

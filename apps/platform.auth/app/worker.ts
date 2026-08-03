@@ -1,6 +1,7 @@
 import startEntry from "@tanstack/react-start/server-entry";
 import { toRpcAsync } from "alchemy/Cloudflare/Bridge";
 import type { IdentitySession } from "./lib/session";
+import type { AppVersion } from "./lib/version";
 import type { IdentityEnv } from "./identity-env";
 import { AUTH_BASE_PATH, AVATAR_PREFIX } from "../shared/ingress.ts";
 
@@ -10,6 +11,7 @@ declare module "@tanstack/react-start" {
       requestContext: {
         requestId: string;
         session: IdentitySession | null;
+        version: AppVersion;
       };
     };
   }
@@ -47,6 +49,7 @@ export default {
       context: {
         requestId: crypto.randomUUID(),
         session: resolved.session ?? null,
+        version: env.CF_VERSION_METADATA,
       },
     });
 

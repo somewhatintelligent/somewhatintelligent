@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_dashboard")({
 });
 
 function DashboardLayout() {
-  const { session: ssrSession } = Route.useRouteContext();
+  const { session: ssrSession, version } = Route.useRouteContext();
   const { data: liveSession, isPending } = authClient.useSession();
   const navigate = useNavigate();
 
@@ -33,7 +33,7 @@ function DashboardLayout() {
 
   return (
     <SidebarProvider>
-      <AppSidebar session={session} />
+      <AppSidebar session={session} version={version} />
       <SidebarInset>
         <header className="flex h-12 shrink-0 items-center gap-1.5 border-b-2 border-border px-4">
           <SidebarTrigger />
