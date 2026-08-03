@@ -1,14 +1,6 @@
 ---
-// Carried over from the site this replaces, minus the cart: the count was
-// rendered by a client script over `lib/cart-client`, which belongs to the
-// store and has no scaffold to hang off. The nav is the full one on purpose —
-// it is the chrome the home page sits in, and the four links become live as
-// their routes land.
-//
-// A table rather than four hand-written anchors and a nested ternary, which is
-// what the original was. The section name IS the path prefix, so the active
-// lookup falls out of the same table and nothing has to agree with anything by
-// hand. The old `data-nav` attributes are gone with the script that read them.
+import { env } from "cloudflare:workers";
+
 const NAV = [
   { section: "shop", href: "/shop/", label: "Shop" },
   { section: "software", href: "/software/", label: "Software" },
@@ -19,6 +11,8 @@ const NAV = [
 const path = Astro.url.pathname;
 const active =
   path === "/" ? "home" : (NAV.find(({ section }) => path.startsWith(`/${section}`))?.section ?? "");
+
+const accountHref = `${env.AUTH_ORIGIN}/account`;
 ---
 
 <header class="site-header">
@@ -44,6 +38,6 @@ const active =
     }
   </nav>
   <div class="header-end">
-    <a class="account-link" href="/account">Account</a>
+    <a class="account-link" href={accountHref}>Account</a>
   </div>
 </header>

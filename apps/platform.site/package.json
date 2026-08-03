@@ -15,6 +15,7 @@
     "platform.design": "workspace:*"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5",
     "typescript": "catalog:"
   }
 }
