@@ -1,5 +1,7 @@
-import { Bae, makeRequestBoundary } from "lib.better-auth-effect";
+import { Bae, EmailTemplates, Mail, makeRequestBoundary } from "lib.better-auth-effect";
 import type { BaeConfigError, EffectAuth } from "lib.better-auth-effect";
+
+import { deliverWith } from "./email/deliver.ts";
 
 import { apiKey } from "@better-auth/api-key";
 import { oauthProvider } from "@better-auth/oauth-provider";
@@ -39,6 +41,13 @@ export const authConfig = Effect.gen(function* () {
   const bae = yield* Bae;
   const { origin, cookieDomain } = yield* Origin;
   const { secret } = yield* Signing;
+  /**
+   * Resolved HERE, beside `Origin` and `Signing`, because they are the same
+   * kind of thing: capabilities the configuration is built from, not state a
+   * request carries. `deliver` then closes over the clients and the boundary
+   * keeps carrying `never`.
+   */
+  const deliver = deliverWith(yield* Mail, yield* EmailTemplates);
   const run = yield* makeRequestBoundary<never>();
   return yield* bae.configure({
     /** See `api/secret.ts` for what happens when this is omitted. */
@@ -52,20 +61,41 @@ export const authConfig = Effect.gen(function* () {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
+      sendResetPassword: run.fn(({ user, url }) =>
+        deliver("reset-password", user.email, { url, email: user.email, expiresIn: "1 hour" }),
+      ),
+    },
+    emailVerification: {
+      sendVerificationEmail: run.fn(({ user, url }) =>
+        deliver("verify-email", user.email, { url, email: user.email, expiresIn: "1 hour" }),
+      ),
     },
     plugins: [
       username(USERNAME_LIMITS),
       jwt({ disableSettingJwtHeader: true }),
       admin({ defaultRole: "user", impersonationSessionDuration: 60 * 20 }),
-      twoFactor({ issuer: "somewhatintelligent", otpOptions: { period: 30, digits: 6 } }),
+      twoFactor({
+        issuer: "somewhatintelligent",
+        otpOptions: {
+          period: 30,
+          digits: 6,
+          sendOTP: run.fn(({ user, otp }) =>
+            deliver("two-factor-otp", user.email, {
+              otp,
+              email: user.email,
+              expiresIn: "30 seconds",
+            }),
+          ),
+        },
+      }),
       bearer(),
       passkey(),
       deviceAuthorization({ verificationUri: "/device" }),
       apiKey(),
       magicLink({
-        sendMagicLink() {
-          throw new Error("not implemented");
-        },
+        sendMagicLink: run.fn(({ email, url }) =>
+          deliver("magic-link", email, { url, email, expiresIn: "5 minutes" }),
+        ),
       }),
       oauthProvider({
         loginPage: `/sign-in`,
@@ -84,6 +114,14 @@ export const authConfig = Effect.gen(function* () {
         requireEmailVerificationOnInvitation: true,
         invitationExpiresIn: 60 * 60 * 24 * 7,
         cancelPendingInvitationsOnReInvite: true,
+        sendInvitationEmail: run.fn((data) =>
+          deliver("organization-invitation", data.email, {
+            url: `${origin}${AUTH_BASE_PATH}/accept-invitation/${data.id}`,
+            organization: data.organization.name,
+            invitedBy: data.inviter.user.name || data.inviter.user.email,
+            expiresIn: "7 days",
+          }),
+        ),
       }),
     ],
     /**

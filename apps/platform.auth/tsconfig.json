@@ -30,6 +30,7 @@
 
     "shared/**/*.ts",
     "api/**/*.ts",
+    "api/**/*.tsx",
     "app/**/*.ts",
     "app/**/*.tsx",
     "test/**/*.ts"

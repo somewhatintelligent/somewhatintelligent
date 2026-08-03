@@ -2,7 +2,7 @@ import { ALCHEMY_DEV, RuntimeContext } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { drizzle } from "drizzle-orm/d1";
-import { Database } from "lib.better-auth-effect";
+import { Database, EmailTemplates, Mail } from "lib.better-auth-effect";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -12,6 +12,8 @@ import { AuthDatabase } from "./database.ts";
 import * as generated from "./schema.gen.ts";
 import { AUTH_COOKIE_DOMAIN, AUTH_ORIGIN, Origin, UNRESOLVED_ORIGIN } from "./origin.ts";
 import { AuthSecret } from "./secret.ts";
+import { mail } from "./email/Mail.ts";
+import { templates } from "./email/render.tsx";
 
 export const dialect = "sqlite" as const;
 
@@ -48,6 +50,13 @@ export const UNSIGNED = { secret: "schema-generation-only" } as const;
  * stand-ins ship to production.
  */
 export const live = Layer.mergeAll(
+  /**
+   * The two mail seams. Rendering is pure and cannot fail; sending is the
+   * binding and fails with `MailError`. Split because a broken template and a
+   * refused delivery are not the same kind of problem.
+   */
+  Layer.effect(Mail, mail),
+  Layer.effect(EmailTemplates, templates),
   Layer.effect(
     Signing,
     Effect.gen(function* () {
@@ -126,6 +135,7 @@ export const live = Layer.mergeAll(
       Cloudflare.D1.QueryDatabaseBinding,
       Cloudflare.R2.ReadWriteBucketBinding,
       Cloudflare.SecretsStore.ReadSecretBinding,
+      Cloudflare.Email.SendBinding,
     ),
   ),
 );

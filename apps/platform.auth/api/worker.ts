@@ -6,6 +6,7 @@ import * as Effect from "effect/Effect";
 import { ingress } from "../shared/ingress.ts";
 import { live } from "./capabilities.ts";
 import { authConfig } from "./config.ts";
+import { AuthEmail } from "./email/Mail.ts";
 import { AUTH_COOKIE_DOMAIN, AUTH_ORIGIN } from "./origin.ts";
 import { authRpc } from "./rpc.ts";
 
@@ -24,6 +25,12 @@ export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
     env: {
       [AUTH_ORIGIN]: Effect.map(addressing, (at) => at.origin),
       [AUTH_COOKIE_DOMAIN]: Effect.map(addressing, (at) => at.cookieDomain ?? ""),
+      /**
+       * Cloudflare Email Service, unrestricted — auth writes to strangers, so
+       * no destination allowlist. The sender must sit on a domain onboarded to
+       * Email Sending or every send is refused; see `email/Mail.ts`.
+       */
+      EMAIL: AuthEmail,
     },
   },
   Effect.gen(function* () {

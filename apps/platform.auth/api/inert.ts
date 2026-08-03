@@ -1,4 +1,4 @@
-import { Database } from "lib.better-auth-effect";
+import { Database, EmailTemplates, Mail } from "lib.better-auth-effect";
 import * as Context from "effect/Context";
 import * as Layer from "effect/Layer";
 
@@ -48,4 +48,11 @@ export const inertly = Layer.mergeAll(
   }),
   inert(Origin, { origin: UNRESOLVED_ORIGIN, cookieDomain: null }),
   inert(Signing, UNSIGNED),
+  /**
+   * Present but untouchable. Schema generation resolves the whole config,
+   * which names these; reading either during it means a send was attempted on
+   * the deploy host, and the tripwire says so rather than mailing anyone.
+   */
+  inert(Mail),
+  inert(EmailTemplates),
 );
