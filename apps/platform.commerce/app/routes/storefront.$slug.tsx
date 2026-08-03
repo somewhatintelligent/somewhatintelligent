@@ -113,8 +113,9 @@ function StorefrontProduct() {
             </ul>
           )}
           <Hint>
-            A size showing sold out here has no stock left and no place in the pre-order run —
-            adjust stock on the product page to bring it back.
+            Availability is both counters at once: units left in that size, AND places left in the
+            run if it is a pre-order. A size reads sold out when either is exhausted, which is the
+            same rule checkout enforces — so what shows here is what a shopper can actually buy.
           </Hint>
         </Section>
       </div>

@@ -415,6 +415,11 @@
         "count": 1
       }
     },
+    "apps/platform.commerce/app/components/variant-editor.tsx": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
     "apps/platform.commerce/app/lib/context.functions.ts": {
       "crap_high": {
         "count": 1
@@ -446,7 +451,7 @@
       }
     },
     "apps/platform.commerce/app/routes/products.$productId.tsx": {
-      "crap_critical": {
+      "crap_high": {
         "count": 1
       },
       "crap_moderate": {

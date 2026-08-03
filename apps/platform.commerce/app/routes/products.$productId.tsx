@@ -1,13 +1,19 @@
 /**
  * ONE PRODUCT, and the whole lifecycle the domain enforces:
  *
- *     create ──▶ draft edits ──▶ variant ──▶ cover ──▶ publish ──▶ active
+ *     create ──▶ draft edits ──▶ size ──▶ image ──▶ publish ──▶ active
  *
  * PUBLISH IS THE GATE, and it refuses rather than warns. A product with no
- * variant or no cover cannot publish; a product with no release cannot go
- * active. Those refusals arrive as `missing_variant` / `missing_media` /
- * `no_release` and are rendered verbatim, because they are how the sequence
- * becomes visible instead of something you have to already know.
+ * size or no image cannot publish; a product with no release cannot go active;
+ * and a product with pre-order sizes but no run cap cannot go active either,
+ * because the run guard would refuse every buyer. Those refusals arrive as
+ * `missing_variant` / `missing_media` / `no_release` / `preorder_cap_missing`
+ * and are rendered verbatim, because they are how the sequence becomes visible
+ * instead of something you have to already know.
+ *
+ * A COVER is not a publish gate — any image satisfies the domain. It is a
+ * listing gate, warned about separately, because a product with no cover goes
+ * on sale with no picture.
  *
  * EVERY EDIT CARRIES `expectedRevision`. Two tabs open on one product is the
  * ordinary case, and the second save loses with `revision_conflict` rather than
@@ -36,6 +42,7 @@ import { Empty, Facts, PageHeader, Section } from "../components/page.tsx";
 import { Hint, Outcome } from "../components/outcome.tsx";
 import { ProductStatusBadge, RoleBadge } from "../components/badges.tsx";
 import { DeletionDialog } from "../components/deletion-dialog.tsx";
+import { VariantEditor } from "../components/variant-editor.tsx";
 import { DataTable, Td, type Column } from "../components/table.tsx";
 import {
   adjustStock,
@@ -135,9 +142,6 @@ function Product() {
   const detail: ProductDetail = result.value;
   const { draft, preorder, releases, variants, media } = detail;
 
-  const hasCover = media.some((item) => item.role === "cover");
-  const publishable = variants.length > 0 && hasCover;
-
   return (
     <>
       <PageHeader
@@ -165,18 +169,7 @@ function Product() {
         }
       />
 
-      {!publishable ? (
-        <Alert variant="warning">
-          <AlertTitle>Not publishable yet</AlertTitle>
-          <AlertDescription>
-            Publish refuses until this product has{" "}
-            {variants.length === 0 ? <strong>at least one variant</strong> : null}
-            {variants.length === 0 && !hasCover ? " and " : null}
-            {!hasCover ? <strong>a cover image</strong> : null}. Add{" "}
-            {variants.length === 0 && !hasCover ? "them" : "it"} below.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <Readiness detail={detail} />
 
       <Draft draft={draft} refresh={refresh} />
 
@@ -187,6 +180,68 @@ function Product() {
 
       <Variants productId={productId} variants={variants} refresh={refresh} />
       <Media productId={productId} media={media} status={draft.status} refresh={refresh} />
+    </>
+  );
+}
+
+/**
+ * WHAT STANDS BETWEEN THIS PRODUCT AND A SALE, in the order it bites.
+ *
+ * Each of these mirrors a refusal the domain will actually return, so the page
+ * never claims a gate the code does not enforce — the previous version required
+ * a COVER to publish, which was stricter than `publishProduct` and told the
+ * operator they could not do something they could.
+ */
+function Readiness({ detail }: { detail: ProductDetail }) {
+  const { preorder, variants, media } = detail;
+
+  const hasCover = media.some((item) => item.role === "cover");
+
+  /**
+   * Pre-order sizes with no run to claim against — the run guard would match
+   * zero rows and refuse every buyer. Both doors to `active` refuse this shape;
+   * surfacing it on the draft is where it is cheap to fix.
+   */
+  const needsRunCap =
+    preorder.cap === null && variants.some((variant) => variant.mode === "preorder");
+
+  /** Named in the order the operator would add them. */
+  const missing: string[] = [];
+  if (variants.length === 0) missing.push("at least one size");
+  if (media.length === 0) missing.push("at least one image");
+
+  return (
+    <>
+      {missing.length > 0 ? (
+        <Alert variant="warning">
+          <AlertTitle>Not publishable yet</AlertTitle>
+          <AlertDescription>
+            Publish refuses until this product has <strong>{missing.join(" and ")}</strong>. Add{" "}
+            {missing.length > 1 ? "them" : "it"} below.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {missing.length === 0 && !hasCover ? (
+        <Alert>
+          <AlertTitle>No cover image</AlertTitle>
+          <AlertDescription>
+            Publish will accept this — any image satisfies it. But a listing shows the cover, so
+            without one this product goes on sale with no picture. Set a role of <code>cover</code>{" "}
+            on one of the images below.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {needsRunCap ? (
+        <Alert variant="destructive">
+          <AlertTitle>This product cannot be bought</AlertTitle>
+          <AlertDescription>
+            It has pre-order sizes but no run cap, so every checkout would be refused with{" "}
+            <code>preorder_full</code>. Set a cap below — publishing is refused until you do.
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </>
   );
 }
@@ -579,21 +634,24 @@ function Variants({
                 </div>
               </Td>
               <Td className="text-right">
-                <DeletionDialog
-                  label={`variant ${variant.size}`}
-                  plan={() =>
-                    planVariantDeletion({
-                      data: { productId, variantId: variant.id, commandId: commandId() },
-                    })
-                  }
-                  confirm={(input) => deleteVariant({ data: input })}
-                  onDeleted={refresh}
-                  trigger={
-                    <Button variant="ghost" size="xs">
-                      Delete
-                    </Button>
-                  }
-                />
+                <div className="flex items-center justify-end gap-1">
+                  <VariantEditor productId={productId} variant={variant} onSaved={refresh} />
+                  <DeletionDialog
+                    label={`variant ${variant.size}`}
+                    plan={() =>
+                      planVariantDeletion({
+                        data: { productId, variantId: variant.id, commandId: commandId() },
+                      })
+                    }
+                    confirm={(input) => deleteVariant({ data: input })}
+                    onDeleted={refresh}
+                    trigger={
+                      <Button variant="ghost" size="xs">
+                        Delete
+                      </Button>
+                    }
+                  />
+                </div>
               </Td>
             </tr>
           ))}
@@ -625,7 +683,7 @@ function Variants({
             />
           </Field>
           <Field className="w-24">
-            <Label htmlFor="v-stock">Stock</Label>
+            <Label htmlFor="v-stock">Opening stock</Label>
             <Input
               id="v-stock"
               inputMode="numeric"
@@ -678,18 +736,19 @@ function Variants({
                       commandId: commandId(),
                     },
                   }),
-                "Variant saved",
+                "Variant added",
               )
             }
           >
-            Add / update
+            Add size
           </Button>
         </div>
 
         <Outcome error={error} done={done} />
         <Hint>
-          A matching SKU updates that variant rather than adding a second. Stock moves by a RELATIVE
-          delta, never a value typed from a stale read — two operators adjusting at once both land.
+          This form only ADDS. A duplicate size or SKU is refused rather than merged — use Edit on
+          the row to change one. After that, stock only moves by a RELATIVE ± delta, never a value
+          typed from a stale read, so two people adjusting at once both land.
         </Hint>
       </div>
     </Section>

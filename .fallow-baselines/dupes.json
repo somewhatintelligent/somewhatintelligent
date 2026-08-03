@@ -40,7 +40,7 @@
     "apps/platform.auth/paths.ts:17-37|apps/platform.commerce/paths.ts:16-36",
     "apps/platform.commerce/app/lib/deletion.functions.ts:100-103|apps/platform.commerce/app/lib/deletion.functions.ts:105-109|apps/platform.commerce/app/lib/deletion.functions.ts:112-115|apps/platform.commerce/app/lib/deletion.functions.ts:117-120",
     "apps/platform.commerce/app/routes/orders.index.tsx:61-69|apps/platform.commerce/app/routes/products.index.tsx:175-183",
-    "apps/platform.commerce/domain/Catalog.ts:116-122|apps/platform.commerce/domain/Orders.ts:136-142",
+    "apps/platform.commerce/domain/Catalog.ts:140-146|apps/platform.commerce/domain/Orders.ts:136-142",
     "apps/platform.commerce/domain/Deletion.ts:622-628|apps/platform.commerce/domain/Deletion.ts:694-700",
     "apps/platform.commerce/domain/Deletion.ts:622-628|apps/platform.commerce/domain/Deletion.ts:694-700|apps/platform.commerce/domain/Deletion.ts:807-819",
     "apps/platform.commerce/domain/Deletion.ts:622-626|apps/platform.commerce/domain/Deletion.ts:694-698|apps/platform.commerce/domain/Deletion.ts:766-770|apps/platform.commerce/domain/Deletion.ts:807-811",

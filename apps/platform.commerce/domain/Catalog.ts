@@ -20,7 +20,7 @@
  * writes — `Audit.command` commits, so the mutation and its audit row cannot
  * diverge.
  */
-import { and, asc, count, desc, eq, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import * as Effect from "effect/Effect";
 
 import { query, type ClassicDb, type DbStatement } from "../services/Database.ts";
@@ -46,6 +46,7 @@ import {
   type SaveProductDraftInput,
   type AdjustStockInput,
 } from "./Contracts.ts";
+import { isAvailable } from "../core/availability.ts";
 import { isNonNegativeInt, sortBySize } from "../core/money.ts";
 import { pageWindow, splitPage } from "../core/paging.ts";
 import {
@@ -109,6 +110,29 @@ const draftColumns = {
   descriptionMarkdown: productDraft.descriptionMarkdown,
   priceCents: productDraft.priceCents,
 };
+
+/**
+ * Does this product have any size sold against a run?
+ *
+ * THE PREDICATE BEHIND `preorder_cap_missing`, named once because three
+ * separate doors lead to the same unbuyable state — `publishProduct` and
+ * `setProductStatus` on the way in, `setPreorderCap` clearing the cap out from
+ * under a live product. Three copies of a security-shaped check is three places
+ * for one of them to drift.
+ */
+const hasPreorderVariant = Effect.fn("Catalog.hasPreorderVariant")(function* (
+  db: ClassicDb,
+  productId: string,
+) {
+  const rows = yield* query(() =>
+    db
+      .select({ id: productVariant.id })
+      .from(productVariant)
+      .where(and(eq(productVariant.productId, productId), eq(productVariant.mode, "preorder")))
+      .limit(1),
+  );
+  return rows[0] !== undefined;
+});
 
 export const listProducts = Effect.fn("Catalog.listProducts")(function* (
   db: ClassicDb,
@@ -217,10 +241,21 @@ export const getProduct = Effect.fn("Catalog.getProduct")(function* (
         remaining: row.preorderCap === null ? null : row.preorderCap - row.preorderClaimed,
       },
       releases,
-      // `available` is DERIVED from stock, never stored — a stored copy is a
-      // second thing that can disagree with the number it summarises.
+      // `available` is DERIVED, never stored — a stored copy is a second thing
+      // that can disagree with the number it summarises. Derived from BOTH
+      // counters via `core/availability.ts`, so the operator's view of what is
+      // buyable and the shopper's are the same function rather than two
+      // `stock > 0` checks that drifted apart.
       variants: sortBySize(variants).map(
-        (variant): ProductVariantDTO => ({ ...variant, available: variant.stock > 0 }),
+        (variant): ProductVariantDTO => ({
+          ...variant,
+          available: isAvailable({
+            stock: variant.stock,
+            mode: variant.mode,
+            runCap: row.preorderCap,
+            runClaimed: row.preorderClaimed,
+          }),
+        }),
       ),
       media: media.map(
         (image): ProductMediaDTO => ({
@@ -407,6 +442,7 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
     | "version_exists"
     | "missing_media"
     | "missing_variant"
+    | "preorder_cap_missing"
   >
 > {
   const rows = yield* query(() =>
@@ -480,6 +516,32 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
   );
   if ((variants[0]?.total ?? 0) === 0) return { failure: err("missing_variant") };
 
+  /**
+   * PUBLISH IS THE DOOR TO `active` — the statement below writes the status
+   * itself — so this gate has to be here and not only on `setProductStatus`.
+   * Guarding one of two doors is not guarding.
+   *
+   * A pre-order variant with no run cap makes `runGuardStatement` match zero
+   * rows on every claim, so the product goes live looking entirely normal and
+   * refuses every buyer with `preorder_full`, permanently. Set the cap first;
+   * `setPreorderCap` works on a draft.
+   */
+  const runless = yield* query(() =>
+    db
+      .select({ id: productVariant.id })
+      .from(productVariant)
+      .innerJoin(product, eq(product.id, productVariant.productId))
+      .where(
+        and(
+          eq(productVariant.productId, input.productId),
+          eq(productVariant.mode, "preorder"),
+          isNull(product.preorderCap),
+        ),
+      )
+      .limit(1),
+  );
+  if (runless[0]) return { failure: err("preorder_cap_missing") };
+
   return {
     statements: [
       db.insert(productRelease).values({
@@ -523,16 +585,25 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
  * `active` and `unavailable` are published-lifecycle states and both require a
  * live release — `unavailable` means a published product pulled from sale, not
  * an unpublished one. `draft` and `archived` require none.
+ *
+ * GOING ACTIVE ALSO REQUIRES THAT THE PRODUCT CAN ACTUALLY BE BOUGHT, which was
+ * previously nobody's job — see `preorder_cap_missing` below.
  */
 export const setProductStatus = Effect.fn("Catalog.setProductStatus")(function* (
   db: ClassicDb,
   productId: string,
   status: ProductStatus,
   now: number,
-): Effect.fn.Return<CoreOutcome<{ status: ProductStatus }, "not_found" | "no_release">> {
+): Effect.fn.Return<
+  CoreOutcome<{ status: ProductStatus }, "not_found" | "no_release" | "preorder_cap_missing">
+> {
   const rows = yield* query(() =>
     db
-      .select({ id: product.id, activeReleaseId: product.activeReleaseId })
+      .select({
+        id: product.id,
+        activeReleaseId: product.activeReleaseId,
+        preorderCap: product.preorderCap,
+      })
       .from(product)
       .where(eq(product.id, productId))
       .limit(1),
@@ -541,6 +612,28 @@ export const setProductStatus = Effect.fn("Catalog.setProductStatus")(function* 
   if (!row) return { failure: err("not_found") };
   if ((status === "active" || status === "unavailable") && row.activeReleaseId === null) {
     return { failure: err("no_release") };
+  }
+
+  /**
+   * THE BRICK, REFUSED AT THE ONLY DOOR IT COMES THROUGH.
+   *
+   * `runGuardStatement` requires `preorder_cap IS NOT NULL`, so a pre-order
+   * variant under a product with no cap matches zero rows on every claim and
+   * EVERY checkout fails with `preorder_full`, forever. Nothing used to
+   * validate the pairing — not `putVariant`, not `publishProduct`, not the
+   * console — so the product went live looking perfectly normal and refused
+   * every buyer.
+   *
+   * Checked only on the way to `active`, because that is the transition that
+   * exposes it to shoppers. A draft in this shape is a work in progress; a live
+   * one is a shop that takes no money.
+   */
+  if (
+    status === "active" &&
+    row.preorderCap === null &&
+    (yield* hasPreorderVariant(db, productId))
+  ) {
+    return { failure: err("preorder_cap_missing") };
   }
 
   return {
@@ -564,6 +657,101 @@ export const setProductStatus = Effect.fn("Catalog.setProductStatus")(function* 
  * the caller gets `sku_taken` / `size_taken` rather than a UNIQUE violation
  * surfacing as a defect.
  */
+/**
+ * Does this size or SKU already belong to a DIFFERENT row?
+ *
+ * Checked here rather than left to the unique indexes so the caller gets
+ * `sku_taken` / `size_taken` instead of a constraint violation surfacing as a
+ * defect — a violation is a statement ERROR, which aborts the whole audited
+ * batch and answers 500.
+ *
+ * `ne(id, variantId)` is what lets an update keep its own size and SKU: on a
+ * create `variantId` is a fresh id that matches nothing, so the same predicate
+ * serves both paths.
+ */
+const variantClash = Effect.fn("Catalog.variantClash")(function* (
+  db: ClassicDb,
+  productId: string,
+  sku: string,
+  size: string,
+  variantId: string,
+): Effect.fn.Return<"sku_taken" | "size_taken" | null> {
+  const skuClash = yield* query(() =>
+    db
+      .select({ id: productVariant.id })
+      .from(productVariant)
+      .where(and(eq(productVariant.sku, sku), ne(productVariant.id, variantId)))
+      .limit(1),
+  );
+  if (skuClash[0]) return "sku_taken";
+
+  const sizeClash = yield* query(() =>
+    db
+      .select({ id: productVariant.id })
+      .from(productVariant)
+      .where(
+        and(
+          eq(productVariant.productId, productId),
+          eq(productVariant.size, size),
+          ne(productVariant.id, variantId),
+        ),
+      )
+      .limit(1),
+  );
+  return sizeClash[0] ? "size_taken" : null;
+});
+
+/**
+ * The row write, and the asymmetry between creating and updating is the whole
+ * reason this is its own function.
+ *
+ * ON CREATE every field is written, defaulted where the caller said nothing.
+ * ON UPDATE the three optional fields are written ONLY IF NAMED, because an
+ * omitted field means "leave it" rather than "reset it":
+ *
+ *   mode            a stock adjustment that omitted it would flip every
+ *                   pre-order page into an in-stock page.
+ *   expectedShipAt  likewise erases what a buyer was promised.
+ *   stock           worst of the three. This is an ABSOLUTE write with no
+ *                   guard, computed from whatever the caller read before they
+ *                   started typing — so a rename carrying a stale count rolls
+ *                   inventory back over every checkout that landed in between.
+ *                   `stock = 12` cannot lose to a concurrent sale the way
+ *                   `stock = stock - 1 WHERE stock >= 1` can. `adjustStock` is
+ *                   the guarded relative path, and is what the console uses;
+ *                   naming `stock` here is for correcting a count on a product
+ *                   that is not selling.
+ */
+const variantStatement = (
+  db: ClassicDb,
+  input: PutVariantInput,
+  variantId: string,
+  updating: boolean,
+  now: number,
+): DbStatement =>
+  updating
+    ? (db
+        .update(productVariant)
+        .set({
+          size: input.size,
+          sku: input.sku,
+          ...(input.stock !== undefined ? { stock: input.stock } : {}),
+          ...(input.mode !== undefined ? { mode: input.mode } : {}),
+          ...(input.expectedShipAt !== undefined ? { expectedShipAt: input.expectedShipAt } : {}),
+        })
+        .where(eq(productVariant.id, variantId)) as unknown as DbStatement)
+    : (db.insert(productVariant).values({
+        id: variantId,
+        productId: input.productId,
+        size: input.size,
+        sku: input.sku,
+        /** A variant nobody gave units to has none, rather than defaulting to some. */
+        stock: input.stock ?? 0,
+        mode: input.mode ?? "stock",
+        expectedShipAt: input.expectedShipAt ?? null,
+        createdAt: now,
+      }) as unknown as DbStatement);
+
 export const putVariant = Effect.fn("Catalog.putVariant")(function* (
   db: ClassicDb,
   input: PutVariantInput,
@@ -572,7 +760,9 @@ export const putVariant = Effect.fn("Catalog.putVariant")(function* (
 ): Effect.fn.Return<
   CoreOutcome<{ variantId: string }, "not_found" | "sku_taken" | "size_taken" | "invalid_stock">
 > {
-  if (!isNonNegativeInt(input.stock)) return { failure: err("invalid_stock") };
+  if (input.stock !== undefined && !isNonNegativeInt(input.stock)) {
+    return { failure: err("invalid_stock") };
+  }
 
   const owner = yield* query(() =>
     db.select({ id: product.id }).from(product).where(eq(product.id, input.productId)).limit(1),
@@ -594,64 +784,12 @@ export const putVariant = Effect.fn("Catalog.putVariant")(function* (
     if (!existing[0]) return { failure: err("not_found") };
   }
 
-  const skuClash = yield* query(() =>
-    db
-      .select({ id: productVariant.id })
-      .from(productVariant)
-      .where(and(eq(productVariant.sku, input.sku), ne(productVariant.id, variantId)))
-      .limit(1),
-  );
-  if (skuClash[0]) return { failure: err("sku_taken") };
-
-  const sizeClash = yield* query(() =>
-    db
-      .select({ id: productVariant.id })
-      .from(productVariant)
-      .where(
-        and(
-          eq(productVariant.productId, input.productId),
-          eq(productVariant.size, input.size),
-          ne(productVariant.id, variantId),
-        ),
-      )
-      .limit(1),
-  );
-  if (sizeClash[0]) return { failure: err("size_taken") };
-
-  /**
-   * Mode defaults to `stock` on create and is LEFT ALONE on update unless the
-   * operator names it. Flipping a run to `stock` the day it lands is a normal
-   * action; having it silently reset to `stock` because a stock adjustment
-   * omitted the field would turn every pre-order page into an in-stock page.
-   */
-  const mode = input.mode ?? "stock";
-  const expectedShipAt = input.expectedShipAt ?? null;
-
-  const statement = updating
-    ? (db
-        .update(productVariant)
-        .set({
-          size: input.size,
-          sku: input.sku,
-          stock: input.stock,
-          ...(input.mode !== undefined ? { mode: input.mode } : {}),
-          ...(input.expectedShipAt !== undefined ? { expectedShipAt: input.expectedShipAt } : {}),
-        })
-        .where(eq(productVariant.id, variantId)) as unknown as DbStatement)
-    : (db.insert(productVariant).values({
-        id: variantId,
-        productId: input.productId,
-        size: input.size,
-        sku: input.sku,
-        stock: input.stock,
-        mode,
-        expectedShipAt,
-        createdAt: now,
-      }) as unknown as DbStatement);
+  const clash = yield* variantClash(db, input.productId, input.sku, input.size, variantId);
+  if (clash) return { failure: err(clash) };
 
   return {
     statements: [
-      statement,
+      variantStatement(db, input, variantId, updating !== undefined, now),
       db
         .update(product)
         .set({ updatedAt: now })
@@ -681,7 +819,7 @@ export const setPreorderCap = Effect.fn("Catalog.setPreorderCap")(function* (
 ): Effect.fn.Return<
   CoreOutcome<
     { cap: number | null; claimed: number; remaining: number | null },
-    "not_found" | "invalid_cap" | "cap_below_claimed"
+    "not_found" | "invalid_cap" | "cap_below_claimed" | "preorder_cap_missing"
   >
 > {
   if (input.cap !== null && !isNonNegativeInt(input.cap)) {
@@ -690,7 +828,7 @@ export const setPreorderCap = Effect.fn("Catalog.setPreorderCap")(function* (
 
   const rows = yield* query(() =>
     db
-      .select({ claimed: product.preorderClaimed })
+      .select({ claimed: product.preorderClaimed, status: product.status })
       .from(product)
       .where(eq(product.id, input.productId))
       .limit(1),
@@ -702,6 +840,28 @@ export const setPreorderCap = Effect.fn("Catalog.setPreorderCap")(function* (
     return {
       failure: err("cap_below_claimed", `${current.claimed} already sold`),
     };
+  }
+
+  /**
+   * THE OTHER DOOR TO THE SAME BRICK, and it is the one an operator is more
+   * likely to walk through: clearing the cap on a product that is ON SALE with
+   * pre-order variants leaves the run guard with nothing to match, so every
+   * checkout begins failing `preorder_full` immediately and silently.
+   *
+   * `setProductStatus` refuses the same shape on the way in. Refusing it here
+   * too is what makes the state unreachable rather than merely inconvenient to
+   * reach — a guard on one of two doors is not a guard.
+   *
+   * Only for an ACTIVE product. Clearing the cap on a draft is how you convert
+   * a run back into shelf stock, and the variants are flipped to `stock` in the
+   * same sitting.
+   */
+  if (
+    input.cap === null &&
+    current.status === "active" &&
+    (yield* hasPreorderVariant(db, input.productId))
+  ) {
+    return { failure: err("preorder_cap_missing") };
   }
 
   return {

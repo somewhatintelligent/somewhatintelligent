@@ -288,12 +288,18 @@ const stockedProduct = (
         ...(variant.mode ? { mode: variant.mode } : {}),
         ...(variant.expectedShipAt ? { expectedShipAt: variant.expectedShipAt } : {}),
       });
-      yield* client.publishProduct({
-        commandId: cmd("publish"),
-        productId: created.productId,
-        expectedRevision: 1,
-        version: "1.0.0",
-      });
+      /**
+       * THE CAP BEFORE THE PUBLISH, and the order is now enforced rather than
+       * incidental. Publishing sets `status = 'active'` itself, and a pre-order
+       * variant with no run cap makes `runGuardStatement` match zero rows on
+       * every claim — so that product would go live refusing every buyer with
+       * `preorder_full`, permanently. `publishProduct` refuses it as
+       * `preorder_cap_missing`.
+       *
+       * This helper used to publish first and set the cap after, which produced
+       * a live-but-unbuyable product for the width of one round trip. It passed
+       * because nothing bought anything in that window.
+       */
       if (variant.preorderCap !== undefined) {
         yield* client.setPreorderCap({
           commandId: cmd("cap"),
@@ -301,6 +307,12 @@ const stockedProduct = (
           cap: variant.preorderCap,
         });
       }
+      yield* client.publishProduct({
+        commandId: cmd("publish"),
+        productId: created.productId,
+        expectedRevision: 1,
+        version: "1.0.0",
+      });
       return { productId: created.productId, variantId: made.variantId };
     }),
   );
@@ -797,18 +809,20 @@ test.skipIf(!STRIPE_READY)(
           stock: 50,
           mode: "preorder",
         });
-        yield* client.publishProduct({
-          commandId: cmd("publish"),
-          productId: created.productId,
-          expectedRevision: 1,
-          version: "1.0.0",
-        });
+        // The cap before the publish — `publishProduct` refuses a pre-order
+        // product with no run to claim against. See the note in `liveProduct`.
         const run = yield* client.setPreorderCap({
           commandId: cmd("cap"),
           productId: created.productId,
           cap: 3,
         });
         expect(run.remaining).toBe(3);
+        yield* client.publishProduct({
+          commandId: cmd("publish"),
+          productId: created.productId,
+          expectedRevision: 1,
+          version: "1.0.0",
+        });
         return { productId: created.productId, medium: m.variantId, large: l.variantId };
       }),
     );

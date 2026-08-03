@@ -200,8 +200,13 @@ export interface PutVariantInput {
   /**
    * Units this variant may still sell — shelf stock, or places in a pre-order
    * run. Which one it means is {@link mode}.
+   *
+   * OPTIONAL, and on an update it is an ABSOLUTE write from a value the caller
+   * read some time ago. Omit it to leave inventory untouched; `adjustStock`
+   * moves it by a guarded relative delta and is the only safe way to do that
+   * against live checkouts. Absent on create means zero.
    */
-  stock: number;
+  stock?: number;
   mode?: "stock" | "preorder";
   /** When a pre-order buyer should expect it. Meaningless for `stock`. */
   expectedShipAt?: number | null;

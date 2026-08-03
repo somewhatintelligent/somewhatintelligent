@@ -77,6 +77,23 @@ storefront  placeOrder getCustomerOrder listStorefront getStorefrontProduct
 config      paymentsProvider
 ```
 
+### Availability
+
+A sale passes **two** guards: the per-variant decrement, and — for a pre-order
+line only — the run claim, which additionally requires `preorder_cap` to exist.
+`core/availability.ts` is that rule as one pure function, and it is what both
+`Storefront.getActiveProductBySlug` and `Catalog.getProduct` report `available`
+from. Before it, each answered `stock > 0` independently and neither consulted
+the run, so a fully-subscribed run advertised every size as buyable and refused
+at Buy.
+
+`preorder_cap_missing` is the other half. A pre-order variant under a product
+with no cap makes the run guard match zero rows on every claim, so the product
+goes live looking normal and refuses every buyer forever. Both doors to `active`
+— `publishProduct`, which sets the status itself, and `setProductStatus` — now
+refuse that shape, and `setPreorderCap` refuses to clear the cap out from under
+a live one. **Set the cap before you publish.**
+
 `streamOperatorMedia` / `operatorMediaContentType` are the console's image path,
 and the only pair here with no status gate. They exist because `publishProduct`
 refuses with `missing_media` until a product has a cover, while the public
@@ -262,7 +279,7 @@ module.ts                 the deployable unit — workers, Access application, c
 runtime.ts                schema, D1, R2, capability layers
 paths.ts                  absolute anchors for the schema resource and Vite's root
 vite.config.ts            the console's build; the Workers never pass through Vite
-core/                     pure decisions
+core/                     pure decisions — pricing, guards, availability
 domain/                   statements and typed failures
 services/                 capabilities — Stripe only, no double
 workers/
@@ -283,7 +300,7 @@ tests/
   alchemy.run.ts          the test stack — the only place tests/ is declared
   workers/                Commerce, Settlement, Edge, Storefront
   services/               PaymentsFake, FakeProvider
-  unit/                   169 tests, no infrastructure
+  unit/                   179 tests, no infrastructure
   *.integ.test.ts         30 tests against a live deployment
 migrations/               11 domain tables, generated from domain/Schema.ts
 ```
@@ -376,7 +393,7 @@ the order book.
 ### Test
 
 ```sh
-vp run platform.commerce#test               # 157 unit, ~90ms, no infrastructure
+vp run platform.commerce#test               # 179 unit, ~280ms, no infrastructure
 cd apps/platform.commerce
 bun run test:integ                          # 30 integration; deploys and tears down
 bun run test:keep                           # keeps the test stack up between runs
@@ -384,7 +401,7 @@ bun run test:keep                           # keeps the test stack up between ru
 
 | Tier                   | Count | Needs                           |
 | ---------------------- | ----- | ------------------------------- |
-| Unit and contract      | 169   | nothing                         |
+| Unit and contract      | 179   | nothing                         |
 | Operator integration   | 13    | a deployment                    |
 | Settlement integration | 9     | a deployment                    |
 | Stripe end-to-end      | 8     | a deployment and `stripe login` |

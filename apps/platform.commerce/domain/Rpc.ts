@@ -253,6 +253,12 @@ export class PublishRefused extends Schema.TaggedErrorClass<PublishRefused>()("P
     "missing_media",
     "missing_variant",
     "no_release",
+    /**
+     * Going ACTIVE with pre-order variants and no run cap. The run guard
+     * requires `preorder_cap IS NOT NULL`, so such a product refuses every
+     * checkout forever while looking perfectly normal on the shelf.
+     */
+    "preorder_cap_missing",
   ]),
 }) {}
 
@@ -261,7 +267,12 @@ export class VariantRefused extends Schema.TaggedErrorClass<VariantRefused>()("V
 }) {}
 
 export class PreorderRefused extends Schema.TaggedErrorClass<PreorderRefused>()("PreorderRefused", {
-  reason: Schema.Literals(["invalid_cap", "cap_below_claimed"]),
+  reason: Schema.Literals([
+    "invalid_cap",
+    "cap_below_claimed",
+    /** Clearing the cap on a LIVE product whose variants are still pre-order. */
+    "preorder_cap_missing",
+  ]),
   detail: Schema.optional(Schema.String),
 }) {}
 
@@ -446,8 +457,16 @@ export class OperatorRpcs extends RpcGroup.make(
        * Units this variant may sell. For `preorder` this is the SIZE OF THE RUN
        * — how many garments will be made — so the same conditional decrement
        * that stops an oversell stops an over-subscription.
+       *
+       * OPTIONAL, and on an UPDATE it is an ABSOLUTE write from whatever the
+       * caller last read. Omit it to leave inventory alone; `adjustStock` moves
+       * it by a relative delta and is the only safe way to do so while the
+       * store is taking orders. Supplying it here to "correct" a count races
+       * every checkout in flight.
+       *
+       * Absent on create means zero.
        */
-      stock: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      stock: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
       mode: Schema.optional(VariantMode),
       expectedShipAt: Schema.optional(Schema.NullOr(Schema.Number)),
     }),

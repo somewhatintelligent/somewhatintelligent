@@ -25,6 +25,7 @@ import {
   type ProductMediaRole,
   type StorefrontProductDTO,
 } from "./Contracts.ts";
+import { isAvailable } from "../core/availability.ts";
 import { sortBySize } from "../core/money.ts";
 import { product, productRelease, productReleaseImage, productVariant } from "./Schema.ts";
 
@@ -124,6 +125,9 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
         descriptionMarkdown: productRelease.descriptionMarkdown,
         priceCents: productRelease.priceCents,
         version: productRelease.version,
+        /** The run, because `available` below is a claim about BOTH counters. */
+        preorderCap: product.preorderCap,
+        preorderClaimed: product.preorderClaimed,
       })
       .from(product)
       .innerJoin(productRelease, eq(productRelease.id, product.activeReleaseId))
@@ -156,6 +160,8 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
         id: productVariant.id,
         size: productVariant.size,
         stock: productVariant.stock,
+        /** Which counters a sale of this size has to pass. See `core/availability.ts`. */
+        mode: productVariant.mode,
       })
       .from(productVariant)
       .where(eq(productVariant.productId, row.productId)),
@@ -177,7 +183,16 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
       size: variant.size,
       // Exact stock is never published — it is a competitive signal, and the
       // shopper only needs to know whether they can buy it.
-      available: variant.stock > 0,
+      //
+      // BOTH COUNTERS, via `core/availability.ts`. This used to be
+      // `variant.stock > 0`, which advertised every size of a fully-subscribed
+      // run as buyable and refused at Buy.
+      available: isAvailable({
+        stock: variant.stock,
+        mode: variant.mode,
+        runCap: row.preorderCap,
+        runClaimed: row.preorderClaimed,
+      }),
     })),
   } satisfies StorefrontProductDTO;
 });

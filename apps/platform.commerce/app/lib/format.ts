@@ -62,6 +62,8 @@ const REFUSALS: Record<string, string> = {
   missing_variant: "Publish needs at least one variant. Add a size below.",
   missing_media: "Publish needs a cover image. Upload one below.",
   no_release: "A product cannot go active before it has been published at least once.",
+  preorder_cap_missing:
+    "This product has pre-order sizes but no run cap, so every checkout would be refused. Set a cap first.",
   invalid_version: "That version label is not a valid one.",
   invalid_status: "Not a status this product can move to.",
   cap_below_claimed: "The cap cannot go below what buyers have already claimed.",

@@ -12,12 +12,13 @@
  * whether that worker has a URL at all, is decided in `workers/` and composed in
  * `module.ts`.
  */
+import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Drizzle from "alchemy/Drizzle";
 import { Stack } from "alchemy/Stack";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { workerSafeStage } from "platform.names";
+import { PRODUCTION_STAGE, workerSafeStage } from "platform.names";
 
 import { migrationsDir, schemaPath } from "./paths.ts";
 import { Audit } from "./services/Audit.ts";
@@ -39,16 +40,29 @@ export const CommerceSchema = Drizzle.Schema(
 
 /**
  * No pinned `name`, so every stage keeps alchemy's stage-derived one and no
- * stage can adopt another's orders. Production will want the same treatment
- * `platform.auth` gives its database — a fixed name plus a retain policy — on
- * the day it holds real money; there is nothing to adopt yet.
+ * stage can adopt another's orders.
+ *
+ * AND NO PINNED ID EITHER, which is the difference from `platform.auth` worth
+ * understanding rather than copying. That app ADOPTS a database that predates
+ * it, and adoption matches by name and CREATES on a miss — so a wrong name is a
+ * green deploy onto an empty database, which is why it guards the resolved id
+ * against a constant. This database is created fresh; the id is minted once and
+ * lives in the Cloudflare state store. There is no wrong-name failure mode to
+ * guard against.
+ *
+ * THE RETAIN POLICY IS NOT ABOUT ADOPTION and applies regardless. `alchemy
+ * destroy`, or simply dropping this resource from the graph, would otherwise
+ * take the order book with it — and a deleted D1 has no undo. Production only:
+ * a `dev_*` stage's database is disposable by design, and retaining every one
+ * of them leaves an orphan per stage that nothing will ever clean up.
  */
 export const CommerceDatabase = Effect.gen(function* () {
+  const { stage } = yield* Stack;
   const schema = yield* CommerceSchema;
   return yield* Cloudflare.D1.Database("CommerceDatabase", {
     migrationsDir: schema.out,
     migrationsTable: "drizzle_migrations",
-  });
+  }).pipe(Alchemy.RemovalPolicy.retain(stage === PRODUCTION_STAGE));
 });
 
 /** Stage-derived so two stages never share a bucket. */
