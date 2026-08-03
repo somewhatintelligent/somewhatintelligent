@@ -1,5 +1,7 @@
 import { ALCHEMY_DEV, RuntimeContext } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { drizzle } from "drizzle-orm/d1";
 import { Database } from "lib.better-auth-effect";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -7,10 +9,20 @@ import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 
 import { AuthDatabase } from "./database.ts";
+import * as generated from "./schema.gen.ts";
 import { AUTH_COOKIE_DOMAIN, AUTH_ORIGIN, Origin, UNRESOLVED_ORIGIN } from "./origin.ts";
 import { AuthSecret } from "./secret.ts";
 
 export const dialect = "sqlite" as const;
+
+/**
+ * The generated tables, minus the relations export, because Better Auth's
+ * `schema` is a model-name -> table map and `relations` is neither.
+ *
+ * Splitting them here rather than enumerating the tables keeps this correct
+ * when `schema.gen.ts` is regenerated with a new model.
+ */
+const { relations, ...schema } = generated;
 
 /**
  * Discharge `RuntimeContext` from a binding read. The context is present at
@@ -65,7 +77,29 @@ export const live = Layer.mergeAll(
     Effect.gen(function* () {
       const d1 = yield* AuthDatabase;
       const connection = yield* Cloudflare.D1.QueryDatabase(d1);
-      return { dialect, betterAuthDatabase: yield* uncoloured(connection.raw) };
+      const raw = yield* uncoloured(connection.raw);
+
+      /**
+       * THROUGH THE GENERATED SCHEMA, not the raw binding.
+       *
+       * Handing Better Auth a bare D1 makes it use its built-in Kysely adapter,
+       * which names columns in camelCase. `api/schema.ts` deliberately generates
+       * snake_case — production came from si's `guestlist` and every column in
+       * it is snake_case — so the two halves disagreed and every query failed
+       * with `table verification has no column named expiresAt`. The migrations
+       * were right; nothing read them.
+       *
+       * Going through `drizzleAdapter` makes the column names come from the same
+       * file the migrations do, so there is one source rather than two
+       * conventions that happen to agree until they do not.
+       */
+      return {
+        dialect,
+        betterAuthDatabase: drizzleAdapter(drizzle(raw, { relations }), {
+          provider: dialect,
+          schema,
+        }),
+      };
     }),
   ),
   Layer.effect(
