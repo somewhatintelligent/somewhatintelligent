@@ -19,8 +19,8 @@
  * ## Where they surface
  *
  * `configure` returns an `Effect`, so nothing is checked until the options are
- * built — which is once per isolate, and once on the deploy host when
- * `bae-alchemy` generates the schema from the same module. The deploy is
+ * built — which is once per isolate, and once on the deploy host, which
+ * resolves the same module to generate the schema. The deploy is
  * therefore the first thing to fail, which is the right order: a configuration
  * that cannot be coherent should not reach a Worker.
  *

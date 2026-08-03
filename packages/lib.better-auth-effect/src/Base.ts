@@ -22,8 +22,8 @@
  * `database` and `secondaryStorage` stop being things you write, and the keys
  * that have to MERGE — `plugins`, `advanced`, `rateLimit.customStorage` — are
  * merged rather than clobbered. See {@link Bae.configure} for which side wins on
- * each, and `docs/design/bae-configure.md` for why it is a call rather than an
- * object to spread.
+ * each, and for why it is a call rather than an object to spread — some
+ * combinations are refused, and only `configure` can see them.
  *
  * `baseURL`, `trustedOrigins` and `secret` are NOT here, deliberately. They are
  * ordinary deployment values with established practices — on alchemy,
@@ -146,8 +146,8 @@ export interface Bae {
    * fail with a {@link BaeConfigError}, so `Effect.catchTag` can name one.
    *
    * Nothing is checked until the options are built: once per isolate, and once
-   * on the deploy host where `bae-alchemy` generates the schema from this same
-   * module. The deploy fails first, which is the right order.
+   * on the deploy host, which resolves this same module to generate the schema.
+   * The deploy fails first, which is the right order.
    *
    * ## The capability plugins are absent from the return type
    *

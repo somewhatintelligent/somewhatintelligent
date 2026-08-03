@@ -26,8 +26,8 @@
  * same name, which is worse than no span. The name lives one level up, in the
  * shape of the options object, and that is where {@link withTracing} reads it.
  *
- * Measured, not argued: `prototypes/bae-tracing/test/naming.test.ts` runs both
- * designs against the same Better Auth instance.
+ * Measured, not argued: the tracing prototype ran both designs against the same
+ * Better Auth instance and compared the span names that came out.
  *
  * ## What may be wrapped, and why it is an ALLOW-list
  *
@@ -48,7 +48,7 @@
  * grows a new synchronous option, and the failure is a broken deployment. An
  * allow-list is silently wrong whenever Better Auth grows a new asynchronous
  * callback, and the failure is a missing span. So: {@link CORE_TRACED_PATHS} is
- * the set of core positions the enumerator in `prototypes/full-surface` marked
+ * the set of core positions the callback enumerator marked
  * `awaitedness: "async"`, minus `session.cookieCache.version`, which has both a
  * sync and an async arm and must therefore be treated as sync.
  *
@@ -113,7 +113,7 @@ import { makeRequestBoundary, requestBoundaryInstalled } from "./Boundary.ts";
 /**
  * Core `BetterAuthOptions` callback positions Better Auth AWAITS.
  *
- * Generated from `prototypes/full-surface/coverage/callback-positions.json`,
+ * Generated from the callback-position enumeration described in the README,
  * which is produced by walking the real types with the TypeScript checker: the
  * 49 core positions whose `awaitedness` is `"async"`, less
  * `session.cookieCache.version` (it is enumerated twice, and its synchronous arm
@@ -397,7 +397,7 @@ export const withRequestSpan = <E, R>(
      * that is the DEFAULT situation rather than an edge case: alchemy's Worker
      * bridge opens its own fetch span before any tracer Layer is provided, so
      * inheriting it yields a request span pointing at an id no collector will
-     * ever see. Measured — `prototypes/bae-tracing/scripts/e2e.ts` reported
+     * ever see. Measured — an end-to-end run against a real collector reported
      * `POST /api/auth/sign-up/email ... ORPHAN` until this defaulted to `true`.
      *
      * An incoming `traceparent` always wins over this: a propagated parent IS
@@ -518,7 +518,7 @@ export const DEFAULT_SERVICE_NAME = "bae";
  * (`OtlpExporter.ts`: `Effect.runForkWith(services)`). `Layer.provide` alone was
  * measured to work — `HttpClient.layerMergedContext` carries the build context
  * through — so this is not a fix for a bug; it removes a dependence on that
- * detail. `prototypes/bae-tracing/test/transport.test.ts` runs both.
+ * detail. Both forms were run against a capturing `fetch`.
  *
  * What IS worth knowing is the failure mode when the override does not take:
  * the exporter catches transport errors into `Effect.logDebug` and then disables
@@ -565,7 +565,7 @@ export const layerOtlp = (options: OtlpOptions): Layer.Layer<never> =>
  * The finalizer is not a bet. `Effect.provide(layer)` does not complete until
  * its Scope has closed, so if the tracer Layer's scope IS the request, the POST
  * is part of the request and the response waits for it. Measured, at completion,
- * with nothing awaited afterwards — `prototypes/bae-tracing/scripts/probe-flush.ts`:
+ * with nothing awaited afterwards:
  *
  * ```
  * maxBatchSize=1/1ms         at completion: {"spans":3,"posts":3}
@@ -597,8 +597,8 @@ export const layerOtlpWorker = (options: OtlpOptions): Layer.Layer<never> =>
  * `Layer.empty`, i.e. the no-op tracer, which is the behaviour you want from a
  * deployment that has not been given a destination yet.
  *
- * `bae-alchemy`'s `Telemetry.ts` sets exactly these names on the Worker, so
- * wiring a destination is a stack-file change and not a code change.
+ * A host that sets exactly these names on the Worker's env makes wiring a
+ * destination a stack-file change rather than a code change.
  */
 export const layerOtlpFromEnv = (options?: {
   readonly serviceName?: string | undefined;

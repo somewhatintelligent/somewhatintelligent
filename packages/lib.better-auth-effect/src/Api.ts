@@ -15,7 +15,8 @@
  * keyed off `Auth<O>["api"]` directly — one entry per endpoint, same name, same
  * arguments, `Effect` where there was a `Promise`. An endpoint this module has
  * never heard of is present because the mapped type cannot omit it, which is the
- * same reason `ba-manifest` reports plugin ids rather than a blessed list.
+ * same reason `lib.better-auth-manifest` reports plugin ids rather than a
+ * blessed list.
  *
  * `handle` is NOT here. It is `auth.handler`, not `auth.api`, and a value called
  * `api` carrying the handler is a value that misreads.
@@ -84,7 +85,8 @@ export class AuthApiDefect extends Data.TaggedError("AuthApiDefect")<{
  *
  * Keyed off the real thing, so the plugin endpoints are present exactly when
  * the plugin is: `listUsers` exists BECAUSE `admin()` is in `plugins`. That is
- * also why the tag over this cannot live in a library — see `Config.ts`.
+ * also why the tag over this cannot live in a library: it has to be declared
+ * where the plugin list is, which is the consuming app's own config module.
  */
 export type EffectApi<O extends BetterAuthOptions, E = never> = {
   readonly [K in keyof Auth<O>["api"]]: Auth<O>["api"][K] extends (
@@ -116,9 +118,9 @@ export interface EffectAuth<O extends BetterAuthOptions, E = never> {
   ) => Effect.Effect<A, AuthApiError | AuthApiDefect | E | AuthInitFailed>;
   /**
    * `auth.handler` as an Effect-native HTTP handler. **This is what a Worker
-   * mounts** — `fetch: Effect.orDie(auth.http)`, which is exactly what
-   * `bae-alchemy`'s `authWorker` does. Nothing here adapts anything; `bae`
-   * already wrote the six lines (`Handler.ts:93`).
+   * mounts** — `fetch: Effect.orDie(auth.http)`, which is exactly what this
+   * repo's auth Worker does. Nothing here adapts anything; `bae` already wrote
+   * the six lines (`Handler.ts:93`).
    */
   readonly http: AuthHandler<O, E>["http"];
   /**

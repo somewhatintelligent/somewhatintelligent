@@ -37,7 +37,7 @@
  * ## What is deliberately absent
  *
  * Nothing derived from `plugins` beyond what Better Auth itself infers. Plugin
- * ids are not usefully reachable from the options TYPE — `ba-manifest` reads
+ * ids are not usefully reachable from the options TYPE — `lib.better-auth-manifest` reads
  * them off the runtime value (`instance.options.plugins[].id`), and that
  * distinction is load-bearing rather than incidental.
  *

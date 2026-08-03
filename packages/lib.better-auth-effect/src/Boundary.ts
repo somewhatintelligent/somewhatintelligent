@@ -15,7 +15,8 @@
  * `run.fn((data) => ...)` into a Better Auth position infers `Args` and `A` from
  * that position, then types `data` from `Args`.
  *
- * The evidence, in `prototypes/full-surface`: an enumerator walks the real
+ * The evidence, measured in the prototype this package was extracted from: an
+ * enumerator walks the real
  * `BetterAuthOptions` plus every plugin's option type with the TypeScript
  * checker and finds **226 callback positions**; a generator emits one
  * declaration per position assigning this wrapper's output into that position's
