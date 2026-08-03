@@ -17,6 +17,15 @@ import { PlatformAccess } from "./index.ts";
  *
  * A bare `yield* PlatformAccess` resolves the CURRENT stage and would find
  * nothing at `dev_stoli`.
+ *
+ * NOT DEPLOYED YET — as of 2026-08-02 this stack exists in the repo and has
+ * never been applied. `alchemy plan --stage prod` reads `1 to create`.
+ *
+ * Nothing is waiting on it. Mezedes still carries its own inline `MezedesOwner`
+ * and is unaffected until the commit that points it here. Deploying is
+ * `vp run access:deploy` with `ALCHEMY_STAGE=prod`; until then a consumer that
+ * pins to this stack fails its plan with `InvalidReferenceError`, which reads
+ * like a bug in the consumer rather than an unapplied dependency.
  */
 export default PlatformAccess.make(
   { providers: Cloudflare.providers(), state: Cloudflare.state() },
