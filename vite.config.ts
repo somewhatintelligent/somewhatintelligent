@@ -72,6 +72,39 @@ export default defineConfig({
     ],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },
+    /**
+     * THE CLIENT BUNDLE, and the only place an alchemy import is a defect.
+     *
+     * NOT "runtime may not import alchemy" — the Workers do, correctly and
+     * everywhere: `RuntimeContext`, `Workers.WorkerEnvironment`,
+     * `SecretsStore.ReadSecret`, the D1 and R2 accessors are runtime APIs. What
+     * must never happen is deploy machinery reaching a browser.
+     *
+     * `excludeFiles` rather than `!`-prefixed entries inside `files`: negations
+     * there are not honoured and the rule fires on the paths anyway. TanStack
+     * Start keeps the site's Worker entry and its `.server.ts` modules in the
+     * same tree as client routes, so those two patterns are the whole exemption.
+     *
+     * No `node:` rule. `nodejs_compat` is on and `AsyncLocalStorage` is a
+     * supported Workers API — lib.better-auth-effect's Boundary depends on it.
+     */
+    overrides: [
+      {
+        files: ["apps/*/app/**", "apps/*/src/shell/**"],
+        excludeFiles: ["apps/*/app/worker.ts", "apps/*/app/**/*.server.ts"],
+        rules: {
+          "no-restricted-imports": [
+            "error",
+            {
+              patterns: [
+                { group: ["alchemy", "alchemy/*"], message: "ships to a browser" },
+                { group: ["cloudflare:workers"], message: "not available in a client bundle" },
+              ],
+            },
+          ],
+        },
+      },
+    ],
   },
   run: {
     cache: true,
