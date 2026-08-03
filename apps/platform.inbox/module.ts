@@ -2,7 +2,7 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import { Path } from "effect/Path";
-import { PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
+import { CLOUDFLARE_IDP, PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
 
 // Type-only, and load-bearing: each namespace types as
 // `DurableObjectNamespace<Class>` so app code gets a typed stub rather than
@@ -23,41 +23,6 @@ const WORKER_NAME = "agentic-inbox-si";
 
 /** The web UI's hostname AND the domain that receives mail. */
 const APP_DOMAIN = `mail.${PRODUCTION_ZONE}`;
-
-/**
- * Who may pass Cloudflare Access into the inbox. Editing this list fully
- * reconciles the policy on the next deploy — it is the allow-list, not a copy
- * of one kept elsewhere.
- *
- * This duplicates what `stacks/platform.access` calls `staff`, and should
- * become a reference to it once that singleton is actually deployed. Not yet:
- * a consumer pinning an unapplied stack fails its plan with
- * `InvalidReferenceError`.
- */
-const ACCESS_ALLOWED_EMAILS = ["apostoli.geyer@geyerconsulting.com"];
-
-/** Matches the live policy by name, which is what `adopt` needs to find it. */
-const ACCESS_POLICY_NAME = `${WORKER_NAME}-access`;
-
-/**
- * The `aud` of the live Access application for `mail.somewhatintelligent.ca`
- * (app id `ff35743f-8c54-46e3-9938-e2c8a7ff65df`), read from the Access API.
- *
- * A LITERAL because declaring the application here would lock everyone out.
- * `Access.Application`'s read step recovers an app by persisted
- * `applicationId`, or — only when it has previous props to read a domain from —
- * by scanning for that domain. A newly declared resource has neither, so the
- * engine plans a blind `create`, Cloudflare accepts a SECOND application on the
- * same hostname, and it mints a fresh `aud` that the deployed worker's
- * `POLICY_AUD` no longer matches. Verified against alchemy 2.0.0-beta.65 in
- * `Cloudflare/Access/Application.ts:330-347`; re-check that read step before
- * replacing this with a resource output.
- *
- * The application is therefore the one dashboard-managed piece of this
- * deployment. The policy below is not — it attaches to that application and is
- * reconciled from this file.
- */
-const ACCESS_APP_AUD = "a0046cb0773459b27a32ff7123e52e18d985c2e4aa75df35ba35828ca096443f";
 
 /** Addresses the UI pre-creates mailboxes for. */
 const EMAIL_ADDRESSES: string[] = [];
@@ -101,6 +66,80 @@ const Deployment = Effect.gen(function* () {
 });
 
 /**
+ * THE definition of who may reach the inbox, and the only one.
+ *
+ * `cloudflareAccountMember` rather than an email allow-list: membership of this
+ * Cloudflare account IS the staff list, so there is nothing here to keep in sync
+ * with anything. What this replaces was a literal array of one address, next to
+ * a `si-staff-access` policy holding the same address, next to
+ * `stacks/platform.access`'s `staff` — three answers to one question.
+ *
+ * Still local rather than a reference to that stack: it has never been applied,
+ * and pinning an unapplied stack fails the plan with `InvalidReferenceError`.
+ * When it is deployed, this becomes `PlatformAccess.stage[PRODUCTION_STAGE]`.
+ *
+ * The logical id stays the dull `"AccessPolicy"` on purpose: renaming it would
+ * destroy the policy this deployment already owns and create an identical one
+ * beside it. The `name` prop is gone so a future stage would get a derived
+ * per-stage name rather than contend for a shared account-level object — but
+ * dropping it did NOT rename what already exists. The live policy is still
+ * `agentic-inbox-si-access`; alchemy reconciled the `include` and left the name
+ * it had persisted. Cosmetic, and worth knowing before you go looking for a
+ * policy named after this stack.
+ */
+const InboxOwner = Cloudflare.Access.Policy("AccessPolicy", {
+  decision: "allow",
+  include: [{ cloudflareAccountMember: {} }],
+});
+
+/**
+ * THE EDGE GATE, and now a resource rather than a dashboard artefact.
+ *
+ * This used to be the one hand-managed piece here, with its `aud` copied into
+ * `POLICY_AUD` as a literal — because `Access.Application`'s reconcile observes
+ * only by a persisted `applicationId` (or the warp singleton), so declaring it
+ * against a live hostname plans a blind `create` and Cloudflare accepts a
+ * SECOND application on the same domain with a fresh `aud`. Nothing about that
+ * changed; the pre-existing application was deleted so that this create is the
+ * only application on the hostname.
+ *
+ * Which is why `POLICY_AUD` below reads `access.aud` instead of a constant. The
+ * value the worker validates against and the value Access mints are now the
+ * same output, so they cannot drift — the failure the literal could produce was
+ * a silent `Invalid or expired Access token` on every request.
+ *
+ * `autoRedirectToIdentity` with a single IdP skips the chooser. Managed OAuth
+ * is what lets an MCP client authenticate at `/mcp` without a cookie flow, and
+ * dynamic client registration (RFC 7591) lets it register itself rather than
+ * carry a pre-provisioned id — the inbox serves an MCP endpoint that, until
+ * now, only a browser session could reach.
+ *
+ * `oauthConfiguration` is absent from alchemy 2.0.0-beta.65 as published and
+ * comes from `patches/alchemy@2.0.0-beta.65.patch`. The provider builds its
+ * request body from an explicit field allowlist, so an unpatched install drops
+ * the prop SILENTLY. Re-check with `grep oauthConfiguration` in
+ * `node_modules/alchemy/src/Cloudflare/Access/Application.ts` after any bump.
+ */
+const AccessApp = Cloudflare.Access.Application(
+  "InboxAccess",
+  Effect.gen(function* () {
+    const owner = yield* InboxOwner;
+    return {
+      type: "self_hosted" as const,
+      /** Bare, with no path — Cloudflare refuses a path when OAuth is on. */
+      domain: APP_DOMAIN,
+      allowedIdps: [CLOUDFLARE_IDP],
+      autoRedirectToIdentity: true,
+      policies: [owner.policyId],
+      oauthConfiguration: {
+        enabled: true,
+        dynamicClientRegistration: { enabled: true },
+      },
+    };
+  }),
+);
+
+/**
  * The app: React Router, built by this package's own `vite.config.ts` with
  * alchemy's Cloudflare plugin appended, and deployed as the Worker.
  *
@@ -113,6 +152,7 @@ export class Inbox extends Cloudflare.Website.Vite<Inbox>()(
   Effect.gen(function* () {
     const path = yield* Path;
     const { local } = yield* Deployment;
+    const access = yield* AccessApp;
 
     return {
       name: WORKER_NAME,
@@ -148,7 +188,31 @@ export class Inbox extends Cloudflare.Website.Vite<Inbox>()(
       env: {
         DOMAINS: APP_DOMAIN,
         EMAIL_ADDRESSES,
-        POLICY_AUD: ACCESS_APP_AUD,
+        /**
+         * The application's OWN aud, not a copy of it. `workers/app.ts` verifies
+         * the Access JWT against this, so sourcing the value it checks and the
+         * value Access mints from one resource is what makes them unable to
+         * disagree.
+         *
+         * THE CAST IS THE POINT, and it is not a lie: it declares what the
+         * WORKER receives, which is the resolved string, not the Output the
+         * deploy passes.
+         *
+         * `WorkerBindingProps` accepts a `WorkerBindingResource` or an `Effect`
+         * of one, and `Output` is neither. An Output-valued binding therefore
+         * fails the `const Bindings` constraint, inference falls back to `{}`,
+         * and `InferEnv` below degrades to a union of every binding type alchemy
+         * knows — surfacing as ~70 errors in `workers/` about
+         * `env.MAILBOX.idFromName` and `env.BUCKET`, none of which name this
+         * line. `mezedes` passes an Output here and never notices, because it
+         * hand-writes its `Env` rather than deriving one.
+         *
+         * `Effect.flatten(access.aud.asEffect())` satisfies the constraint and
+         * DEPLOYS BROKEN: an Accessor only resolves inside a `RuntimeContext`,
+         * so binding fails with `Service not found: RuntimeContext`. Typechecking
+         * green is not evidence here; only a deploy is.
+         */
+        POLICY_AUD: access.aud.as<string>() as unknown as string,
         TEAM_DOMAIN,
         /** Pinned to the live bucket's name, and adopted in place. */
         BUCKET: Cloudflare.R2.Bucket("Bucket", { name: WORKER_NAME }),
@@ -165,7 +229,18 @@ export class Inbox extends Cloudflare.Website.Vite<Inbox>()(
         EMAIL_MCP: Cloudflare.DurableObject<EmailMCP>("EmailMCP"),
       },
     };
-  }),
+    /**
+     * `orDie` is not decoration. `Website.Vite`'s props overload only accepts an
+     * Effect whose ERROR channel is `never`; yielding `AccessApp` above widens
+     * it, inference falls back to `Bindings = {}`, and `InferEnv` below silently
+     * degrades to a union of every binding type alchemy knows. That surfaces
+     * seventy type errors in the Worker code — `env.MAILBOX.idFromName` gone,
+     * `env.BUCKET` no longer an R2Bucket — none of which mention this line.
+     *
+     * A failure resolving the gate is a deploy-time fatal anyway; there is no
+     * inbox without it.
+     */
+  }).pipe(Effect.orDie),
 ) {}
 
 /** The runtime env, derived from the bindings above. Read by `workers/types.ts`. */
@@ -182,17 +257,13 @@ export const InboxModule = Effect.gen(function* () {
   const { local } = yield* Deployment;
 
   /**
-   * Attached to the dashboard-managed application by `aud`, not by reference.
-   * `adopt` matches the live policy on `ACCESS_POLICY_NAME`.
+   * The gate and its policy come along with the Worker — `Inbox` yields
+   * `AccessApp` for its `POLICY_AUD`, which yields `InboxOwner` for its
+   * `policies`. Declaring them again here would be a second reference to the
+   * same two resources, not a second pair.
    */
-  yield* Cloudflare.Access.Policy("AccessPolicy", {
-    name: ACCESS_POLICY_NAME,
-    decision: "allow",
-    include: ACCESS_ALLOWED_EMAILS.map((addr) => ({ email: { email: addr } })),
-    adopt: true,
-  });
-
   const site = yield* Inbox;
+  const access = yield* AccessApp;
 
   /**
    * ZONE-LEVEL, and therefore skipped under `alchemy dev`. A dev session cannot
@@ -201,7 +272,7 @@ export const InboxModule = Effect.gen(function* () {
    * benefit. See `Deployment` for why that matters more here than elsewhere.
    */
   if (local) {
-    return { url: `https://${APP_DOMAIN}`, workerName: site.workerName, accessAud: ACCESS_APP_AUD };
+    return { url: `https://${APP_DOMAIN}`, workerName: site.workerName, accessAud: access.aud };
   }
 
   /**
@@ -228,6 +299,6 @@ export const InboxModule = Effect.gen(function* () {
   return {
     url: `https://${APP_DOMAIN}`,
     workerName: site.workerName,
-    accessAud: ACCESS_APP_AUD,
+    accessAud: access.aud,
   };
 });

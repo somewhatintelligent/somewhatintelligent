@@ -33,10 +33,18 @@ runtime env type comes from `module.ts`, where the bindings are declared, so
 keyed to the hosting script, so renaming it orphans every mailbox rather than
 moving it. The `-si` is a fossil of the retired scope.
 
-**The Access application is dashboard-managed**, and its `aud` is a literal in
-`module.ts`. Declaring it as a resource would create a _second_ application on
-the same hostname with a fresh `aud`, which locks everyone out. The reasoning,
-and the alchemy source it was verified against, are in the comment there.
+**The Access application is a resource now, and re-declaring one is a lockout.**
+`Access.Application`'s reconcile observes only by a persisted `applicationId`,
+so a fresh logical id against a live hostname plans a blind `create` — and
+Cloudflare accepts a _second_ application on the same domain with a new `aud`.
+Getting here meant deleting the old dashboard-managed app first. If this
+resource's state is ever lost, delete the app before re-applying; do not let
+alchemy create alongside it.
+
+**`POLICY_AUD` is an `Effect`, not `access.aud.as<string>()`.** An Output-valued
+binding fails the `const Bindings` constraint and `InferEnv` silently degrades to
+a union of every binding type — surfacing as ~70 errors in `workers/` that never
+mention the line responsible. The comment in `module.ts` has the detail.
 
 **`drizzle-orm` is pinned to 0.45**, not the workspace catalog's 1.0. The
 mailbox DO uses `drizzle(storage, { schema })`, which 1.0 replaced.
