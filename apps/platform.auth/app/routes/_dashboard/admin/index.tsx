@@ -17,10 +17,7 @@ function AdminDashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-grid">
-        <h1 className="type-page-title">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">The state of things, such as it is.</p>
-      </div>
+      <p className="mb-grid text-sm text-muted-foreground">The state of things, such as it is.</p>
 
       <div className="grid grid-cols-3 gap-grid">
         {stats.map((stat) => (

@@ -88,10 +88,6 @@ function ProvidersPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-grid">
-        <h1 className="type-page-title">Providers</h1>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Linked Providers</CardTitle>

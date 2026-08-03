@@ -37,14 +37,13 @@ function ConnectionsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-grid flex items-center justify-between">
-        <h1 className="type-page-title">Connections</h1>
-        {connections.length > 0 && (
+      {connections.length > 0 && (
+        <div className="mb-grid flex items-center justify-end">
           <Badge variant="secondary" size="lg">
             {connections.length} app{connections.length !== 1 && "s"}
           </Badge>
-        )}
-      </div>
+        </div>
+      )}
 
       {connections.length === 0 ? (
         <Card className="flex-1">

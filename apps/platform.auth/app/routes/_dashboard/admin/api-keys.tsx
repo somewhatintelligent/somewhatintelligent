@@ -13,12 +13,9 @@ function ApiKeysPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-section">
-        <h1 className="type-page-title">API Keys</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every key someone made. Whether they should have is another matter.
-        </p>
-      </div>
+      <p className="mb-section text-sm text-muted-foreground">
+        Every key someone made. Whether they should have is another matter.
+      </p>
 
       <div className="flex-1 overflow-x-auto rounded-sm border-2 border-border-strong">
         <table className="w-full min-w-[600px] border-collapse text-sm">

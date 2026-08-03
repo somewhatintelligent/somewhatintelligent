@@ -64,12 +64,9 @@ function UsersPage() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="mb-section flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="type-page-title">Users</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Everyone who has, ostensibly, proven they exist.
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Everyone who has, ostensibly, proven they exist.
+        </p>
         <Button onClick={() => setAddOpen(true)}>Add user</Button>
       </div>
 

@@ -50,8 +50,6 @@ function AccountPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-grid">
-      <h1 className="type-page-title">Account</h1>
-
       <IdentityCard user={identityUser} />
 
       <Card>

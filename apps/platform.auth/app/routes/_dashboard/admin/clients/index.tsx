@@ -16,12 +16,9 @@ function ClientsPage() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="mb-section flex items-baseline justify-between">
-        <div>
-          <h1 className="type-page-title">OAuth Clients</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The applications that have been granted the privilege of asking you who you are.
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          The applications that have been granted the privilege of asking you who you are.
+        </p>
         <Link to="/admin/clients/new">
           <Button size="sm">Add Client</Button>
         </Link>

@@ -24,12 +24,9 @@ export const Route = createFileRoute("/_dashboard/admin/clients/new")({
 function NewClientPage() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-section">
-        <h1 className="type-page-title">Register Client</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          A new application wishes to participate in the identity apparatus.
-        </p>
-      </div>
+      <p className="mb-section text-sm text-muted-foreground">
+        A new application wishes to participate in the identity apparatus.
+      </p>
 
       <CreateClientForm />
     </div>
