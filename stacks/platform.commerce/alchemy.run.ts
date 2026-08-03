@@ -6,13 +6,16 @@ import { Layer } from "effect";
 
 import { CommerceModule, StaffPolicy } from "platform.commerce/module";
 import * as StripeDev from "platform.commerce/infrastructure/StripeDev";
-import { PRODUCTION_STAGE } from "platform.names";
+import { COMMERCE_STACK, PRODUCTION_STAGE } from "platform.names";
 
 import { PlatformAccess } from "../platform.access/index.ts";
 
 /**
- * `"PlatformCommerce"` is the state key — state is keyed by stack name and
- * stage, so changing it strands everything the old name owns.
+ * `COMMERCE_STACK` ("PlatformCommerce") is the state key — state is keyed by
+ * stack name and stage, so changing it strands everything the old name owns.
+ * It is a shared name rather than a literal because `platform.site` names this
+ * stack in a `Worker.ref` to bind Commerce, and a ref's target is a string no
+ * import graph can check.
  *
  * Drizzle's provider is here for the same reason `platform.auth`'s is: the
  * schema resource generates migrations at deploy time and Cloudflare's provider
@@ -59,7 +62,7 @@ import { PlatformAccess } from "../platform.access/index.ts";
 const stripeArmed = await Effect.runPromise(StripeDev.armIfDevHost());
 
 export default Alchemy.Stack(
-  "PlatformCommerce",
+  COMMERCE_STACK,
   {
     providers: Layer.mergeAll(Cloudflare.providers(), Drizzle.providers()),
     state: Cloudflare.state(),

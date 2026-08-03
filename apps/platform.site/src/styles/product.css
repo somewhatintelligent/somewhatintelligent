@@ -1,0 +1,237 @@
+/*
+ * One object's page.
+ *
+ * The only route that INVERTS ground and figure — hence the `--color-inverse`
+ * pair read on `.product-main` rather than a theme set on the document, which
+ * would take the site chrome with it.
+ */
+
+/* Carried over from the global sheet of the site this replaces, scoped to the
+   one page that draws them. The stage is INVERTED — this is the only route
+   that flips ground and figure, which is why the tokens are read here rather
+   than set on the document. */
+.product-main {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 72%) minmax(190px, 28%);
+  overflow: hidden;
+  background: var(--color-inverse);
+  color: var(--color-inverse-foreground);
+}
+
+.product-stage {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 50%) minmax(220px, 21%) minmax(330px, 29%);
+  overflow: hidden;
+}
+
+.product-hero-image,
+.product-proof-column figure {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+.product-hero-image {
+  border-right: 1px solid var(--color-border);
+}
+
+.product-hero-image img,
+.product-proof-column img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-hero-image img {
+  filter: grayscale(0.32) contrast(1.05);
+  object-position: 65% center;
+}
+
+.product-proof-column {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: 61% 39%;
+  border-right: 1px solid var(--color-border);
+}
+
+.product-proof-column figure:first-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.product-proof-column figure:first-child img {
+  filter: grayscale(0.35) contrast(1.1);
+  object-position: 65% center;
+}
+
+.product-proof-column figure:last-child img {
+  filter: grayscale(1) contrast(1.25);
+  object-position: center 19%;
+}
+
+.product-sheet {
+  min-width: 0;
+  overflow: hidden;
+  padding: 28px 34px;
+}
+
+.product-sheet > p:first-child,
+.product-state {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.product-sheet h1 {
+  margin-top: 18px;
+  font-family: var(--font-display);
+  font-size: clamp(56px, 5.4vw, 86px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.78;
+}
+
+.product-description {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.product-price {
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: 19px;
+}
+
+.product-size-field {
+  min-width: 0;
+  margin-top: 16px;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.product-size-field > p {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.product-sizes {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.product-size {
+  display: flex;
+  height: 35px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* Struck through rather than merely dimmed: a sold-out size has to read as
+   unavailable without relying on contrast alone. */
+.product-size.is-gone {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.product-state {
+  margin-top: 13px;
+}
+
+.product-notes {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--color-border);
+}
+
+.product-notes article {
+  min-width: 0;
+  padding: 22px 30px;
+  border-right: 1px solid var(--color-border);
+}
+
+.product-notes article:last-child {
+  border-right: 0;
+}
+
+.product-notes h2 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.product-notes p {
+  margin-top: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.product-notes a {
+  text-decoration: underline;
+}
+
+@media (max-width: 1023px) {
+  .product-main {
+    display: block;
+    overflow: visible;
+  }
+
+  .product-stage {
+    display: block;
+    overflow: visible;
+  }
+
+  .product-hero-image {
+    height: 520px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .product-proof-column {
+    height: 420px;
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr 1fr;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .product-proof-column figure:first-child {
+    border-right: 1px solid var(--color-border);
+    border-bottom: 0;
+  }
+
+  .product-sheet {
+    padding: 30px 18px 36px;
+  }
+
+  .product-sheet h1 {
+    font-size: 19vw;
+  }
+
+  .product-notes {
+    display: block;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .product-notes article {
+    min-height: 150px;
+    padding: 25px 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+}

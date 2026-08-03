@@ -1,0 +1,146 @@
+---
+// The shop composition, carried over. A drawn OBJECTS plane over a ledger of
+// releases, one bordered row per object. The SVG title plane and the editorial
+// "goods are arguments with sizing" note are site-owned compositional surfaces —
+// layout, not document content; the document drives the accessible title, the
+// deck, and what the ledger says when it is empty. The ROWS are catalogue data
+// and never come from the document.
+//
+// A pure function of its props — the READ happens in the route, not here. Hand
+// it a page of releases and the ledger renders; hand it an empty one and the
+// plate does.
+import SiteFooter from "../SiteFooter.astro";
+import SiteHeader from "../SiteHeader.astro";
+import { formatPrice } from "../../lib/format.ts";
+import type { ProductCardDTO } from "../../lib/commerce.ts";
+import type { ShopDocument } from "../../lib/shop-document.ts";
+
+interface Props {
+  document: ShopDocument;
+  products: readonly ProductCardDTO[];
+  /**
+   * Whether the catalogue answered. `false` is NOT "no products" — it is the
+   * read having failed, and it renders different words so an outage cannot be
+   * mistaken for an empty shop.
+   */
+  reachable?: boolean;
+}
+
+const { document: doc, products, reachable = true } = Astro.props;
+
+/**
+ * THE PLATE'S WORDS, decided here rather than branch-by-branch in the markup.
+ *
+ * Every field below answers the same question — did the catalogue reply? —
+ * so asking it once yields one object instead of six ternaries interleaved
+ * through the template, where a future edit can update five of them.
+ */
+const plate = reachable
+  ? {
+      heading: "No objects yet",
+      body: doc.emptyMessage,
+      status: "Unpublished",
+      kicker: "unpublished",
+      stamp: "COMING SOON",
+      label: "No objects published",
+    }
+  : {
+      heading: "Catalogue unavailable",
+      body: doc.unavailableMessage,
+      status: "Unreachable",
+      kicker: "unreachable",
+      stamp: "OFFLINE",
+      label: "Catalogue unavailable",
+    };
+---
+
+<div class="site-frame shop-frame">
+  <SiteHeader />
+
+  <main class="shop-main">
+    <section class="objects-intro" aria-labelledby="objects-title">
+      <h1 id="objects-title">
+        <span class="sr-only">{doc.title}</span>
+        <svg
+          aria-hidden="true"
+          class="objects-title-plane"
+          preserveAspectRatio="none"
+          viewBox="0 0 1000 1000"
+        >
+          <text x="20" y="912" font-size="1110" lengthAdjust="spacingAndGlyphs" textLength="930">
+            OBJECTS
+          </text>
+        </svg>
+      </h1>
+      <p class="objects-deck">{doc.deck}</p>
+      <p class="objects-note">goods are<br />arguments<br />with sizing.</p>
+    </section>
+
+    <section class="object-ledger" aria-label="Object releases">
+      {
+        products.length === 0 ? (
+          <article class="object-entry object-entry-compact object-entry-placeholder">
+            <span class="object-number">01</span>
+            <div class="object-meta">
+              <h2>{plate.heading}</h2>
+              <p>{plate.body}</p>
+              <dl>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{plate.status}</dd>
+                </div>
+                <div>
+                  <dt>Price</dt>
+                  <dd>—</dd>
+                </div>
+              </dl>
+            </div>
+            <div class="object-placeholder-field" aria-label={plate.label}>
+              <span>Object / {plate.kicker}</span>
+              <strong>{plate.stamp}</strong>
+            </div>
+          </article>
+        ) : (
+          products.map((product, i) => (
+            <article class="object-entry object-entry-current" id={product.slug}>
+              <span class="object-number">{String(i + 1).padStart(2, "0")}</span>
+              <div class="object-meta">
+                <h2>{product.title}</h2>
+                <p>Release {product.version}</p>
+                <dl>
+                  <div>
+                    <dt>Price</dt>
+                    <dd>{formatPrice(product.priceCents)}</dd>
+                  </div>
+                </dl>
+              </div>
+              {product.coverHref ? (
+                <figure class="object-image">
+                  <img src={product.coverHref} alt={`${product.title} cover`} />
+                </figure>
+              ) : (
+                <div class="object-placeholder-field" aria-label="No cover image">
+                  <span>Object / {product.slug}</span>
+                  <strong>NO IMAGE</strong>
+                </div>
+              )}
+              <div class="object-operational">
+                <dl>
+                  <div>
+                    <dt>Version</dt>
+                    <dd>{product.version}</dd>
+                  </div>
+                </dl>
+                <a href={`/shop/${product.slug}`}>
+                  View object <span aria-hidden="true">→</span>
+                </a>
+              </div>
+            </article>
+          ))
+        )
+      }
+    </section>
+  </main>
+
+  <SiteFooter />
+</div>

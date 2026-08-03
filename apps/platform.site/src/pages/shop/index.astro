@@ -1,0 +1,32 @@
+---
+import Base from "../../layouts/Base.astro";
+import ShopView from "../../components/views/ShopView.astro";
+import { SHOP_DOCUMENT } from "../../lib/shop-document.ts";
+import { listStorefront, type ProductCardDTO } from "../../lib/commerce.ts";
+import "../../styles/shop.css";
+
+// Copy/SEO come from the committed document rather than the Publisher page read
+// this route used to perform — see `src/lib/shop-document.ts`. The LEDGER ROWS
+// come from commerce over the service binding, each sourced from a product's
+// ACTIVE RELEASE, so an operator's unpublished draft edit changes nothing here.
+const doc = SHOP_DOCUMENT;
+
+// AN EMPTY SHOP AND AN UNREACHABLE ONE ARE DIFFERENT PAGES, which is why the
+// failure is caught rather than left to propagate. Letting it throw serves
+// Astro's 500 with the site chrome gone; swallowing it into an empty list tells
+// a shopper the shop is empty when it is broken — the version nobody reports.
+// The 503 is how anything that is not a human finds out.
+let products: readonly ProductCardDTO[] = [];
+let reachable = true;
+try {
+  products = await listStorefront();
+} catch (cause) {
+  reachable = false;
+  Astro.response.status = 503;
+  console.error("site.shop.list_failed", cause);
+}
+---
+
+<Base title={doc.seo.title} description={doc.seo.description}>
+  <ShopView document={doc} products={products} reachable={reachable} />
+</Base>

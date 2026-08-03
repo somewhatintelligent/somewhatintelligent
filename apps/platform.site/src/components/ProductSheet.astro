@@ -1,0 +1,42 @@
+---
+// The spec sheet — the right-hand column of an object's page.
+//
+// Split out of the route because it holds nearly all of that page's branching:
+// the description may be absent, the size grid may be absent, and every size
+// carries its own availability. The route is left as the page's SHAPE (three
+// plates and a notes rail); this is the part with decisions in it.
+import { formatPrice } from "../lib/format.ts";
+import ProductSizes from "./ProductSizes.astro";
+import type { StorefrontProductDTO } from "../lib/commerce.ts";
+
+interface Props {
+  product: StorefrontProductDTO;
+  /** Already decided by the route — see its `availability`. */
+  availability: string;
+  /** Escaped paragraphs. Operator markdown NEVER reaches `set:html`. */
+  paragraphs: readonly string[];
+}
+
+const { product, availability, paragraphs } = Astro.props;
+---
+
+<section class="product-sheet">
+  <p>Object / {product.slug} / release {product.version}</p>
+  <h1 id="product-title">{product.title}</h1>
+
+  {
+    paragraphs.length > 0 && (
+      <div class="product-description">
+        {paragraphs.map((p) => (
+          <p>{p}</p>
+        ))}
+      </div>
+    )
+  }
+
+  <p class="product-price">{formatPrice(product.priceCents)}</p>
+
+  {product.variants.length > 0 && <ProductSizes variants={product.variants} />}
+
+  <p class="product-state" aria-live="polite">{availability}</p>
+</section>

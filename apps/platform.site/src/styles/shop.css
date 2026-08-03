@@ -1,0 +1,315 @@
+/*
+ * The object ledger.
+ *
+ * A SHEET RATHER THAN A SCOPED BLOCK, and for the reason the site this replaces
+ * had it global: these surfaces are shared by the shop index and the routes
+ * that grow out of it, and Astro's scoping stops at one component — so keeping
+ * them inline means either one enormous file or the same rules copied into
+ * every piece that draws part of a row. `AboutView` already carries a copy of
+ * `.object-image` from exactly that pressure.
+ *
+ * Imported by the route, not by the view, so the sheet loads once per page
+ * rather than once per component that happens to use a class from it.
+ */
+
+/* The ledger's own surfaces. In the site this replaces these were global —
+   `/shop`, the object detail page and the operator's draft preview all drew
+   on them; here the shop page is the only thing that renders a ledger, so
+   they are scoped to it and the detail page brings its own the day it lands. */
+.shop-main {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: 242px minmax(0, 1fr);
+}
+
+.objects-intro {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.objects-intro h1 {
+  position: absolute;
+  inset: 0 auto 0 14px;
+  width: 37.5%;
+}
+
+.objects-title-plane {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.objects-title-plane text {
+  fill: currentColor;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.objects-deck {
+  position: absolute;
+  top: 26px;
+  right: 5%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.objects-note {
+  position: absolute;
+  right: 23%;
+  bottom: 36px;
+  color: var(--color-primary);
+  font-family: var(--font-editorial);
+  font-size: clamp(23px, 2.1vw, 34px);
+  font-style: italic;
+  line-height: 1.02;
+  transform: rotate(-4deg);
+}
+
+.object-ledger {
+  display: grid;
+  min-height: 0;
+  grid-auto-rows: minmax(0, 1fr);
+  margin: 0 24px;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+}
+
+.object-entry {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+}
+
+.object-entry:last-child {
+  border-bottom: 0;
+}
+
+/* Three columns without an operational rail — the empty plate has nothing to
+   put in one. */
+.object-entry-compact {
+  grid-template-columns: 56px 28.6% minmax(0, 1fr);
+}
+
+.object-entry-current {
+  grid-template-columns: 56px 28.6% minmax(0, 1fr) 24%;
+}
+
+.object-number {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 21px;
+  border-right: 1px solid var(--color-border);
+  font-size: 15px;
+}
+
+.object-meta {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 18px 24px;
+  border-right: 1px solid var(--color-border);
+  text-transform: uppercase;
+}
+
+.object-meta h2 {
+  font-family: var(--font-mono);
+  font-size: clamp(22px, 2vw, 32px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.03em;
+}
+
+.object-meta > p {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.object-meta dl {
+  display: grid;
+  grid-template-columns: 1fr 0.65fr;
+  margin-top: auto;
+  font-size: 12px;
+}
+
+.object-meta dt,
+.object-operational dt {
+  margin-bottom: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.object-meta dd,
+.object-operational dd {
+  text-transform: uppercase;
+}
+
+.object-placeholder-field {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+}
+
+.object-placeholder-field::before,
+.object-placeholder-field::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 115%;
+  height: 1px;
+  background: var(--color-border);
+  content: "";
+}
+
+.object-placeholder-field::before {
+  transform: translate(-50%, -50%) rotate(12deg);
+}
+
+.object-placeholder-field::after {
+  transform: translate(-50%, -50%) rotate(-12deg);
+}
+
+.object-placeholder-field > span {
+  position: absolute;
+  z-index: 1;
+  top: 16px;
+  left: 18px;
+  padding: 4px 7px;
+  background: var(--color-surface-sunken);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.object-placeholder-field strong {
+  position: relative;
+  z-index: 1;
+  padding: 6px 16px;
+  background: var(--color-surface-sunken);
+  font-family: var(--font-display);
+  font-size: clamp(50px, 5vw, 80px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.8;
+}
+
+.object-operational {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px;
+  text-transform: uppercase;
+}
+
+.object-operational dl {
+  display: grid;
+  gap: 13px;
+  font-size: 12px;
+}
+
+.object-operational dl > div {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.object-operational a {
+  display: flex;
+  height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-size: 13px;
+}
+
+/* Below the desktop frame the shell stops being a fixed viewport grid (see
+   `styles.css`), so the ledger scrolls with the document and every entry
+   restacks: the number keeps a full-height rail, the meta column takes the
+   rest of the first band, and the image drops beneath it. */
+@media (max-width: 1023px) {
+  .shop-main {
+    display: block;
+  }
+
+  .objects-intro {
+    height: 250px;
+  }
+
+  .objects-intro h1 {
+    right: 18px;
+    width: auto;
+  }
+
+  .objects-deck {
+    top: 18px;
+    right: 18px;
+    font-size: 9px;
+  }
+
+  .objects-note {
+    right: 10%;
+    bottom: 26px;
+    font-size: clamp(21px, 7vw, 29px);
+  }
+
+  .object-ledger {
+    display: block;
+    margin: 0;
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .object-entry-compact {
+    min-height: 520px;
+    grid-template-columns: 44px repeat(2, minmax(0, 1fr));
+    grid-template-rows: 210px 310px;
+  }
+
+  .object-entry-current {
+    min-height: 760px;
+    grid-template-columns: 44px repeat(2, minmax(0, 1fr));
+    grid-template-rows: 210px 290px 260px;
+  }
+
+  .object-number {
+    grid-row: 1 / -1;
+  }
+
+  .object-meta {
+    grid-column: 2 / -1;
+    padding: 20px;
+  }
+
+  .object-image {
+    grid-row: 2;
+  }
+
+  .object-placeholder-field {
+    grid-row: 2;
+    grid-column: 2 / -1;
+  }
+
+  .object-placeholder-field strong {
+    font-size: 14vw;
+  }
+
+  .object-operational {
+    grid-row: 3;
+    grid-column: 2 / -1;
+  }
+}

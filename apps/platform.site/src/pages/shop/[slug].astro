@@ -1,0 +1,123 @@
+---
+// One object. Carried over from the site this replaces: an inverted stage —
+// hero plate, two evidence figures, and the spec sheet — over a notes rail.
+//
+// EVERYTHING HERE IS THE ACTIVE RELEASE. Title, price, description and the
+// frozen image set come from what was published; the SIZES are live, because
+// inventory deliberately sits outside the release model — pinning stock into a
+// release would resurrect sold-out sizes on republish.
+import Base from "../../layouts/Base.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import ProductSheet from "../../components/ProductSheet.astro";
+import { getStorefrontProduct } from "../../lib/commerce.ts";
+import "../../styles/product.css";
+
+const { slug } = Astro.params;
+
+// A MISSING SLUG AND AN UNREACHABLE CATALOGUE ARE DIFFERENT ANSWERS. `null` is
+// the domain saying no active release answers to this slug — a real 404. A
+// throw is the binding failing, which is a 503: the object may well exist, and
+// telling a crawler it is permanently gone would be a lie with consequences.
+let product: Awaited<ReturnType<typeof getStorefrontProduct>> = null;
+try {
+  product = slug ? await getStorefrontProduct(slug) : null;
+} catch (cause) {
+  console.error("site.shop.product_failed", cause);
+  return new Response(null, { status: 503 });
+}
+if (!product) return new Response(null, { status: 404 });
+
+const [heroImage, ...rest] = product.media;
+/**
+ * The plates, resolved to what the markup renders. An `alt` falls back to the
+ * title here rather than in three separate `||`s down the page, and `proof` is
+ * cut to the two the layout has room for — the stage is a fixed three-column
+ * grid, not a gallery.
+ */
+const hero = heroImage ? { href: heroImage.href, alt: heroImage.alt || product.title } : null;
+const proof = rest.slice(0, 2).map((m) => ({ href: m.href, alt: m.alt || product.title }));
+// Operator markdown renders as ESCAPED PARAGRAPHS ONLY — never `set:html`. The
+// description is operator-authored and reaches this page unsanitised; splitting
+// on blank lines gets the shape of prose without handing a template the ability
+// to inject markup.
+const paragraphs = (product.descriptionMarkdown ?? "")
+  .split(/\n{2,}/)
+  .map((p) => p.trim())
+  .filter(Boolean);
+const seoDescription = paragraphs[0] ?? `${product.title} — object by somewhatintelligent.`;
+
+const sellable = product.variants.filter((v) => v.available);
+
+/**
+ * The two sentences that depend on what is buyable, settled here rather than as
+ * ternary chains in the markup — the template should read as the page's shape,
+ * not as the decision that produced it.
+ *
+ * "No sizes published" and "Sold out" are DIFFERENT facts: the first is an
+ * operator who has not finished, the second is a run that is spoken for.
+ */
+const availability =
+  product.variants.length === 0
+    ? "No sizes published."
+    : sellable.length === 0
+      ? "Sold out."
+      : "Ordering opens shortly.";
+
+const sizing =
+  sellable.length > 0
+    ? `Available in ${sellable.map((v) => v.size).join(", ")}.`
+    : "Nothing in stock at the moment.";
+---
+
+<Base title={`${product.title} — somewhatintelligent`} description={seoDescription}>
+  <div class="site-frame product-frame">
+    <SiteHeader />
+
+    <main class="product-main">
+      <section class="product-stage" aria-labelledby="product-title">
+        <figure class="product-hero-image">
+          {hero && <img src={hero.href} alt={hero.alt} />}
+        </figure>
+
+        <div class="product-proof-column" aria-label="Object evidence">
+          {
+            proof.map((m) => (
+              <figure>
+                <img src={m.href} alt={m.alt} />
+              </figure>
+            ))
+          }
+        </div>
+
+        <ProductSheet product={product} availability={availability} paragraphs={paragraphs} />
+      </section>
+
+      <section class="product-notes" aria-label="Object notes">
+        <article>
+          <h2>Release</h2>
+          <p>
+            Version {product.version}. What is shown here is the published release — drafts change
+            nothing until they ship.
+          </p>
+        </article>
+        <article>
+          <h2>Sizing</h2>
+          <p>{sizing}</p>
+        </article>
+        <article>
+          <h2>Make</h2>
+          <p>Printed to order in small runs. Each object is numbered by release, not by unit.</p>
+        </article>
+        <article>
+          <h2>Returns</h2>
+          <p>
+            Made-to-order goods are covered by the <a href="/refunds">refund policy</a>.
+          </p>
+        </article>
+      </section>
+    </main>
+
+    <SiteFooter />
+  </div>
+</Base>

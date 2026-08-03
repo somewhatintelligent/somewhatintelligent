@@ -159,6 +159,22 @@ a:focus-visible {
   margin-left: auto;
 }
 
+/* The bordered, desaturated object figure. Shared by the shop ledger and the
+   about page's portrait plate — two views, one rule, so it lives with the
+   chrome rather than being copied into each. */
+.object-image {
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+}
+
+.object-image img {
+  width: 100%;
+  height: 100%;
+  filter: grayscale(0.7) contrast(1.08);
+  object-fit: cover;
+}
+
 @media (max-width: 1023px) {
   body {
     overflow: auto;

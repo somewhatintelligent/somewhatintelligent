@@ -1,0 +1,37 @@
+---
+// The size grid.
+//
+// A LIST, NOT BUTTONS. `available` is derived server-side from BOTH counters —
+// live stock and the pre-order run — so it is the same judgement checkout will
+// make. Nothing here is interactive because nothing on this deployment can take
+// an order yet, and a disabled "Add to cart" would imply otherwise.
+import type { StorefrontProductDTO } from "../lib/commerce.ts";
+
+interface Props {
+  variants: StorefrontProductDTO["variants"];
+}
+
+const { variants } = Astro.props;
+
+// Decided here so the markup carries no conditions: the strike-through is
+// invisible to a screen reader, hence the spoken half.
+const sizes = variants.map((v) => ({
+  size: v.size,
+  gone: !v.available,
+  spoken: v.available ? "available" : "sold out",
+}));
+---
+
+<div class="product-size-field">
+  <p>Size</p>
+  <ul class="product-sizes" role="list">
+    {
+      sizes.map((s) => (
+        <li class:list={["product-size", { "is-gone": s.gone }]}>
+          <span>{s.size}</span>
+          <span class="sr-only">{s.spoken}</span>
+        </li>
+      ))
+    }
+  </ul>
+</div>

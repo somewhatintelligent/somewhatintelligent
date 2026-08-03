@@ -1,0 +1,49 @@
+/**
+ * `GET /media/:id` — product images, streamed from the commerce Media worker.
+ *
+ * WHY THIS ROUTE EXISTS AT ALL. `Contracts.mediaHref` spells a media address as
+ * the root-relative `/media/<id>`, so the href is part of the data a product row
+ * carries rather than something a consumer composes. Serving it here means one
+ * origin for the page and its images: no CORS, no second hostname in the markup,
+ * and no rewrite pass over every row.
+ *
+ * A BINDING, NOT A FETCH TO A PUBLIC URL. The Media worker does have one, but
+ * routing through the binding keeps the hop inside the account and means this
+ * site never has to hold — or leak — another origin.
+ *
+ * THE UPSTREAM RESPONSE PASSES THROUGH UNTOUCHED. Media already sets the
+ * content type and an immutable one-year cache header (a media id names exactly
+ * one set of bytes forever), and it decides what is public: `openMedia` joins
+ * through `product.status = 'active'`, so an archived product's images stop
+ * being served the moment it is archived. Re-deriving any of that here would be
+ * a second policy to keep in step with the first — and the one that ships the
+ * bytes should be the one that decides they are public.
+ *
+ * The body is a STREAM and is forwarded as one. Buffering an image into a
+ * Worker's memory to hand it straight back is pure cost.
+ */
+import type { APIRoute } from "astro";
+import { env } from "cloudflare:workers";
+
+export const prerender = false;
+
+export const GET: APIRoute = async ({ params, request }) => {
+  const id = params.id;
+  if (!id) return new Response(null, { status: 404 });
+
+  try {
+    /**
+     * The path is REBUILT rather than the inbound request forwarded as-is.
+     * Media matches `/media/:id` exactly and refuses anything else, so a query
+     * string or a stray trailing segment on the way in would 404 against a
+     * worker that holds the bytes. `encodeURIComponent` because the id lands in
+     * a path segment.
+     */
+    const upstream = new URL(`/media/${encodeURIComponent(id)}`, request.url);
+    return await env.MEDIA.fetch(upstream, { method: "GET" });
+  } catch {
+    // The binding itself failed — the image is not missing, the hop is. 502
+    // says so; a 404 here would read as "this product has no cover".
+    return new Response(null, { status: 502 });
+  }
+};

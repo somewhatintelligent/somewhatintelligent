@@ -111,21 +111,6 @@ const { document: doc } = Astro.props;
     font-weight: 700;
   }
 
-  /* The object figure is only reachable when the document carries a portrait
-     media id; the site this replaces styled it globally for the shop ledger. */
-  .object-image {
-    min-width: 0;
-    overflow: hidden;
-    border-right: 1px solid var(--color-border);
-  }
-
-  .object-image img {
-    width: 100%;
-    height: 100%;
-    filter: grayscale(0.7) contrast(1.08);
-    object-fit: cover;
-  }
-
   .person-portrait-placeholder {
     position: relative;
     min-width: 0;

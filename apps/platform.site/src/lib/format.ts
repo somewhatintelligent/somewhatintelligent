@@ -3,6 +3,21 @@
  * import from anywhere including client scripts.
  */
 
+/**
+ * Format integer cents as `$68 CAD` (whole) or `$68.50 CAD` (fractional).
+ *
+ * CENTS IN, and the currency is not a parameter. Prices cross the wire as
+ * integers and carry no currency of their own — `product_release` has a price
+ * column and no currency column, and an order's only defaults to `cad` — so a
+ * currency argument here would be a second place to disagree about a value the
+ * substrate holds exactly once. It becomes a parameter the day a price does.
+ */
+export function formatPrice(priceCents: number): string {
+  const dollars = priceCents / 100;
+  const body = Number.isInteger(dollars) ? String(dollars) : dollars.toFixed(2);
+  return `$${body} CAD`;
+}
+
 /** Format an epoch-ms timestamp as `18 Jul 2026` (UTC, locale-stable). */
 export function formatDate(epochMs: number): string {
   return new Intl.DateTimeFormat("en-GB", {
