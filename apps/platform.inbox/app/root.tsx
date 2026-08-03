@@ -26,6 +26,7 @@ import "./index.css";
  * loads on the server — everything else goes through the API and react-query.
  */
 export function loader({ context }: { context: AppLoadContext }): { version: AppVersion } {
+  // fallow-ignore-next-line unused-load-data-key -- the rule is SvelteKit's: it looks for a sibling `+page.svelte` reading `data.version`, or a project-wide `page.data.version`. This is React Router, where the consumer is `Sidebar.tsx`'s `useRouteLoaderData<{ version: AppVersion }>("root")?.version` — a shape the rule cannot see, so it reports every loader key this app returns. Suppressed at the key rather than switched off in `.fallowrc.jsonc`, so a genuinely dead key in a future SvelteKit app is still reported.
   return { version: context.cloudflare.env.CF_VERSION_METADATA };
 }
 
