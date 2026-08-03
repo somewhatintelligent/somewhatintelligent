@@ -4,6 +4,7 @@
   // made `caches.default` unreachable — lib.dom's `CacheStorage` wins over the
   // Workers one, and they do not merge. The shell has its own config next to it,
   // which editors resolve automatically for files under `src/shell`.
+  "extends": "../../tsconfig.effect.json",
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],

@@ -78,7 +78,7 @@ describe("a request-boundary callback must reach its declared services", () => {
       // builds it here, then runs the inner one on a fiber carrying no
       // capability Layer. Yielding it would build and run on the same fiber,
       // which is the thing these tests exist to tell apart.
-      // @effect-diagnostics-next-line returnEffectInGen:off
+      // oxlint-disable-next-line effecttsgo/return-effect-in-gen
       return bae.configure({
         appName: "ctx",
         telemetry: { enabled: false },

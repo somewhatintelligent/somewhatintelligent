@@ -1,0 +1,34 @@
+{
+  // THE EFFECT LANGUAGE SERVICE, in the one place every project extends.
+  //
+  // Deliberately nothing but the plugin: the projects here disagree about
+  // `target`, `lib`, `module`, `types` and `jsx` for reasons written down in
+  // their own files (a Worker and a browser bundle cannot share a `lib`), so a
+  // base that carried compiler settings would have to relitigate all of that.
+  // This carries the one thing they should NOT disagree about.
+  //
+  // `diagnostics: false` because OXLINT OWNS FINDINGS. `effect-tsgo patch
+  // --oxlint` (run from the root `prepare` script) patches two binaries from
+  // one source of truth — the `tsc` inside `@typescript/typescript-*` and the
+  // Oxlint native binding — and both will happily report the same rule. Leaving
+  // diagnostics on here would surface every Effect finding twice in `vp check`
+  // and split suppression across two syntaxes: `@effect-diagnostics-next-line
+  // returnEffectInGen:off` for tsc against `oxlint-disable-next-line
+  // effecttsgo/return-effect-in-gen` for Oxlint. One channel, one comment form.
+  //
+  // What stays on is everything an editor wants and a linter cannot give:
+  // refactors, quickinfo, completions, goto and renames all default to true.
+  // That is the whole reason this file exists rather than nothing at all — the
+  // patched `tsc` is inert in a project that declares no plugin, so without an
+  // entry the language service is installed but never asked for anything.
+  //
+  // Rules are configured in `vite.config.ts` under `lint`, NOT here.
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": false
+      }
+    ]
+  }
+}

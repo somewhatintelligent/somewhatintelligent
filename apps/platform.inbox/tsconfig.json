@@ -6,6 +6,7 @@
   // `.react-router/types` via `rootDirs`, so a clean clone could not typecheck
   // until someone ran typegen. Both are gone; `app/vite-env.d.ts` carries the
   // one declaration typegen was supplying.
+  "extends": "../../tsconfig.effect.json",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],

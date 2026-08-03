@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig.effect.json",
   "compilerOptions": {
     "target": "esnext",
     "lib": ["es2023", "DOM", "DOM.Iterable"],

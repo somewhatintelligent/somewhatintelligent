@@ -27,7 +27,6 @@
     "@astrojs/cloudflare": "^14.1.7",
     "@astrojs/svelte": "^9.0.1",
     "@cloudflare/workers-types": "^5",
-    "@effect/language-service": "^0.87.1",
     "@types/bun": "^1.3.14",
     "@types/node": "^26.1.1",
     "astro": "^7",

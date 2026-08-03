@@ -1,4 +1,5 @@
 {
+  "extends": "./tsconfig.effect.json",
   "exclude": ["chemistry"],
   "compilerOptions": {
     "noEmit": true,
