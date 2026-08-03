@@ -1,0 +1,62 @@
+---
+import Base from "../layouts/Base.astro";
+import TxShell from "../components/TxShell.astro";
+
+// Terms of use. Static legal page linked from the site footer.
+---
+
+<Base title="Terms — somewhatintelligent" description="Terms of use for somewhatintelligent.">
+  <TxShell title="Terms" maxWidth={640}>
+    <div class="legal">
+      <p class="legal-updated">Last updated July 2026.</p>
+      <p>
+        By using this site or placing an order, you agree to these terms. If you do not agree,
+        please do not use the site.
+      </p>
+      <h2>Orders</h2>
+      <p>
+        Placing an order is an offer to purchase. We may accept or decline any order, and prices and
+        availability may change without notice.
+      </p>
+      <h2>Content</h2>
+      <p>
+        The text, images, and software on this site are our property or used with permission. You
+        may not reproduce them without consent.
+      </p>
+      <h2>Liability</h2>
+      <p>
+        The site and its contents are provided as is, without warranties of any kind. To the extent
+        permitted by law, we are not liable for indirect or consequential damages arising from your
+        use of the site.
+      </p>
+      <h2>Contact</h2>
+      <p>
+        Questions about these terms can be sent from the address on your order confirmation.
+      </p>
+    </div>
+  </TxShell>
+</Base>
+
+<style>
+  .legal p {
+    margin-top: 16px;
+  }
+
+  .legal-updated {
+    margin-top: 0;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal h2 {
+    margin-top: 28px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal a {
+    text-decoration: underline;
+  }
+</style>

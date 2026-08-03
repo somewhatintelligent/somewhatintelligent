@@ -1,0 +1,303 @@
+---
+// The about composition, carried over verbatim. The SVG title plane and the two
+// evidence figures are site-owned compositional surfaces — layout, not document
+// content; the document drives the accessible title, the statement, the
+// portrait media, and the lower content.
+import SiteFooter from "../SiteFooter.astro";
+import SiteHeader from "../SiteHeader.astro";
+import { publisherMediaHref } from "../../lib/format.ts";
+import type { AboutDocument } from "../../lib/about-document.ts";
+import motiveImage from "../../assets/02-private-motive-still-life.png";
+import apparatusImage from "../../assets/03-after-hours-apparatus.png";
+
+interface Props {
+  document: AboutDocument;
+}
+
+const { document: doc } = Astro.props;
+---
+
+<div class="site-frame about-frame">
+  <SiteHeader />
+
+  <main class="about-main">
+    <section class="person-record" aria-labelledby="apostoli-title">
+      <h1 id="apostoli-title">
+        <span class="sr-only">{doc.title}</span>
+        <svg
+          aria-hidden="true"
+          class="person-title-plane"
+          preserveAspectRatio="none"
+          viewBox="0 0 1000 1000"
+        >
+          <text x="18" y="930" font-size="1120" lengthAdjust="spacingAndGlyphs" textLength="940">
+            APOSTOLI
+          </text>
+        </svg>
+      </h1>
+
+      {
+        doc.primaryMediaId ? (
+          <figure class="object-image">
+            <img src={publisherMediaHref(doc.primaryMediaId)} alt={doc.title} />
+          </figure>
+        ) : (
+          <figure class="person-portrait-placeholder" aria-label="Portrait placeholder">
+            <span>Image forthcoming</span>
+          </figure>
+        )
+      }
+    </section>
+
+    <section class="person-statement" aria-label="Statement">
+      <blockquote>{doc.statement}</blockquote>
+    </section>
+
+    <section class="person-evidence" aria-label="Selected work and evidence">
+      <figure><img src={apparatusImage.src} alt="After-hours publishing apparatus" /></figure>
+      <figure><img src={motiveImage.src} alt="Private motive object study" /></figure>
+      {
+        doc.secondaryMediaId && (
+          <figure>
+            <img src={publisherMediaHref(doc.secondaryMediaId)} alt="Secondary" />
+          </figure>
+        )
+      }
+      {
+        doc.lowerContent && (
+          <div class="about-placeholder">
+            <p>{doc.lowerContent}</p>
+          </div>
+        )
+      }
+    </section>
+  </main>
+
+  <SiteFooter />
+</div>
+
+<style>
+  .about-main {
+    display: grid;
+    min-height: 0;
+    grid-template-rows: 36% 30% minmax(0, 34%);
+    overflow: hidden;
+  }
+
+  .person-record {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: minmax(0, 64%) minmax(310px, 36%);
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .person-record h1 {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .person-title-plane {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .person-title-plane text {
+    fill: currentColor;
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+
+  /* The object figure is only reachable when the document carries a portrait
+     media id; the site this replaces styled it globally for the shop ledger. */
+  .object-image {
+    min-width: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--color-border);
+  }
+
+  .object-image img {
+    width: 100%;
+    height: 100%;
+    filter: grayscale(0.7) contrast(1.08);
+    object-fit: cover;
+  }
+
+  .person-portrait-placeholder {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    margin: 30px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-sunken);
+  }
+
+  .person-portrait-placeholder::before,
+  .person-portrait-placeholder::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 140%;
+    height: 1px;
+    background: var(--color-border);
+    content: "";
+  }
+
+  .person-portrait-placeholder::before {
+    transform: translate(-50%, -50%) rotate(27deg);
+  }
+
+  .person-portrait-placeholder::after {
+    transform: translate(-50%, -50%) rotate(-27deg);
+  }
+
+  .person-portrait-placeholder span {
+    position: absolute;
+    z-index: 1;
+    right: 14px;
+    bottom: 12px;
+    padding: 5px 8px;
+    background: var(--color-background);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .person-statement {
+    position: relative;
+    display: flex;
+    min-height: 0;
+    align-items: center;
+    overflow: hidden;
+    padding: 10px 5% 10px 5%;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .person-statement blockquote {
+    font-family: var(--font-editorial);
+    font-size: clamp(28px, 2.35vw, 38px);
+    font-weight: 350;
+    letter-spacing: -0.025em;
+    line-height: 1.01;
+  }
+
+  .person-evidence {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: 29% 22% minmax(0, 49%);
+    overflow: hidden;
+  }
+
+  .person-evidence figure {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--color-border);
+  }
+
+  .person-evidence img {
+    width: 100%;
+    height: 100%;
+    filter: grayscale(0.62) contrast(1.1);
+    object-fit: cover;
+  }
+
+  .person-evidence figure:first-child img {
+    object-position: center 62%;
+  }
+
+  .person-evidence figure:nth-child(2) img {
+    object-position: center 48%;
+  }
+
+  .about-placeholder {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 18px 30px;
+    background: var(--color-surface-sunken);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .about-placeholder > p {
+    color: var(--color-primary);
+  }
+
+  .about-placeholder strong {
+    align-self: center;
+    font-family: var(--font-display);
+    font-size: clamp(56px, 7vw, 110px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 0.8;
+  }
+
+  .about-placeholder > span {
+    align-self: flex-end;
+    color: var(--color-muted-foreground);
+  }
+
+  @media (max-width: 1023px) {
+    .about-main {
+      display: block;
+      overflow: visible;
+    }
+
+    .person-record {
+      display: block;
+      border-bottom: 0;
+    }
+
+    .person-record h1 {
+      height: 238px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .person-portrait-placeholder {
+      height: 260px;
+      margin: 24px 18px 34px;
+    }
+
+    .person-statement {
+      display: block;
+      padding: 34px 18px 38px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    /* The statement is ~540 characters. At the display-scale 9vw it rendered
+       ~866px tall on a 393x852 iPhone — the copy could not be read without
+       scrolling mid-sentence. Drop to a reading scale and loosen the leading
+       (1.02 is a display value and is cramped at this size) so the whole
+       statement lands inside one viewport. */
+    .person-statement blockquote {
+      font-size: clamp(20px, 6.4vw, 26px);
+      line-height: 1.2;
+    }
+
+    .person-evidence {
+      display: block;
+    }
+
+    .person-evidence figure {
+      height: 320px;
+      border-right: 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .about-placeholder {
+      min-height: 300px;
+      padding: 28px 18px;
+    }
+
+    .about-placeholder strong {
+      font-size: 22vw;
+    }
+  }
+</style>

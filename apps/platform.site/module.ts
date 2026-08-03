@@ -19,7 +19,7 @@ export class Site extends Astro<Site>()(
       workersDev: true,
       adapter: { imageService: "passthrough" },
       env: {
-        AUTH_ORIGIN: auth.origin.as<string>() as unknown as string,
+        AUTH_ORIGIN: auth.origin.as<string>(),
       },
     };
   }),

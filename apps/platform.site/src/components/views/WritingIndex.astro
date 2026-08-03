@@ -1,0 +1,680 @@
+---
+// The writing index, carried over verbatim: a light cold-paper editorial page
+// under the dark site chrome — WRITING masthead, index table of arguments, and
+// the active entry populating the deck panel, excerpt block, revision history,
+// and EVIDENCE rail. One entry is "active" (expanded): the most recent on load;
+// hovering/focusing any table row makes that entry active with a crossfade.
+// Scroll never resizes rows. The light treatment is a token island: the route's
+// root carries data-theme="light" so the generated token set's :root (cold
+// paper) values apply inside it only.
+//
+// A pure function of its props — no binding, no fetch. Hand it an empty list
+// and the coming-soon plate renders; hand it a page of texts and the full
+// index does.
+import type { PublishedTextSummary } from "../../lib/writing-document.ts";
+import { formatDate } from "../../lib/format.ts";
+
+interface Props {
+  heading: string;
+  deck: string;
+  emptyMessage: string;
+  texts: readonly PublishedTextSummary[];
+  tagFilter?: string | null;
+  olderHref?: string | null;
+  newerHref?: string | null;
+}
+
+const {
+  heading,
+  deck,
+  emptyMessage,
+  texts,
+  tagFilter = null,
+  olderHref = null,
+  newerHref = null,
+} = Astro.props;
+
+const kind = (t: PublishedTextSummary): string => t.tags[0] ?? "text";
+// The initially-active entry (most recent). Server-renders the panels; the
+// hover script re-populates them from the JSON payload.
+const active = texts.length > 0 ? texts[0]! : null;
+const activeIndex = 0;
+---
+
+<main class="writing-index">
+  {
+    active === null ? (
+      <div class="writing-empty">
+        <p class="writing-empty-kicker">Text / public record</p>
+        <strong>COMING SOON</strong>
+        <p class="writing-empty-message">{emptyMessage}</p>
+      </div>
+    ) : (
+      <>
+        <div class="writing-content">
+          <header class="writing-masthead">
+            <div class="writing-masthead-left">
+              <h1>{heading}</h1>
+              <p class="writing-masthead-deck">{deck}</p>
+              {tagFilter && (
+                <p class="writing-tagline">
+                  tagged “{tagFilter}” — <a href="/writing/">clear</a>
+                </p>
+              )}
+            </div>
+            <div class="writing-masthead-active" data-fade>
+              <p class="active-kicker" data-role="kicker">{active.title}</p>
+              <p class="active-deck" data-role="deck">{active.deck ?? active.excerpt}</p>
+              <aside class="writing-revisions" aria-label="Revision history">
+                <p class="revisions-kicker">Revision history</p>
+                <p class="revisions-row">
+                  <span class="revisions-dot" aria-hidden="true" />
+                  <span class="row-mono" data-role="date">{formatDate(active.publishedAt)}</span>
+                  <span class="row-mono revisions-version" data-role="version">{active.version}</span>
+                </p>
+                <a class="revisions-link" data-role="href" href={`/writing/${active.slug}`}>
+                  View full history →
+                </a>
+              </aside>
+            </div>
+          </header>
+
+          <div class="writing-table" role="table" aria-label="Published texts">
+            <div class="writing-table-head" role="row">
+              <span role="columnheader">Title</span>
+              <span role="columnheader">Date ↓</span>
+              <span role="columnheader">Kind</span>
+              <span role="columnheader">Revision</span>
+              <span aria-hidden="true" />
+            </div>
+            {texts.map((t, i) => (
+              <a
+                class:list={["writing-row", { "is-active": i === activeIndex }]}
+                data-entry={t.slug}
+                href={`/writing/${t.slug}`}
+                role="row"
+              >
+                <span class="row-title" role="cell">
+                  {t.title}
+                </span>
+                <span class="row-mono" role="cell">
+                  {formatDate(t.publishedAt)}
+                </span>
+                <span class="row-mono" role="cell">
+                  {kind(t)}
+                </span>
+                <span class="row-mono row-revision" role="cell">
+                  {t.version}
+                </span>
+                <span class="row-chevron" aria-hidden="true">
+                  ›
+                </span>
+              </a>
+            ))}
+          </div>
+
+          {(olderHref || newerHref) && (
+            <nav class="writing-pager" aria-label="Pagination">
+              {newerHref ? <a href={newerHref}>← Newer</a> : <span>← Newer</span>}
+              {olderHref ? <a href={olderHref}>Older →</a> : <span>Older →</span>}
+            </nav>
+          )}
+
+        </div>
+
+        <aside class="writing-preview" aria-label="Reading preview">
+          <header>
+            <span>Preview</span>
+            <span class="row-mono">Text / public record</span>
+          </header>
+          <article class="preview-stage" data-fade>
+            <img
+              class="preview-image"
+              data-role="image"
+              src={active.heroMedia?.href}
+              alt={active.heroMedia ? active.heroMedia.alt || active.title : ""}
+              hidden={!active.heroMedia}
+            />
+            <div class="preview-body">
+              <p class="preview-kicker" data-role="meta">
+                {formatDate(active.publishedAt)} · {kind(active)} · {active.version}
+              </p>
+              <h2 class="preview-title" data-role="title">{active.title}</h2>
+              <p class="preview-deck" data-role="deck" hidden={!active.deck}>
+                {active.deck}
+              </p>
+              <p class="preview-excerpt" data-role="excerpt">{active.excerpt}</p>
+            </div>
+            <a class="preview-read" data-role="href" href={`/writing/${active.slug}`}>
+              Read text →
+            </a>
+          </article>
+        </aside>
+
+        <script
+          type="application/json"
+          data-writing-entries
+          set:html={JSON.stringify(
+            texts.map((t) => ({
+              slug: t.slug,
+              title: t.title,
+              deck: t.deck,
+              excerpt: t.excerpt,
+              date: formatDate(t.publishedAt),
+              kind: kind(t),
+              version: t.version,
+              image: t.heroMedia ? { href: t.heroMedia.href, alt: t.heroMedia.alt } : null,
+            })),
+          )}
+        />
+      </>
+    )
+  }
+</main>
+
+<script>
+  // Hovering or focusing a table row makes its entry active: the masthead deck,
+  // revision history, and preview rail are single panels re-populated from the
+  // page's JSON payload (entries render once — the panels are not duplicated per
+  // entry). Delegation binds on `document`, so it survives a full body swap on
+  // pager navigation — each new page ships its own payload and a server-rendered
+  // active first row.
+  interface Entry {
+    slug: string;
+    title: string;
+    deck: string | null;
+    excerpt: string;
+    date: string;
+    kind: string;
+    version: string;
+    image: { href: string; alt: string | null } | null;
+  }
+
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const parsed = new WeakMap<Element, Map<string, Entry>>();
+
+  function entriesFor(root: HTMLElement): Map<string, Entry> | null {
+    const payload = root.querySelector("script[data-writing-entries]");
+    if (!(payload instanceof HTMLElement) || !payload.textContent) return null;
+    let map = parsed.get(payload);
+    if (!map) {
+      map = new Map<string, Entry>(
+        (JSON.parse(payload.textContent) as Entry[]).map((e) => [e.slug, e]),
+      );
+      parsed.set(payload, map);
+    }
+    return map;
+  }
+
+  const setText = (el: HTMLElement | null, text: string) => {
+    if (el) el.textContent = text;
+  };
+  const setHref = (el: HTMLElement | null, href: string) => {
+    if (el instanceof HTMLAnchorElement) el.href = href;
+  };
+  const fade = (el: HTMLElement | null) => {
+    if (el && !reducedMotion.matches)
+      el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+  };
+
+  function activate(root: HTMLElement, slug: string | undefined) {
+    if (!slug) return;
+    const e = entriesFor(root)?.get(slug);
+    if (!e) return;
+
+    const region = (sel: string) => root.querySelector<HTMLElement>(sel);
+    const role = (scope: HTMLElement | null, name: string) =>
+      scope?.querySelector<HTMLElement>(`[data-role="${name}"]`) ?? null;
+
+    const masthead = region(".writing-masthead-active");
+    const revisions = region(".writing-revisions");
+    const preview = region(".preview-stage");
+
+    for (const row of root.querySelectorAll<HTMLElement>(".writing-row")) {
+      row.classList.toggle("is-active", row.dataset.entry === slug);
+    }
+
+    setText(role(masthead, "kicker"), e.title);
+    setText(role(masthead, "deck"), e.deck ?? e.excerpt);
+
+    setText(role(revisions, "date"), e.date);
+    setText(role(revisions, "version"), e.version);
+    setHref(role(revisions, "href"), `/writing/${e.slug}`);
+
+    const img = role(preview, "image");
+    if (img instanceof HTMLImageElement) {
+      if (e.image) {
+        img.src = e.image.href;
+        img.alt = e.image.alt || e.title;
+        img.hidden = false;
+      } else {
+        img.hidden = true;
+        img.removeAttribute("src");
+      }
+    }
+    setText(role(preview, "meta"), `${e.date} · ${e.kind} · ${e.version}`);
+    setText(role(preview, "title"), e.title);
+    const deckEl = role(preview, "deck");
+    if (deckEl) {
+      deckEl.hidden = e.deck === null;
+      if (e.deck !== null) deckEl.textContent = e.deck;
+    }
+    setText(role(preview, "excerpt"), e.excerpt);
+    setHref(role(preview, "href"), `/writing/${e.slug}`);
+
+    fade(masthead);
+    fade(revisions);
+    fade(preview);
+  }
+
+  function activateFromEvent(target: EventTarget | null) {
+    const row = target instanceof Element ? target.closest<HTMLElement>(".writing-row") : null;
+    if (!row) return;
+    const root = row.closest<HTMLElement>(".writing-index");
+    if (root) activate(root, row.dataset.entry);
+  }
+
+  document.addEventListener("pointerover", (ev) => activateFromEvent(ev.target));
+  document.addEventListener("focusin", (ev) => activateFromEvent(ev.target));
+</script>
+
+<style>
+  .writing-index {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 34%);
+    min-height: 0;
+    overflow: hidden;
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  /* Fixed masthead/pager/panels; the index table is the ONLY scroll region. */
+  .writing-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding: clamp(20px, 3vw, 44px) clamp(20px, 3vw, 48px);
+  }
+
+  .writing-masthead,
+  .writing-pager {
+    flex-shrink: 0;
+  }
+
+  .writing-table {
+    flex: 1;
+    min-height: 180px;
+    overflow-y: auto;
+  }
+
+  .writing-table-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-background);
+  }
+
+  /* ── Masthead: FIXED height — content clamps inside it, the band never
+     resizes with the active entry's text (pagination keeps a stable frame). */
+  .writing-masthead {
+    display: grid;
+    grid-template-columns: minmax(0, 55%) minmax(0, 1fr);
+    gap: clamp(20px, 3vw, 48px);
+    align-items: start;
+    height: clamp(220px, 30vh, 320px);
+    overflow: hidden;
+    padding-bottom: clamp(14px, 2vw, 24px);
+  }
+
+  .writing-masthead h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(72px, 11vw, 190px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 0.8;
+    text-transform: uppercase;
+  }
+
+  .writing-masthead-deck {
+    margin: 14px 0 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--color-muted-foreground);
+  }
+
+  .writing-tagline {
+    margin: 10px 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  .writing-tagline a {
+    color: var(--color-primary);
+  }
+
+  .writing-masthead-active {
+    /* Stretch to the band's fixed height so the hairline is constant even
+       though the deck text inside varies (align-items: start would otherwise
+       size this box — and its border — to content). */
+    align-self: stretch;
+    border-left: 1px solid var(--color-border);
+    padding-left: clamp(16px, 2vw, 32px);
+    padding-top: 8px;
+  }
+
+  .active-kicker,
+  .revisions-kicker {
+    margin: 0 0 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+
+  .active-deck {
+    margin: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    font-family: var(--font-editorial);
+    font-size: clamp(22px, 2.4vw, 34px);
+    line-height: 1.25;
+  }
+
+  /* ── Index table ──────────────────────────────────────────────────────── */
+  .writing-table {
+    border-top: 1px solid var(--color-border-strong);
+  }
+
+  .writing-table-head,
+  .writing-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 130px 90px 90px 28px;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .writing-table-head {
+    padding: 12px 0 10px;
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+
+  .writing-row {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--color-border);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .row-title {
+    font-family: var(--font-editorial);
+    font-size: clamp(17px, 1.6vw, 24px);
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+
+  .row-mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-muted-foreground);
+  }
+
+  .writing-row.is-active .row-revision {
+    color: var(--color-primary);
+  }
+
+  .writing-row:hover .row-title,
+  .writing-row:focus-visible .row-title {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .row-chevron {
+    justify-self: end;
+    color: var(--color-muted-foreground);
+  }
+
+  .writing-pager {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  .writing-pager a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .writing-pager a:hover {
+    color: var(--color-primary);
+  }
+
+  .writing-pager span {
+    color: var(--color-muted-foreground);
+    opacity: 0.5;
+  }
+
+  /* Revision history sits below the active deck inside the masthead column. */
+  .writing-revisions {
+    margin-top: clamp(16px, 2vh, 28px);
+  }
+
+  .revisions-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+  }
+
+  .revisions-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-primary);
+  }
+
+  .revisions-version {
+    color: var(--color-foreground);
+  }
+
+  .revisions-link {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* ── Reading-preview rail: the active entry as it reads, not artwork ──── */
+  .writing-preview {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-left: 1px solid var(--color-border-strong);
+    background: var(--color-card);
+  }
+
+  .writing-preview > header {
+    display: flex;
+    flex-shrink: 0;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px clamp(16px, 2vw, 28px);
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+
+  /* The stage IS the article: full-height flex column so .preview-read pins
+     to the rail's bottom edge regardless of content height. */
+  .preview-stage {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .preview-image {
+    flex-shrink: 0;
+    width: 100%;
+    max-height: 34%;
+    object-fit: cover;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .preview-body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: clamp(18px, 2.4vw, 32px) clamp(16px, 2vw, 28px);
+  }
+
+  .preview-kicker {
+    margin: 0 0 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+
+  .preview-title {
+    margin: 0;
+    font-family: var(--font-editorial);
+    font-size: clamp(22px, 2vw, 30px);
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .preview-deck {
+    margin: 12px 0 0;
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: clamp(15px, 1.3vw, 18px);
+    line-height: 1.4;
+    color: var(--color-muted-foreground);
+  }
+
+  .preview-excerpt {
+    margin: 16px 0 0;
+    font-family: var(--font-editorial);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .preview-read {
+    flex-shrink: 0;
+    padding: 14px clamp(16px, 2vw, 28px);
+    border-top: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .preview-read:hover,
+  .preview-read:focus-visible {
+    color: var(--color-primary);
+  }
+
+  /* ── Empty state ──────────────────────────────────────────────────────── */
+  .writing-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    padding: 48px 24px;
+    font-family: var(--font-mono);
+  }
+
+  .writing-empty strong {
+    font-family: var(--font-display);
+    font-size: clamp(56px, 8vw, 120px);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+
+  .writing-empty-kicker {
+    margin: 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+
+  .writing-empty-message {
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-muted-foreground);
+  }
+
+  /* ── Narrow screens: single column, rail below, natural page flow ─────── */
+  @media (max-width: 1023px) {
+    .writing-index {
+      display: block;
+      overflow: visible;
+    }
+
+    .writing-content {
+      display: block;
+      overflow: visible;
+    }
+
+    .writing-table {
+      overflow-y: visible;
+    }
+
+    .writing-masthead {
+      grid-template-columns: 1fr;
+    }
+
+    .writing-masthead-active {
+      border-left: 0;
+      padding-left: 0;
+    }
+
+    .writing-table-head,
+    .writing-row {
+      grid-template-columns: minmax(0, 1fr) 100px 70px 24px;
+    }
+
+    .writing-table-head span:nth-child(3),
+    .writing-row .row-mono:nth-of-type(2) {
+      display: none;
+    }
+
+    .writing-preview {
+      border-left: 0;
+      border-top: 1px solid var(--color-border-strong);
+      min-height: 320px;
+    }
+
+    .writing-masthead {
+      height: auto;
+      overflow: visible;
+    }
+  }
+</style>

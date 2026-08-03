@@ -226,6 +226,8 @@ interface DevBindings {
   /** wrangler key -> entries, spread straight into the generated config. */
   arrays: Record<string, object[]>;
   vars: Record<string, string>;
+  /** Output-valued plain vars, resolved into `vars` at reconcile. */
+  varOutputs: Array<{ name: string; value: Output.Output<string> }>;
   /** Sibling Alchemy Workers, resolved and bridged at reconcile. */
   workerBindings: Array<{ binding: string; name: Output.Output<string> }>;
   /** Bindings with no `astro dev` equivalent; the caller warns about these. */
@@ -259,11 +261,28 @@ const collectDevBindings = Effect.fn(function* (env: Record<string, unknown>) {
   const out: DevBindings = {
     arrays: {},
     vars: {},
+    varOutputs: [],
     workerBindings: [],
     skipped: [],
   };
 
   for (const [name, raw] of Object.entries(env)) {
+    // An Output is yieldable and must NOT be yielded: resolving one needs
+    // RuntimeContext, which exists only at reconcile. This is alchemy's own
+    // rule, not a local one — `bindWorkerAsyncBindings` guards it as
+    // `isYieldableEffectLike(x) && !Output.isOutput(x)` and hands the Output
+    // to the engine instead. Which is exactly why the deploy branch, whose
+    // `env` reaches `Cloudflare.Worker` untouched, resolves a cross-stack
+    // value (`yield* Auth` -> `auth.origin`) while this branch died on it.
+    //
+    // The Worker below still receives the Output untouched; the copy taken
+    // here is only for the wrangler config `astro dev` reads, so it defers to
+    // the same reconcile-time `Output.map` that resolves sibling worker names.
+    if (Output.isOutput(raw)) {
+      out.varOutputs.push({ name, value: raw as Output.Output<string> });
+      continue;
+    }
+
     // Module-level declarations (`Cloudflare.KV.Namespace("Cache")`) are
     // Effects, not resources — yield them so `Type` is inspectable. This is
     // the same resolution the deploy path's Worker does.
@@ -534,7 +553,9 @@ const makeAstroDev = Effect.fn(function* (args: BranchArgs) {
     runnerDir,
   } = args;
 
-  const { arrays, vars, workerBindings, skipped } = yield* collectDevBindings(props.env ?? {});
+  const { arrays, vars, varOutputs, workerBindings, skipped } = yield* collectDevBindings(
+    props.env ?? {},
+  );
 
   const configPath = nodePath.join(root, ".dev.wrangler.json");
   const bridgeDir = nodePath.join(root, ".dev.registry");
@@ -571,16 +592,28 @@ const makeAstroDev = Effect.fn(function* (args: BranchArgs) {
   //
   // This runs inside `Output.map` because the physical worker names only
   // resolve at reconcile — which is also when the local workers are up and
-  // their registry entries exist. Sync `node:fs` here is a deliberate wart:
-  // the mapper is a plain function, not an Effect.
+  // their registry entries exist. Output-valued vars ride the same wait for
+  // the same reason: nothing that needs RuntimeContext can resolve earlier.
+  // Sync `node:fs` here is a deliberate wart: the mapper is a plain function,
+  // not an Effect.
+  //
+  // One `Output.all` over `[...worker names, ...var values]` rather than two
+  // waits: the config is written once, so both halves must be in hand at the
+  // same moment. The callback splits the result back at `workerBindings.length`.
   const ready = Output.map(
     // `Output.all`'s return type collapses for a spread ARRAY: its `All<>`
     // helper only builds a tuple when the length is a literal, and
     // otherwise reports `Output<V>` — while the runtime is `Effect.all`,
     // which always resolves to an array. So the cast corrects an upstream
     // type, and the callback below is typed off the runtime truth.
-    Output.all(...workerBindings.map((w) => w.name)) as unknown as Output.Output<string[]>,
-    (scriptNames: string[]) => {
+    Output.all(
+      ...workerBindings.map((w) => w.name),
+      ...varOutputs.map((v) => v.value),
+    ) as unknown as Output.Output<string[]>,
+    (resolved: string[]) => {
+      const scriptNames = resolved.slice(0, workerBindings.length);
+      const varValues = resolved.slice(workerBindings.length);
+
       nodeFs.mkdirSync(bridgeDir, { recursive: true });
       const services = workerBindings.flatMap(({ binding }, i) => {
         const service = scriptNames[i]!;
@@ -590,7 +623,18 @@ const makeAstroDev = Effect.fn(function* (args: BranchArgs) {
       });
       nodeFs.writeFileSync(
         configPath,
-        `${JSON.stringify({ ...baseConfig, ...(services.length ? { services } : {}) }, null, 2)}\n`,
+        `${JSON.stringify(
+          {
+            ...baseConfig,
+            vars: {
+              ...vars,
+              ...Object.fromEntries(varOutputs.map(({ name }, i) => [name, varValues[i]!])),
+            },
+            ...(services.length ? { services } : {}),
+          },
+          null,
+          2,
+        )}\n`,
       );
       return bridgeDir;
     },

@@ -1,0 +1,60 @@
+---
+import Base from "../layouts/Base.astro";
+import TxShell from "../components/TxShell.astro";
+
+// Shipping policy. Static legal/informational page linked from the site footer.
+---
+
+<Base
+  title="Shipping — somewhatintelligent"
+  description="How and when somewhatintelligent orders ship."
+>
+  <TxShell title="Shipping" maxWidth={640}>
+    <div class="legal">
+      <p class="legal-updated">Last updated July 2026.</p>
+      <p>
+        Orders are processed within two business days. You receive a confirmation with tracking once
+        your order leaves our hands.
+      </p>
+      <h2>Rates and delivery</h2>
+      <p>
+        Shipping rates are calculated at checkout from the destination address and the selected
+        method. Delivery estimates are provided by the carrier and are not guaranteed.
+      </p>
+      <h2>Destinations</h2>
+      <p>
+        We currently ship within Canada. If your destination is not available at checkout, it is not
+        yet supported.
+      </p>
+      <h2>Questions</h2>
+      <p>
+        For anything about an order in transit, reach out from the address on your order
+        confirmation.
+      </p>
+    </div>
+  </TxShell>
+</Base>
+
+<style>
+  .legal p {
+    margin-top: 16px;
+  }
+
+  .legal-updated {
+    margin-top: 0;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal h2 {
+    margin-top: 28px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal a {
+    text-decoration: underline;
+  }
+</style>

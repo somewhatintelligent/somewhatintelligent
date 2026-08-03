@@ -1,0 +1,13 @@
+---
+import Base from "../../layouts/Base.astro";
+import AboutView from "../../components/views/AboutView.astro";
+import { ABOUT_DOCUMENT } from "../../lib/about-document.ts";
+
+// Copy/SEO come from the committed document rather than the Publisher page
+// read this route used to perform — see `src/lib/about-document.ts`.
+const doc = ABOUT_DOCUMENT;
+---
+
+<Base title={doc.seo.title} description={doc.seo.description}>
+  <AboutView document={doc} />
+</Base>

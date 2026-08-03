@@ -1,0 +1,60 @@
+---
+import Base from "../layouts/Base.astro";
+import TxShell from "../components/TxShell.astro";
+
+// Refund policy. Static legal/informational page linked from the site footer.
+---
+
+<Base
+  title="Refunds — somewhatintelligent"
+  description="Returns and refunds for somewhatintelligent orders."
+>
+  <TxShell title="Refunds" maxWidth={640}>
+    <div class="legal">
+      <p class="legal-updated">Last updated July 2026.</p>
+      <p>
+        If something is not right, you may request a return within 30 days of delivery. Items must
+        be unused and in their original condition.
+      </p>
+      <h2>How to start a return</h2>
+      <p>
+        Reply to your order confirmation with your order number and the reason for the return. We
+        respond with return instructions.
+      </p>
+      <h2>Refund timing</h2>
+      <p>
+        Approved refunds are issued to the original payment method once the returned item is
+        received and inspected. Your bank may take several business days to post the credit.
+      </p>
+      <h2>Non-returnable items</h2>
+      <p>
+        Digital goods and made-to-order items are not eligible for return unless they arrive damaged
+        or defective.
+      </p>
+    </div>
+  </TxShell>
+</Base>
+
+<style>
+  .legal p {
+    margin-top: 16px;
+  }
+
+  .legal-updated {
+    margin-top: 0;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal h2 {
+    margin-top: 28px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal a {
+    text-decoration: underline;
+  }
+</style>

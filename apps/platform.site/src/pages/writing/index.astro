@@ -1,0 +1,36 @@
+---
+import Base from "../../layouts/Base.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import WritingIndex from "../../components/views/WritingIndex.astro";
+import { WRITING_DOCUMENT, type PublishedTextSummary } from "../../lib/writing-document.ts";
+
+// The site this replaces read the page copy and a keyset page of published
+// texts from the Publisher service here, then keyset-paginated with a cursor
+// trail. The scaffold binds to nothing: the copy is committed and the list is
+// empty, so `WritingIndex` renders its coming-soon plate. Reintroducing the
+// read means filling `texts` (and the two pager hrefs) — the view is a pure
+// function of them and needs no change.
+const doc = WRITING_DOCUMENT;
+const texts: readonly PublishedTextSummary[] = [];
+---
+
+<Base title={doc.seo.title} description={doc.seo.description} theme="light">
+  <div class="site-frame">
+    <div data-theme="dark" style="display: contents;">
+      <SiteHeader />
+    </div>
+    <WritingIndex
+      heading={doc.heading}
+      deck={doc.deck}
+      emptyMessage={doc.emptyMessage}
+      texts={texts}
+      tagFilter={null}
+      olderHref={null}
+      newerHref={null}
+    />
+    <div data-theme="dark" style="display: contents;">
+      <SiteFooter />
+    </div>
+  </div>
+</Base>

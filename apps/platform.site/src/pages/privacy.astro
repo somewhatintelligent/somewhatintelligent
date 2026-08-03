@@ -1,0 +1,59 @@
+---
+import Base from "../layouts/Base.astro";
+import TxShell from "../components/TxShell.astro";
+
+// Privacy policy. Static legal page linked from the site footer.
+---
+
+<Base title="Privacy — somewhatintelligent" description="How somewhatintelligent handles your data.">
+  <TxShell title="Privacy" maxWidth={640}>
+    <div class="legal">
+      <p class="legal-updated">Last updated July 2026.</p>
+      <p>
+        We collect only what we need to run the site and fulfill your orders: your account details,
+        order and shipping information, and basic usage data.
+      </p>
+      <h2>How we use it</h2>
+      <p>
+        Your information is used to process orders, provide support, and keep the site secure.
+        Payment details are handled by our payment processor and never stored on our servers.
+      </p>
+      <h2>Sharing</h2>
+      <p>
+        We do not sell your data. We share it only with the service providers needed to fulfill an
+        order, such as payment and shipping partners.
+      </p>
+      <h2>Cookies</h2>
+      <p>
+        We use cookies to keep you signed in and to remember your cart. You can clear them in your
+        browser at any time.
+      </p>
+      <h2>Contact</h2>
+      <p>To ask about your data, reach out from the address on your order confirmation.</p>
+    </div>
+  </TxShell>
+</Base>
+
+<style>
+  .legal p {
+    margin-top: 16px;
+  }
+
+  .legal-updated {
+    margin-top: 0;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal h2 {
+    margin-top: 28px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-muted-foreground);
+  }
+
+  .legal a {
+    text-decoration: underline;
+  }
+</style>
