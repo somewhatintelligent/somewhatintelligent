@@ -394,6 +394,45 @@
         "count": 1
       }
     },
+    "apps/platform.commerce/domain/Deletion.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/domain/Reconcile.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/domain/Settlement.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/services/PaymentsStripe.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "apps/platform.commerce/tests/services/PaymentsFake.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "apps/platform.commerce/tests/workers/Storefront.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
     "apps/platform.inbox/app/components/AgentPanel.tsx": {
       "crap_critical": {
         "count": 1
@@ -840,13 +879,14 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
-    "apps/platform.inbox/app/components/EmailPanel.tsx:untested risk",
-    "apps/mezedes/src/shell/components/router.ts:high impact",
     "apps/mezedes/src/shell/components/format.ts:untested risk",
-    "packages/platform.ui/src/components/ui/editor/markdown-editor.tsx:complexity",
+    "apps/mezedes/src/shell/components/router.ts:high impact",
     "apps/mezedes/src/shell/components/theme.ts:high impact",
     "apps/platform.auth/app/lib/relative-time.ts:untested risk",
+    "apps/platform.commerce/domain/Settlement.ts:complexity",
+    "apps/platform.inbox/app/components/EmailPanel.tsx:untested risk",
+    "apps/platform.inbox/app/routes/home.tsx:complexity",
     "apps/platform.inbox/workers/index.ts:complexity",
-    "apps/platform.inbox/app/routes/home.tsx:complexity"
+    "packages/platform.ui/src/components/ui/editor/markdown-editor.tsx:complexity"
   ]
 }

@@ -1,0 +1,37 @@
+{
+  "name": "platform.commerce",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The commerce substrate: product lifecycle, checkout, settlement and fulfilment, served to the platform over a service binding.",
+  "type": "module",
+  "exports": {
+    "./module": "./module.ts",
+    "./contracts": "./domain/Contracts.ts",
+    "./rpc": "./domain/Rpc.ts",
+    "./storefront": "./domain/Storefront.rpc.ts",
+    "./workers/*": "./workers/*.ts",
+    "./infrastructure/*": "./infrastructure/*.ts"
+  },
+  "scripts": {
+    "test": "bun test tests/unit",
+    "test:integ": "NO_DESTROY=1 bun test tests/settlement.integ.test.ts && NO_DESTROY=1 bun test tests/stripe.e2e.test.ts && bun test tests/store.integ.test.ts",
+    "test:keep": "NO_DESTROY=1 bun test tests/settlement.integ.test.ts && NO_DESTROY=1 bun test tests/stripe.e2e.test.ts && NO_DESTROY=1 bun test tests/store.integ.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "alchemy": "catalog:",
+    "drizzle-orm": "catalog:",
+    "effect": "catalog:",
+    "platform.names": "workspace:*",
+    "stripe": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5",
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.1.1",
+    "drizzle-kit": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "wrangler": "^4.118.0"
+  }
+}

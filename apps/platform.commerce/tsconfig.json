@@ -1,0 +1,55 @@
+{
+  "extends": "../../tsconfig.effect.json",
+  "compilerOptions": {
+    "target": "esnext",
+    /**
+     * NO `DOM`. Nothing in this package renders — it is Workers and a domain
+     * core. `@cloudflare/workers-types` supplies `Request`, `Response`,
+     * `ReadableStream` and the rest, and adding `DOM` on top would shadow them
+     * with browser variants that disagree about `Request.cf` and R2 bodies.
+     */
+    "lib": ["esnext"],
+    "moduleDetection": "force",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node", "bun", "@cloudflare/workers-types"],
+    "strict": true,
+    /**
+     * Carried over from the spike, and load-bearing rather than taste: the
+     * domain indexes into query results and route segments constantly, and
+     * every `as string` this would otherwise hide is a row that might not
+     * exist. `noUnusedLocals` and `noUnusedParameters` are what kept the
+     * handler tables honest while procedures were being added.
+     */
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "noEmit": true,
+    "declaration": false,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "module.ts",
+    "paths.ts",
+    "runtime.ts",
+    "core/**/*.ts",
+    "domain/**/*.ts",
+    "infrastructure/**/*.ts",
+    "services/**/*.ts",
+    "workers/**/*.ts",
+    /**
+     * The test tree is IN the project, not beside it. The spike shipped a first
+     * "clean" typecheck that had never seen `site/` because it was missing from
+     * `include`; the deployed stack and the test-only stack both have to be
+     * covered here or the same hole reopens.
+     */
+    "tests/**/*.ts"
+  ]
+}

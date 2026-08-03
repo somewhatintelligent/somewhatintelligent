@@ -28,7 +28,14 @@
     "apps/*/src/server/entry.ts",
     "apps/*/src/shell/main.tsx",
     "apps/*/test/**/*.test.ts",
+    "apps/*/tests/**/*.test.ts",
     "apps/*/integ/**/*.test.ts",
+    // The test-only stack, and the two Workers only it declares. No import
+    // reaches them from `module.ts` — that is the point, and it is why they are
+    // safe to keep — so without this line the whole ingress tree reads as dead
+    // and fallow would propose deleting the surface the integration suite runs
+    // against. Same situation as `apps/platform.inbox/workers/app.ts` above.
+    "apps/*/tests/alchemy.run.ts",
   ],
   // `email/preview/**` is the react-email dev harness: default exports the CLI
   // loads by directory scan, never imported, and not shipped.
@@ -190,6 +197,15 @@
     // Resolved at runtime by the `email dev` CLI, never imported. The old repo
     // carried the same entry for the same reason.
     "@react-email/preview-server",
+    // Alchemy's optional peer for `Drizzle.providers()`. Nothing imports it —
+    // the provider loads it — but it has to be installed or migration codegen
+    // fails at deploy time with a resolution error rather than a missing-dep one.
+    "drizzle-kit",
+    // Spawned as a binary by `apps/platform.commerce/tests/Seed.ts`, never
+    // imported. Declared rather than left to `bunx` so a fresh checkout does not
+    // pay an install inside a test helper — and fail the test when it returns
+    // non-zero.
+    "wrangler",
     "@effect/platform-bun",
     "@effect/platform-node",
     "alchemy",
