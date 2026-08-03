@@ -2,45 +2,35 @@ import * as Effect from "effect/Effect";
 import { Path } from "effect/Path";
 
 /**
- * Where this package's real files live, split by WHO resolves the path.
+ * ABSOLUTE, anchored off this file. Alchemy resolves relative props against
+ * `process.cwd()`, and there is no single cwd to design for: `cd stacks/platform.auth
+ * && alchemy dev` and `alchemy plan stacks/platform.auth/alchemy.run.ts` from the
+ * root are both reasonable, and a package-relative or repo-relative path is wrong
+ * under one of them. Anchoring makes the question not arise.
  *
- * Two different answers are needed, and conflating them is a bug in either
- * direction:
- *
- * ALCHEMY RESOLVES ITS OWN PROPS, against `process.cwd()` — `Drizzle.Schema`
- * documents `schema` as "relative to the current working directory". Those
- * props are also PERSISTED and diffed (`Diff.ts` treats props as part of the
- * committed state), so an absolute path there writes a machine-specific string
- * into shared state and every other machine sees a spurious update. Alchemy
- * already guards half of this itself — it relativises the Drizzle `out`
- * ATTRIBUTE before persisting, "so that persisted state stays portable across
- * machines/checkouts" — but the `schema` PROP gets no such treatment. So
- * alchemy-facing paths stay relative, and the base they are relative to is the
- * repo root.
- *
- * WE RESOLVE OUR OWN FILESYSTEM CALLS, and those are not persisted, so they can
- * and should be anchored — a read or a write must land in this package no
- * matter where the process started.
- *
- * The invariant that makes the first half work: alchemy always runs from the
- * repo root. The deploy/plan/destroy scripts live in the root package.json and
- * pass the stack file by path, precisely so there is one cwd for every stack.
+ * The cost is that persisted props carry this machine's paths, so a checkout
+ * elsewhere sees a prop diff and re-runs `drizzle-kit generate`. That is a no-op
+ * when the schema snapshot is unchanged, and alchemy's own docs put an absolute
+ * `path.resolve(import.meta.dirname, …)` in `rootDir`, so it is the accepted
+ * trade rather than a clever one.
  */
+const inPackage = (p: string): Effect.Effect<string, never, Path> =>
+  Effect.map(Path, (path) => path.resolve(import.meta.dirname, p));
 
-/** Repo-root-relative. A `Drizzle.Schema` prop and a field of the schema Action's input — both persisted. */
-export const SCHEMA_PATH = "apps/platform.auth/api/schema.gen.ts";
+/** The generated Drizzle schema: a `Drizzle.Schema` prop and the schema Action's target. */
+export const schemaPath = inPackage("api/schema.gen.ts");
 
-/** Repo-root-relative, for the same reason as {@link SCHEMA_PATH}. */
-export const MIGRATIONS_DIR = "apps/platform.auth/api/migrations";
+/** Where `drizzle-kit generate` writes, and what the D1's `migrationsDir` reads. */
+export const migrationsDir = inPackage("api/migrations");
 
-/** Repo-root-relative. Vite's root; `Website.Vite` defaults it to `process.cwd()`. */
-export const PACKAGE_DIR = "apps/platform.auth";
+/** Vite's root for the identity app. `Website.Vite` defaults it to `process.cwd()`. */
+export const PACKAGE_DIR = import.meta.dirname;
 
 /**
- * Resolve a repo-root-relative path absolutely WITHOUT consulting cwd, by
- * walking up from this file. For our own reads and writes, which are not
- * persisted and therefore have nothing to lose by being absolute — and
- * everything to lose by being wrong.
+ * The generated file's name as the Better Auth generator should report it.
+ * A LABEL, not a location — `generateSchema` only echoes it back as
+ * `fileName`, which is discarded, and this file is written by the Action using
+ * {@link schemaPath}. Kept relative and requirement-free so `render` can stay
+ * an `Effect.runSync(Effect.cached(...))` at module scope.
  */
-export const fromRepoRoot = (p: string): Effect.Effect<string, never, Path> =>
-  Effect.map(Path, (path) => path.resolve(import.meta.dirname, "../..", p));
+export const SCHEMA_FILE = "api/schema.gen.ts";
