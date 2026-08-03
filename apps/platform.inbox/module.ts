@@ -1,5 +1,7 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
+import type * as Output from "alchemy/Output";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import { Path } from "effect/Path";
 import { CLOUDFLARE_IDP, PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
@@ -66,31 +68,15 @@ const Deployment = Effect.gen(function* () {
 });
 
 /**
- * THE definition of who may reach the inbox, and the only one.
- *
- * `cloudflareAccountMember` rather than an email allow-list: membership of this
- * Cloudflare account IS the staff list, so there is nothing here to keep in sync
- * with anything. What this replaces was a literal array of one address, next to
- * a `si-staff-access` policy holding the same address, next to
- * `stacks/platform.access`'s `staff` — three answers to one question.
- *
- * Still local rather than a reference to that stack: it has never been applied,
- * and pinning an unapplied stack fails the plan with `InvalidReferenceError`.
- * When it is deployed, this becomes `PlatformAccess.stage[PRODUCTION_STAGE]`.
- *
- * The logical id stays the dull `"AccessPolicy"` on purpose: renaming it would
- * destroy the policy this deployment already owns and create an identical one
- * beside it. The `name` prop is gone so a future stage would get a derived
- * per-stage name rather than contend for a shared account-level object — but
- * dropping it did NOT rename what already exists. The live policy is still
- * `agentic-inbox-si-access`; alchemy reconciled the `include` and left the name
- * it had persisted. Cosmetic, and worth knowing before you go looking for a
- * policy named after this stack.
+ * The account's staff policy, owned by `stacks/platform.access`. A requirement
+ * rather than an import because an app may not reach into `stacks/` — the stack
+ * resolves the ref and provides it. `Output` because the id comes from upstream
+ * state, not from here.
  */
-const InboxOwner = Cloudflare.Access.Policy("AccessPolicy", {
-  decision: "allow",
-  include: [{ cloudflareAccountMember: {} }],
-});
+export class StaffPolicy extends Context.Service<
+  StaffPolicy,
+  { readonly policyId: Output.Output<string> }
+>()("platform.inbox/StaffPolicy") {}
 
 /**
  * THE EDGE GATE, and now a resource rather than a dashboard artefact.
@@ -123,14 +109,14 @@ const InboxOwner = Cloudflare.Access.Policy("AccessPolicy", {
 const AccessApp = Cloudflare.Access.Application(
   "InboxAccess",
   Effect.gen(function* () {
-    const owner = yield* InboxOwner;
+    const staff = yield* StaffPolicy;
     return {
       type: "self_hosted" as const,
       /** Bare, with no path — Cloudflare refuses a path when OAuth is on. */
       domain: APP_DOMAIN,
       allowedIdps: [CLOUDFLARE_IDP],
       autoRedirectToIdentity: true,
-      policies: [owner.policyId],
+      policies: [staff.policyId],
       oauthConfiguration: {
         enabled: true,
         dynamicClientRegistration: { enabled: true },

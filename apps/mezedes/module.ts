@@ -4,6 +4,7 @@ import { AlchemyContext } from "alchemy/AlchemyContext";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import { Path } from "effect/Path";
 import { CLOUDFLARE_IDP, PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
@@ -103,21 +104,19 @@ const Blobs = Cloudflare.R2.Bucket("Blobs");
 const OwnerObject = Cloudflare.DurableObject<OwnerClass>("Owner", { className: "Owner" });
 
 /**
- * THE definition of who owns anything here, and the only one. `entry.ts`
- * derives the tenant from whatever token this policy lets through, so this
- * rule alone decides both who may enter and how many tenants exist — nothing
- * downstream re-states it and can drift from it. Widening this to a second
- * person gives them their own index and blob prefix, not a share of the
- * first's. `accountId` defaults to the account the policy lives in.
+ * THE definition of who owns anything here, and the only one. `entry.ts` derives
+ * the tenant from whatever token this policy lets through, so it decides both
+ * who may enter and how many tenants exist. Widening it to a second person gives
+ * them their own index and blob prefix, not a share of the first's.
  *
- * `name` is omitted here and on the application below so alchemy derives a
- * per-stage physical name; a shared one would make two stages contend for the
- * same account-level object.
+ * Owned by `stacks/platform.access` now, not declared here — a requirement,
+ * because an app may not import `stacks/`. The stack resolves the ref and
+ * provides it. `Output` because the id comes from upstream state.
  */
-const OwnerPolicy = Cloudflare.Access.Policy("MezedesOwner", {
-  decision: "allow",
-  include: [{ cloudflareAccountMember: {} }],
-});
+export class StaffPolicy extends Context.Service<
+  StaffPolicy,
+  { readonly policyId: Output.Output<string> }
+>()("mezedes/StaffPolicy") {}
 
 /**
  * The apex, and nothing else. Managed OAuth authenticates an MCP client with no
@@ -141,7 +140,7 @@ const OwnerPolicy = Cloudflare.Access.Policy("MezedesOwner", {
 const AccessApp = Cloudflare.Access.Application(
   "MezedesAccess",
   Effect.gen(function* () {
-    const owner = yield* OwnerPolicy;
+    const staff = yield* StaffPolicy;
     const { apex } = yield* Hostnames;
     return {
       type: "self_hosted" as const,
@@ -153,7 +152,7 @@ const AccessApp = Cloudflare.Access.Application(
       domain: apex,
       allowedIdps: [CLOUDFLARE_IDP],
       autoRedirectToIdentity: true,
-      policies: [owner.policyId],
+      policies: [staff.policyId],
       oauthConfiguration: {
         enabled: true,
         dynamicClientRegistration: { enabled: true },

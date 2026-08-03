@@ -1,22 +1,30 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
+import * as Effect from "effect/Effect";
+import { PRODUCTION_STAGE } from "platform.names";
 
-import { InboxModule } from "platform.inbox/module";
+import { InboxModule, StaffPolicy } from "platform.inbox/module";
+
+import { PlatformAccess } from "../platform.access/index.ts";
 
 /**
- * `"AgenticInbox"` is the state key — state is keyed by stack name and stage,
- * and the live deployment was applied under this name from the si repo. Changing
- * it does not rename anything; it strands a Worker, an R2 bucket, three Durable
- * Object namespaces and a zone's mail routing under a name nothing points at.
+ * `"AgenticInbox"` is the state key — the live deployment was applied under it.
  *
- * No typed handle: nothing consumes this stack's outputs. It publishes a URL for
- * a human to read, not a contract for another stack to bind to.
+ * `stage[PRODUCTION_STAGE]`, not a bare `yield*`: platform.access is a singleton
+ * deployed at prod alone. The ref lives here because `apps/` may not import
+ * `stacks/`; the app only states the requirement.
  *
- * `adopt(true)` because every resource in here already exists. Without it the
- * first plan from this repo reads as a fresh create of a live deployment.
+ * `adopt(true)` because everything here already exists.
  */
 export default Alchemy.Stack(
   "AgenticInbox",
   { providers: Cloudflare.providers(), state: Cloudflare.state() },
-  InboxModule.pipe(Alchemy.AdoptPolicy.adopt(true)),
+  Effect.gen(function* () {
+    const { staffPolicyId } = yield* PlatformAccess.stage[PRODUCTION_STAGE];
+
+    return yield* InboxModule.pipe(
+      Effect.provideService(StaffPolicy, { policyId: staffPolicyId }),
+      Alchemy.AdoptPolicy.adopt(true),
+    );
+  }),
 );
