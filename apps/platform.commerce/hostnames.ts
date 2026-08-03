@@ -33,8 +33,21 @@ export const Hostnames = Effect.gen(function* () {
   const prod = stage === PRODUCTION_STAGE;
   const suffix = workerSafeStage(stage);
   return {
-    /** `desk`, the same label the app this replaces answered on. */
-    operator: prod ? `desk.${PRODUCTION_ZONE}` : `desk-${suffix}.${PRODUCTION_ZONE}`,
+    /**
+     * NOT `desk`, which is the label the app this replaces answered on and
+     * still does. `si-operator-production` — the legacy console — holds that
+     * hostname, and Cloudflare permits one Worker per hostname, so a deploy
+     * here failed outright:
+     *
+     *     Cannot attach hostname 'desk.somewhatintelligent.ca' to Worker
+     *     'si-commerce-operator-prod': it is already attached to Worker
+     *     'si-operator-production'.
+     *
+     * Taking `desk` would mean detaching the old console first. `commerce`
+     * names what this one actually fronts, and lets the two coexist until the
+     * legacy console is retired.
+     */
+    operator: prod ? `commerce.${PRODUCTION_ZONE}` : `commerce-${suffix}.${PRODUCTION_ZONE}`,
     /**
      * Where the payment provider posts. A DEDICATED SUBDOMAIN rather than a
      * path on the apex: the apex is the storefront's, and a webhook that moves
