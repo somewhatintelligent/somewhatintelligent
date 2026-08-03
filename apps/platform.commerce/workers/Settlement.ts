@@ -26,6 +26,32 @@ import * as PaymentsProvider from "../services/PaymentsProvider.ts";
 import { environmentFor } from "../services/StripeConfig.ts";
 import { settlementSurface } from "./SettlementSurface.ts";
 
+/**
+ * The props, as an Effect — because the hostname has to read the stage and the
+ * `alchemy dev` flag, and neither is available where a plain object is written.
+ *
+ * THE CAST IS A TYPE GAP, NOT A RUNTIME ONE, and it is worth being precise
+ * about which. `Resource()` resolves props with
+ * `Effect.isEffect(props) ? yield* props : props`, so an Effect here is
+ * resolved before any provider sees it. What is narrow is only the class form's
+ * THREE-argument overload, which declares plain `InputProps` — the two-argument
+ * (implless) overload accepts an Effect, and this Worker needs an impl.
+ *
+ * DO NOT "FIX" THIS BY MOVING THE EFFECT ONTO THE `domain` FIELD. `Input<T>`
+ * admits `Effect<T, any, any>` per field so it type-checks, and it is resolved
+ * NOWHERE — `resolveWorkerDomain` reads `config.name` straight off the raw prop,
+ * gets `undefined` off an Effect object, and the deploy dies in the middle with
+ * `Could not infer Cloudflare Zone for hostname "undefined"` after half the
+ * stack has already been created. Measured, on a prod deploy.
+ */
+const settlementProps = Effect.gen(function* () {
+  const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+  const { hooks } = yield* Hostnames;
+  return local
+    ? { main: import.meta.url }
+    : { main: import.meta.url, domain: hooks, workersDev: false };
+}) as unknown as { main: string; domain?: string; workersDev?: boolean };
+
 export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker>()(
   "Settlement",
   /**
@@ -62,26 +88,7 @@ export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker
    * repointing the live `hooks.` record at whatever the dev session happens to
    * be — which is a live store's payments quietly arriving on a laptop.
    */
-  {
-    main: import.meta.url,
-    workersDev: false,
-    /**
-     * AN EFFECT ON THE PROP, not an Effect around the props object. The class
-     * form's three-argument overload takes plain props — only the implless
-     * two-argument one accepts `Effect<InputProps<…>>` — but `Input<T>` admits
-     * `Effect<T, any, any>` per field, which is what lets a hostname that has
-     * to read the stage sit next to a `main` that does not.
-     *
-     * `undefined` under `alchemy dev`, so a local session never reconciles the
-     * custom domain and repoints the live `hooks.` record at a laptop.
-     */
-    domain: Effect.gen(function* () {
-      const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
-      if (local) return undefined;
-      const { hooks } = yield* Hostnames;
-      return hooks;
-    }),
-  },
+  settlementProps,
   Effect.gen(function* () {
     const { stage } = yield* Stack;
 
