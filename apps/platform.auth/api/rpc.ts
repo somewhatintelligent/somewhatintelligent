@@ -132,7 +132,7 @@ export const authRpc = function* (auth: Auth) {
         const counts = yield* query<{ users: number; sessions: number; clients: number }>(
           `SELECT (SELECT COUNT(*) FROM "user") AS users,
                   (SELECT COUNT(*) FROM "session") AS sessions,
-                  (SELECT COUNT(*) FROM "oauthClient") AS clients`,
+                  (SELECT COUNT(*) FROM "oauth_client") AS clients`,
         );
         const row = counts.results[0];
 
@@ -160,11 +160,13 @@ export const authRpc = function* (auth: Auth) {
           userEmail: string | null;
           userImage: string | null;
         }>(
-          `SELECT s."id", s."userId", s."ipAddress", s."userAgent", s."createdAt", s."expiresAt",
+          `SELECT s."id", s."user_id" AS "userId", s."ip_address" AS "ipAddress",
+                  s."user_agent" AS "userAgent", s."created_at" AS "createdAt",
+                  s."expires_at" AS "expiresAt",
                   u."name" AS userName, u."email" AS userEmail, u."image" AS userImage
              FROM "session" s
-             LEFT JOIN "user" u ON u."id" = s."userId"
-            ORDER BY s."createdAt" DESC
+             LEFT JOIN "user" u ON u."id" = s."user_id"
+            ORDER BY s."created_at" DESC
             LIMIT 100`,
         );
 
@@ -207,11 +209,11 @@ export const authRpc = function* (auth: Auth) {
           createdAt: number;
           ownerEmail: string | null;
         }>(
-          `SELECT k."id", k."name", k."prefix", k."enabled", k."createdAt",
+          `SELECT k."id", k."name", k."prefix", k."enabled", k."created_at" AS "createdAt",
                   u."email" AS ownerEmail
              FROM "apikey" k
-             LEFT JOIN "user" u ON u."id" = k."referenceId"
-            ORDER BY k."createdAt" DESC
+             LEFT JOIN "user" u ON u."id" = k."reference_id"
+            ORDER BY k."created_at" DESC
             LIMIT 100`,
         );
 
@@ -230,8 +232,8 @@ export const authRpc = function* (auth: Auth) {
           type: string | null;
           referenceId: string | null;
         }>(
-          `SELECT "id", "clientId", "name", "type", "referenceId"
-             FROM "oauthClient" ORDER BY "createdAt" DESC LIMIT 200`,
+          `SELECT "id", "client_id" AS "clientId", "name", "type", "reference_id" AS "referenceId"
+             FROM "oauth_client" ORDER BY "created_at" DESC LIMIT 200`,
         );
 
         return { ok: true as const, clients: rows.results };
@@ -249,8 +251,8 @@ export const authRpc = function* (auth: Auth) {
         if (found.value === null || found.value === undefined) return failed("not_found");
 
         const counts = yield* query<{ tokens: number; consents: number }>(
-          `SELECT (SELECT COUNT(*) FROM "oauthAccessToken" WHERE "clientId" = ?1) AS tokens,
-                  (SELECT COUNT(*) FROM "oauthConsent" WHERE "clientId" = ?1) AS consents`,
+          `SELECT (SELECT COUNT(*) FROM "oauth_access_token" WHERE "client_id" = ?1) AS tokens,
+                  (SELECT COUNT(*) FROM "oauth_consent" WHERE "client_id" = ?1) AS consents`,
           input.clientId,
         );
 
@@ -393,14 +395,14 @@ export const authRpc = function* (auth: Auth) {
           memberCount: number;
           ownerName: string | null;
         }>(
-          `SELECT o."id", o."slug", o."name", o."logo", o."createdAt",
-                  (SELECT COUNT(*) FROM "member" m WHERE m."organizationId" = o."id") AS memberCount,
+          `SELECT o."id", o."slug", o."name", o."logo", o."created_at" AS "createdAt",
+                  (SELECT COUNT(*) FROM "member" m WHERE m."organization_id" = o."id") AS memberCount,
                   (SELECT u."name" FROM "member" m2
-                     LEFT JOIN "user" u ON u."id" = m2."userId"
-                    WHERE m2."organizationId" = o."id" AND m2."role" = 'owner'
+                     LEFT JOIN "user" u ON u."id" = m2."user_id"
+                    WHERE m2."organization_id" = o."id" AND m2."role" = 'owner'
                     LIMIT 1) AS ownerName
              FROM "organization" o
-            ORDER BY o."createdAt" DESC
+            ORDER BY o."created_at" DESC
             LIMIT 200`,
         );
 
@@ -439,7 +441,7 @@ export const authRpc = function* (auth: Auth) {
           createdAt: number;
           metadata: string | null;
         }>(
-          `SELECT "id", "slug", "name", "logo", "createdAt", "metadata"
+          `SELECT "id", "slug", "name", "logo", "created_at" AS "createdAt", "metadata"
              FROM "organization" WHERE "id" = ?1 LIMIT 1`,
           input.id,
         );
@@ -455,11 +457,11 @@ export const authRpc = function* (auth: Auth) {
           role: string;
           joinedAt: number;
         }>(
-          `SELECT m."id" AS memberId, m."userId", u."name", u."email", u."image",
-                  m."role", m."createdAt" AS joinedAt
-             FROM "member" m LEFT JOIN "user" u ON u."id" = m."userId"
-            WHERE m."organizationId" = ?1
-            ORDER BY m."createdAt"`,
+          `SELECT m."id" AS memberId, m."user_id" AS "userId", u."name", u."email", u."image",
+                  m."role", m."created_at" AS joinedAt
+             FROM "member" m LEFT JOIN "user" u ON u."id" = m."user_id"
+            WHERE m."organization_id" = ?1
+            ORDER BY m."created_at"`,
           input.id,
         );
 
@@ -471,11 +473,11 @@ export const authRpc = function* (auth: Auth) {
           expiresAt: number;
           inviterName: string | null;
         }>(
-          `SELECT i."id", i."email", i."role", i."status", i."expiresAt",
+          `SELECT i."id", i."email", i."role", i."status", i."expires_at" AS "expiresAt",
                   u."name" AS inviterName
-             FROM "invitation" i LEFT JOIN "user" u ON u."id" = i."inviterId"
-            WHERE i."organizationId" = ?1
-            ORDER BY i."expiresAt" DESC`,
+             FROM "invitation" i LEFT JOIN "user" u ON u."id" = i."inviter_id"
+            WHERE i."organization_id" = ?1
+            ORDER BY i."expires_at" DESC`,
           input.id,
         );
 
@@ -601,7 +603,7 @@ export const authRpc = function* (auth: Auth) {
     }) =>
       Effect.gen(function* () {
         const rows = yield* query<{ email: string; role: string }>(
-          `SELECT "email", "role" FROM "invitation" WHERE "id" = ?1 AND "organizationId" = ?2 LIMIT 1`,
+          `SELECT "email", "role" FROM "invitation" WHERE "id" = ?1 AND "organization_id" = ?2 LIMIT 1`,
           input.invitationId,
           input.orgId,
         );
