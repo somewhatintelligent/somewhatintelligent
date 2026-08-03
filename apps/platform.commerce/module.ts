@@ -3,9 +3,9 @@ import * as Output from "alchemy/Output";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import { CLOUDFLARE_IDP, PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
-import { workerSafeStage } from "platform.names";
+import { CLOUDFLARE_IDP, TEAM_DOMAIN, workerSafeStage } from "platform.names";
 
+import { Hostnames } from "./hostnames.ts";
 import { PACKAGE_DIR } from "./paths.ts";
 import { CommerceDatabase, CommerceSchema, MediaBucket } from "./runtime.ts";
 import { environmentFor, type StripeEnvironment } from "./services/StripeConfig.ts";
@@ -63,32 +63,6 @@ import SettlementWorker from "./workers/Settlement.ts";
  * rather than a binding. THE OPERATOR CONSOLE IS THAT APP, and it is why it
  * lives in this package rather than beside it — see {@link Operator}.
  */
-
-/**
- * The hostnames this deploy owns, derived from the stage so two stages can
- * never advertise the same one.
- *
- * EVERY STAGE CLAIMS ONE, which is the opposite of what `mezedes` does and the
- * difference matters. Mezedes lets non-prod stages answer on workers.dev alone;
- * this app must never do that, because a workers.dev hostname is on
- * Cloudflare's zone rather than this account's and NO ACCESS APPLICATION CAN
- * EVER SIT IN FRONT OF ONE. An operator console reachable without the edge gate
- * is unauthenticated write access to the catalogue and the order book — the
- * exact thing `workers/Commerce.ts` has no address in order to prevent.
- *
- * `workerSafeStage` because a stage name carries characters DNS will not take;
- * `dev_stoli` is the common one and a bare interpolation fails the deploy.
- */
-const Hostnames = Effect.gen(function* () {
-  const { stage } = yield* Alchemy.Stack;
-  const prod = stage === PRODUCTION_STAGE;
-  return {
-    /** `desk`, the same label the app this replaces answered on. */
-    operator: prod
-      ? `desk.${PRODUCTION_ZONE}`
-      : `desk-${workerSafeStage(stage)}.${PRODUCTION_ZONE}`,
-  };
-});
 
 /**
  * The account's staff policy, owned by `stacks/platform.access`. A REQUIREMENT
@@ -272,7 +246,7 @@ export const CommerceModule = Effect.gen(function* () {
    */
   const operator = yield* Operator;
   const access = yield* OperatorAccess;
-  const { operator: operatorHost } = yield* Hostnames;
+  const { operator: operatorHost, hooks: hooksHost } = yield* Hostnames;
 
   return {
     /**
@@ -289,18 +263,31 @@ export const CommerceModule = Effect.gen(function* () {
      * `settlementUrl` instead, because its callers append the path themselves;
      * confusing the two yields `/webhook/webhook` and a 404 on every event.
      *
+     * A DEPLOY REPORTS IT; IT DOES NOT DECIDE IT. Settlement answers on the
+     * declared `hooks.` hostname, so this value is a constant that can be read
+     * off `hostnames.ts` and registered with the provider BEFORE the first
+     * deploy — which is what makes the endpoint registerable at all. It used to
+     * be a workers.dev URL derived from the deploy, and that ordering was a
+     * bootstrap loop: the URL needed the deploy, the deploy needed the signing
+     * secret, and the secret needed the URL already registered.
+     *
+     * `settlement.url` is still the source under `alchemy dev`, where no domain
+     * is claimed and the worker answers on a local port — the same split
+     * {@link Operator}'s `operatorUrl` makes, and the reason this is a fallback
+     * rather than a bare constant.
+     *
      * THE TRAILING SLASH IS NOT COSMETIC, and this is where the spike lost a
      * payment to it. `alchemy dev` formats a local worker URL WITH one
-     * (`http://localhost:1338/`) while a deployed `*.workers.dev` URL has none,
-     * so the obvious `` `${settlement.url}/webhook` `` yields `…//webhook`
-     * locally. Settlement matches `path !== "/webhook"` exactly, so every
-     * forwarded event 404s — the payment succeeds at Stripe and the order
-     * silently stays `pending/unpaid`, which reads as a settlement bug and is a
-     * URL bug. Deployed runs were unaffected, which is why the end-to-end suite
-     * never caught it.
+     * (`http://localhost:1338/`) while a deployed URL has none, so the obvious
+     * `` `${settlement.url}/webhook` `` yields `…//webhook` locally. Settlement
+     * matches `path !== "/webhook"` exactly, so every forwarded event 404s —
+     * the payment succeeds at Stripe and the order silently stays
+     * `pending/unpaid`, which reads as a settlement bug and is a URL bug.
+     * Deployed runs were unaffected, which is why the end-to-end suite never
+     * caught it.
      */
     webhookUrl: Output.interpolate`${Output.map(settlement.url, (url: string | undefined) =>
-      (url ?? "").replace(/\/+$/, ""),
+      url === undefined || url === "" ? `https://${hooksHost}` : url.replace(/\/+$/, ""),
     )}/webhook`,
 
     /**

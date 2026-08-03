@@ -21,26 +21,49 @@ import { PlatformAccess } from "../platform.access/index.ts";
  * schema resource generates migrations at deploy time and Cloudflare's provider
  * alone cannot resolve it.
  *
- * No typed handle yet. `Auth` publishes one because a different stack acts on
- * its origin; nothing consumes commerce's outputs from outside, and the thing a
- * consumer will actually want is a SERVICE BINDING, which does not cross a stack
- * boundary. The operator console is exactly that consumer, which is why it is
- * declared inside `apps/platform.commerce` and reaches Commerce by binding
- * rather than over a URL — see `Operator` in `platform.commerce/module`. A
- * storefront lands the same way when it does.
+ * No typed handle, and it turned out not to need one. `Auth` publishes an origin
+ * because a different stack acts on it; what a commerce consumer wants is a
+ * SERVICE BINDING, and a binding names a script — Cloudflare does not care which
+ * stack declared it. `Worker.ref` resolves this stack's `Commerce` out of its
+ * persisted state, so a consumer in another stack binds it exactly like a local
+ * declaration and no output has to cross.
+ *
+ * THIS FILE USED TO CLAIM A BINDING CANNOT CROSS A STACK BOUNDARY, and gave that
+ * as the reason the operator console lives inside `apps/platform.commerce`. The
+ * console does still belong there, but for a better reason: it is this app's own
+ * surface. The storefront did NOT land the same way — it is `/shop` on
+ * `platform.site`, in its own stack, reaching Commerce by ref. See
+ * `apps/platform.site/binding.ts`.
  *
  * `stage[PRODUCTION_STAGE]`, not a bare `yield*`: platform.access is a singleton
  * deployed at prod alone, so every stage of this app pins to that one. The ref
  * lives HERE because `apps/` may not import `stacks/`; the app only states the
  * requirement.
  *
- * No `adopt`. Nothing here exists yet; every physical name is stage-derived, so
- * a `dev_*` deploy stands up its own database, bucket, queue, hostname and
- * Access application rather than touching another stage's. Note the difference
- * from `stacks/mezedes` and `stacks/platform.inbox`, which both adopt because
- * their Access application sits on a hostname that already had one — `desk.`
- * has never been claimed by this account, so a blind create is correct and a
- * collision here would be a real conflict worth failing on.
+ * `adopt(true)`, and it is here rather than in the app because an adopt policy
+ * is composition — the same reason the state layer and the providers are.
+ *
+ * THIS FILE USED TO SAY THE OPPOSITE, on the grounds that every physical name
+ * is stage-derived and `desk.` had never been claimed by this account. The
+ * first prod plan disproved the second half:
+ *
+ *     OwnedBySomeoneElse: Cannot adopt resource 'OperatorAccess'
+ *     (Cloudflare.Access.Application): it exists in the cloud but is not
+ *     owned by this stack/stage/logical-id.
+ *
+ * An Access application is identified by its DOMAIN, so one left on `desk.` by
+ * an earlier stack is a collision no stage-derived name can avoid — exactly the
+ * case `stacks/mezedes` and `stacks/platform.inbox` already adopt for. Note
+ * what the alternative would have been: older alchemy planned a blind `create`
+ * here, and Cloudflare accepts a SECOND application on the same domain with a
+ * fresh `aud`. The gate still stands, but half the tokens fail verification
+ * against whichever `aud` `POLICY_AUD` captured, which reads as a broken login
+ * rather than a duplicated resource.
+ *
+ * The rest of the graph is unaffected by the wider policy: the database,
+ * bucket, queue and both hostnames are stage-derived and do not exist, so
+ * adopting changes nothing for them. It is the Access application, and only
+ * the Access application, that this is for.
  */
 
 /**
@@ -72,6 +95,7 @@ export default Alchemy.Stack(
 
     const commerce = yield* CommerceModule.pipe(
       Effect.provideService(StaffPolicy, { policyId: staffPolicyId }),
+      Alchemy.AdoptPolicy.adopt(true),
     );
 
     /**
