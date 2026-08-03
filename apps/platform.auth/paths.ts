@@ -15,7 +15,23 @@ import { Path } from "effect/Path";
  * trade rather than a clever one.
  */
 const inPackage = (p: string): Effect.Effect<string, never, Path> =>
-  Effect.map(Path, (path) => path.resolve(import.meta.dirname, p));
+  /**
+   * GUARDED, and this is not optional. `AuthDatabase` is yielded at RUNTIME —
+   * api/worker.ts -> capabilities.ts:66 — so everything its Effect does runs
+   * inside the deployed Worker too. `import.meta.dirname` is undefined there,
+   * and `path.resolve(undefined, …)` throws
+   * `The "paths[0]" argument must be of type string`, which takes the whole
+   * Worker down at init.
+   *
+   * `__ALCHEMY_RUNTIME__` is the flag alchemy's bundler folds to `true` in every
+   * runtime artifact, precisely so plan-only work can be eliminated from a
+   * deployed bundle. The resolved value is never read at runtime — it feeds
+   * Drizzle codegen and the D1's migrationsDir, both plan-time — so returning
+   * the unresolved string there is correct rather than a fallback.
+   */
+  globalThis.__ALCHEMY_RUNTIME__
+    ? Effect.succeed(p)
+    : Effect.map(Path, (path) => path.resolve(import.meta.dirname, p));
 
 /** The generated Drizzle schema: a `Drizzle.Schema` prop and the schema Action's target. */
 export const schemaPath = inPackage("api/schema.gen.ts");
@@ -23,7 +39,11 @@ export const schemaPath = inPackage("api/schema.gen.ts");
 /** Where `drizzle-kit generate` writes, and what the D1's `migrationsDir` reads. */
 export const migrationsDir = inPackage("api/migrations");
 
-/** Vite's root for the identity app. `Website.Vite` defaults it to `process.cwd()`. */
+/**
+ * Vite's root for the identity app. `Website.Vite` defaults it to
+ * `process.cwd()`. Read only from `module.ts`, which never reaches a bundle —
+ * at runtime this is `undefined` and unused.
+ */
 export const PACKAGE_DIR = import.meta.dirname;
 
 /**
