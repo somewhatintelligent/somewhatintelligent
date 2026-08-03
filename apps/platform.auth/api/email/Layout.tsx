@@ -13,7 +13,6 @@ import {
   Text,
 } from "@react-email/components";
 import { button, color, font, layout } from "platform.design/generated/email/tokens.ts";
-import { PRODUCTION_ZONE } from "platform.names";
 
 /**
  * The chrome every auth email shares, and the rules it enforces by being the
@@ -29,8 +28,6 @@ import { PRODUCTION_ZONE } from "platform.names";
  * `var()`, which is why the values come from a generated module rather than
  * the CSS tokens — see `platform.design/scripts/codegen.ts`.
  */
-
-const HOST = `auth.${PRODUCTION_ZONE}`;
 
 /**
  * ONE per email. The brand study is explicit that repetition turns a breach
@@ -56,13 +53,21 @@ export interface LayoutProps {
   readonly preview: string;
   /** The claim, set large and condensed. Uppercase by construction. */
   readonly heading: string;
+  /**
+   * The deployment's OWN origin, resolved at runtime from `Origin` — the same
+   * value Better Auth mints links against. Not a constant: a constant here was
+   * how `auth.somewhatintelligent.ca` — a hostname that does not exist — got
+   * into a link in a rendered email, and it would also have made every
+   * non-production email point at production.
+   */
+  readonly origin: string;
   readonly leak: Leak;
   /** Documentary metadata — mono, uppercase label, plain value. */
   readonly record?: ReadonlyArray<RecordRow>;
   readonly children: React.ReactNode;
 }
 
-export function Layout({ title, preview, heading, leak, record, children }: LayoutProps) {
+export function Layout({ title, preview, heading, origin, leak, record, children }: LayoutProps) {
   return (
     <Html lang="en" dir="ltr">
       <Head>
@@ -215,8 +220,8 @@ export function Layout({ title, preview, heading, leak, record, children }: Layo
               color: color.mutedForeground,
             }}
           >
-            <Link href={`https://${HOST}`} style={{ color: color.mutedForeground }}>
-              {HOST}
+            <Link href={origin} style={{ color: color.mutedForeground }}>
+              {origin.replace(/^https?:\/\//, "")}
             </Link>
             {"  /  SENT BY A MACHINE, ON YOUR INSTRUCTION"}
           </Text>

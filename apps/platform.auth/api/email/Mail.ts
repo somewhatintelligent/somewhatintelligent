@@ -15,10 +15,12 @@ import { PRODUCTION_ZONE } from "platform.names";
  * `apps/platform.inbox/workers/email-sender.ts` is the same product already in
  * production.
  *
- * The sender must belong to an ONBOARDED domain. Onboarding writes MX, SPF,
- * DKIM and DMARC on a `cf-bounce` subdomain — worth knowing because alchemy's
- * OAuth scopes have historically lacked `dns_records:edit` (see the DNS note in
- * `apps/mezedes/module.ts`), so it may need doing in the dashboard once.
+ * `somewhatintelligent.ca` IS ALREADY ONBOARDED to Email Sending, and
+ * `hello@` is already the sender it was onboarded for — see the old repo's
+ * `workers/promoter/wrangler.jsonc`, which has run `{ kind: "cloudflare",
+ * binding: env.EMAIL }` against it in production. Nothing needs provisioning
+ * here; the previous auth worker simply never used it, sending through Resend
+ * instead while its sibling used the binding.
  */
 
 /** The descriptor the worker binds. Unrestricted: auth mails strangers. */

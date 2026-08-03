@@ -15,20 +15,23 @@ import { Action, Code, Layout, Prose } from "./Layout.tsx";
  */
 
 export interface LinkProps {
+  readonly origin: string;
   readonly url: string;
   readonly email: string;
   readonly expiresIn: string;
 }
 
 export interface CodeProps {
+  readonly origin: string;
   readonly code: string;
   readonly email: string;
   readonly expiresIn: string;
 }
 
-export function VerifyEmail({ url, email, expiresIn }: LinkProps) {
+export function VerifyEmail({ origin, url, email, expiresIn }: LinkProps) {
   return (
     <Layout
+      origin={origin}
       title="Verify your address"
       preview="An account was opened with this address. Confirm it."
       heading="Verify address"
@@ -48,9 +51,10 @@ export function VerifyEmail({ url, email, expiresIn }: LinkProps) {
   );
 }
 
-export function MagicLink({ url, email, expiresIn }: LinkProps) {
+export function MagicLink({ origin, url, email, expiresIn }: LinkProps) {
   return (
     <Layout
+      origin={origin}
       title="Your sign-in link"
       preview="No password. One link, one use."
       heading="Sign in"
@@ -69,9 +73,10 @@ export function MagicLink({ url, email, expiresIn }: LinkProps) {
   );
 }
 
-export function ResetPassword({ url, email, expiresIn }: LinkProps) {
+export function ResetPassword({ origin, url, email, expiresIn }: LinkProps) {
   return (
     <Layout
+      origin={origin}
       title="Reset your password"
       preview="Someone asked to replace this account's password."
       heading="Reset password"
@@ -90,9 +95,10 @@ export function ResetPassword({ url, email, expiresIn }: LinkProps) {
   );
 }
 
-export function ChangeEmail({ url, email, expiresIn }: LinkProps) {
+export function ChangeEmail({ origin, url, email, expiresIn }: LinkProps) {
   return (
     <Layout
+      origin={origin}
       title="Confirm your new address"
       preview="This account is moving to a new address."
       heading="Change address"
@@ -111,9 +117,10 @@ export function ChangeEmail({ url, email, expiresIn }: LinkProps) {
   );
 }
 
-export function DeleteAccount({ url, email, expiresIn }: LinkProps) {
+export function DeleteAccount({ origin, url, email, expiresIn }: LinkProps) {
   return (
     <Layout
+      origin={origin}
       title="Confirm account deletion"
       preview="This will end the account and everything filed under it."
       heading="Delete account"
@@ -134,11 +141,13 @@ export function DeleteAccount({ url, email, expiresIn }: LinkProps) {
 }
 
 export function OrganizationInvitation({
+  origin,
   url,
   organization,
   invitedBy,
   expiresIn,
 }: {
+  readonly origin: string;
   readonly url: string;
   readonly organization: string;
   readonly invitedBy: string;
@@ -146,6 +155,7 @@ export function OrganizationInvitation({
 }) {
   return (
     <Layout
+      origin={origin}
       title={`You have been added to ${organization}`}
       preview={`${invitedBy} added you to ${organization}.`}
       heading="Invitation"
@@ -166,9 +176,10 @@ export function OrganizationInvitation({
   );
 }
 
-export function EmailOtp({ code, email, expiresIn }: CodeProps) {
+export function EmailOtp({ origin, code, email, expiresIn }: CodeProps) {
   return (
     <Layout
+      origin={origin}
       title="Your one-time code"
       preview="A code, good once."
       heading="One-time code"
@@ -185,9 +196,10 @@ export function EmailOtp({ code, email, expiresIn }: CodeProps) {
   );
 }
 
-export function TwoFactorOtp({ code, email, expiresIn }: CodeProps) {
+export function TwoFactorOtp({ origin, code, email, expiresIn }: CodeProps) {
   return (
     <Layout
+      origin={origin}
       title="Your second factor"
       preview="A code to finish signing in."
       heading="Second factor"

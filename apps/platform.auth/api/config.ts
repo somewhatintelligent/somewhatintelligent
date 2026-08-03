@@ -47,7 +47,7 @@ export const authConfig = Effect.gen(function* () {
    * request carries. `deliver` then closes over the clients and the boundary
    * keeps carrying `never`.
    */
-  const deliver = deliverWith(yield* Mail, yield* EmailTemplates);
+  const deliver = deliverWith(yield* Mail, yield* EmailTemplates, origin);
   const run = yield* makeRequestBoundary<never>();
   return yield* bae.configure({
     /** See `api/secret.ts` for what happens when this is omitted. */

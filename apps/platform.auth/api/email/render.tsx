@@ -36,6 +36,7 @@ interface Rendered {
 }
 
 interface Fields {
+  readonly origin: string;
   readonly url: string;
   readonly email: string;
   readonly code: string;
@@ -57,28 +58,33 @@ interface Fields {
 const TEMPLATES: Record<Touchpoint, ((f: Fields) => Rendered) | null> = {
   "verify-email": (f) => ({
     subject: "Verify your address",
-    element: <VerifyEmail url={f.url} email={f.email} expiresIn={f.expiresIn} />,
+    element: <VerifyEmail origin={f.origin} url={f.url} email={f.email} expiresIn={f.expiresIn} />,
   }),
   "magic-link": (f) => ({
     subject: "Your sign-in link",
-    element: <MagicLink url={f.url} email={f.email} expiresIn={f.expiresIn} />,
+    element: <MagicLink origin={f.origin} url={f.url} email={f.email} expiresIn={f.expiresIn} />,
   }),
   "reset-password": (f) => ({
     subject: "Reset your password",
-    element: <ResetPassword url={f.url} email={f.email} expiresIn={f.expiresIn} />,
+    element: (
+      <ResetPassword origin={f.origin} url={f.url} email={f.email} expiresIn={f.expiresIn} />
+    ),
   }),
   "change-email": (f) => ({
     subject: "Confirm your new address",
-    element: <ChangeEmail url={f.url} email={f.email} expiresIn={f.expiresIn} />,
+    element: <ChangeEmail origin={f.origin} url={f.url} email={f.email} expiresIn={f.expiresIn} />,
   }),
   "delete-account": (f) => ({
     subject: "Confirm account deletion",
-    element: <DeleteAccount url={f.url} email={f.email} expiresIn={f.expiresIn} />,
+    element: (
+      <DeleteAccount origin={f.origin} url={f.url} email={f.email} expiresIn={f.expiresIn} />
+    ),
   }),
   "organization-invitation": (f) => ({
     subject: `You have been added to ${f.organization}`,
     element: (
       <OrganizationInvitation
+        origin={f.origin}
         url={f.url}
         organization={f.organization}
         invitedBy={f.invitedBy}
@@ -88,16 +94,19 @@ const TEMPLATES: Record<Touchpoint, ((f: Fields) => Rendered) | null> = {
   }),
   "email-otp": (f) => ({
     subject: "Your one-time code",
-    element: <EmailOtp code={f.code} email={f.email} expiresIn={f.expiresIn} />,
+    element: <EmailOtp origin={f.origin} code={f.code} email={f.email} expiresIn={f.expiresIn} />,
   }),
   "two-factor-otp": (f) => ({
     subject: "Your second factor",
-    element: <TwoFactorOtp code={f.code} email={f.email} expiresIn={f.expiresIn} />,
+    element: (
+      <TwoFactorOtp origin={f.origin} code={f.code} email={f.email} expiresIn={f.expiresIn} />
+    ),
   }),
   "phone-otp": null,
 };
 
 const fields = (vars: Readonly<Record<string, string>>): Fields => ({
+  origin: read(vars, "origin", ""),
   url: read(vars, "url", ""),
   email: read(vars, "email", UNKNOWN),
   code: read(vars, "otp", read(vars, "code", UNKNOWN)),

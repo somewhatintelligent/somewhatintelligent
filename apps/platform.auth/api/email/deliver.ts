@@ -11,9 +11,19 @@ import type { EmailTemplatesService, MailService, Touchpoint } from "lib.better-
  * for the duration of a call, only the client it already holds.
  */
 export const deliverWith =
-  (mail: MailService, templates: EmailTemplatesService) =>
+  (mail: MailService, templates: EmailTemplatesService, origin: string) =>
   (touchpoint: Touchpoint, to: string, variables: Readonly<Record<string, string>>) =>
     Effect.gen(function* () {
-      const { subject, text, html } = yield* templates.render({ touchpoint, variables });
+      /**
+       * `origin` is injected rather than asked for: the templates service would
+       * otherwise need `Origin` in its requirement channel, and sibling layers
+       * in `live` do not provide each other. It is also the same origin Better
+       * Auth minted the link with, so the footer cannot advertise a different
+       * deployment than the button points at.
+       */
+      const { subject, text, html } = yield* templates.render({
+        touchpoint,
+        variables: { origin, ...variables },
+      });
       yield* mail.send({ to: [to], subject, text, html });
     });

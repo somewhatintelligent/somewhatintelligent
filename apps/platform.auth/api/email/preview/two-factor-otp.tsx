@@ -4,6 +4,7 @@
 import { TwoFactorOtp } from "../templates.tsx";
 
 const props = {
+  origin: "https://accounts.somewhatintelligent.ca",
   code: "418205",
   email: "researcher@somewhatintelligent.com",
   expiresIn: "30 seconds",

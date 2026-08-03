@@ -4,7 +4,8 @@
 import { OrganizationInvitation } from "../templates.tsx";
 
 const props = {
-  url: "https://auth.somewhatintelligent.ca/api/auth/accept-invitation/inv_7f3a",
+  origin: "https://accounts.somewhatintelligent.ca",
+  url: "https://accounts.somewhatintelligent.ca/api/auth/accept-invitation/inv_7f3a",
   organization: "somewhatintelligent",
   invitedBy: "Apostoli",
   expiresIn: "7 days",

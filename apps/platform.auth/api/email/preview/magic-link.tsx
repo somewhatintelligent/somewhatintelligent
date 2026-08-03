@@ -4,7 +4,8 @@
 import { MagicLink } from "../templates.tsx";
 
 const props = {
-  url: "https://auth.somewhatintelligent.ca/verify?token=b8f2e1a4c9d0e7",
+  origin: "https://accounts.somewhatintelligent.ca",
+  url: "https://accounts.somewhatintelligent.ca/verify?token=b8f2e1a4c9d0e7",
   email: "researcher@somewhatintelligent.com",
   expiresIn: "5 minutes",
 };
