@@ -20,7 +20,8 @@
  * silently overwriting the first.
  */
 import { useState } from "react";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { Archive, ArrowLeft, Clock, Package, Trash2 } from "lucide-react";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "platform.ui/components/alert";
 import { Button } from "platform.ui/components/button";
@@ -123,6 +124,17 @@ function Product() {
     await router.invalidate();
   };
 
+  const [archiving, setArchiving] = useState(false);
+  const archive = async () => {
+    setArchiving(true);
+    try {
+      await setProductStatus({ data: { productId, status: "archived", commandId: commandId() } });
+      await refresh();
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   if (!result.ok) {
     return (
       <>
@@ -138,27 +150,50 @@ function Product() {
   return (
     <>
       <PageHeader
+        back={
+          <Button
+            variant="outline"
+            size="icon-sm"
+            nativeButton={false}
+            aria-label="Back to products"
+            render={<Link to="/products" search={{ status: "all" }} />}
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+        }
         title={draft.title}
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2">
+        badges={
+          <>
             <ProductStatusBadge status={draft.status} />
-            <span>{draft.slug}</span>
-            <span>· revision {draft.revision}</span>
-            <span>
-              · {draft.activeVersion ? `live v${draft.activeVersion}` : "never published"}
+            <span className="text-sm text-muted-foreground">
+              · {draft.activeVersion ? `v${draft.activeVersion}` : "never published"}
             </span>
-          </span>
+          </>
         }
         actions={
-          <DeletionDialog
-            label={draft.title}
-            description="Deletes the product and everything under it that is not retained for order history."
-            plan={() => planProductDeletion({ data: { productId, commandId: commandId() } })}
-            confirm={(input) => deleteProduct({ data: input })}
-            onDeleted={async () => {
-              await navigate({ to: "/products", search: { status: "all" } });
-            }}
-          />
+          <>
+            {draft.status === "archived" ? null : (
+              <Button variant="outline" disabled={archiving} onClick={() => void archive()}>
+                <Archive className="size-4" />
+                Archive
+              </Button>
+            )}
+            <DeletionDialog
+              label={draft.title}
+              description="Deletes the product and everything under it that is not retained for order history."
+              plan={() => planProductDeletion({ data: { productId, commandId: commandId() } })}
+              confirm={(payload) => deleteProduct({ data: payload })}
+              onDeleted={async () => {
+                await navigate({ to: "/products", search: { status: "all" } });
+              }}
+              trigger={
+                <Button variant="destructive">
+                  <Trash2 className="size-4" />
+                  Delete
+                </Button>
+              }
+            />
+          </>
         }
       />
 
@@ -190,20 +225,33 @@ function Product() {
         of fact from what it is, and it is the one an operator opens the page to
         change.
       */}
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(26rem,34rem)]">
-        <Identity productId={productId} draft={draft} media={media} refresh={refresh} />
-        <Variants
-          productId={productId}
-          slug={draft.slug}
-          variants={variants}
-          runCap={preorder.cap}
-          refresh={refresh}
-        />
-      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(23rem,29rem)]">
+        {/*
+          LEFT is the product and what happens to it; RIGHT is what it sells and
+          how much of it. `How it sells` sits directly above the sizes table
+          because it decides what a row in that table MEANS — apart, the two
+          read as unrelated panels and the operator has to remember the link.
+        */}
+        <div className="flex flex-col gap-4">
+          <Identity productId={productId} draft={draft} media={media} refresh={refresh} />
+          <Lifecycle draft={draft} releases={releases} refresh={refresh} />
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
-        <Lifecycle draft={draft} releases={releases} refresh={refresh} />
-        <SellsAs productId={productId} preorder={preorder} variants={variants} refresh={refresh} />
+        <div className="flex flex-col gap-4">
+          <SellsAs
+            productId={productId}
+            preorder={preorder}
+            variants={variants}
+            refresh={refresh}
+          />
+          <Variants
+            productId={productId}
+            slug={draft.slug}
+            variants={variants}
+            runCap={preorder.cap}
+            refresh={refresh}
+          />
+        </div>
       </div>
     </>
   );
@@ -219,8 +267,6 @@ function Product() {
  */
 function Readiness({ detail }: { detail: ProductDetail }) {
   const { preorder, variants, media } = detail;
-
-  const hasCover = media.some((item) => item.role === "cover");
 
   /**
    * Pre-order sizes with no run to claim against — the run guard would match
@@ -243,17 +289,6 @@ function Readiness({ detail }: { detail: ProductDetail }) {
           <AlertDescription>
             Publish refuses until this product has <strong>{missing.join(" and ")}</strong>. Add{" "}
             {missing.length > 1 ? "them" : "it"} below.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {missing.length === 0 && !hasCover ? (
-        <Alert>
-          <AlertTitle>No cover image</AlertTitle>
-          <AlertDescription>
-            Publish will accept this — any image satisfies it. But a listing shows the cover, so
-            without one this product goes on sale with no picture. Set a role of <code>cover</code>{" "}
-            on one of the images below.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -288,9 +323,9 @@ function Lifecycle({
   return (
     <Section title="Publish" description="Freezes the draft into a release, and puts it on sale.">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <Field className="w-32">
-            <Label htmlFor="bump">Version bump</Label>
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <Field className="w-28">
+            <Label htmlFor="bump">Version</Label>
             <Select value={bump} onValueChange={(v) => v && setBump(v as typeof bump)}>
               <SelectTrigger id="bump">
                 <SelectValue />
@@ -323,9 +358,9 @@ function Lifecycle({
           </Button>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <Label className="mb-1.5 block">Status</Label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {STATUSES.map((status) => (
               <Button
                 key={status}
@@ -380,8 +415,8 @@ function Lifecycle({
                     confirm={(input) => deleteProductRelease({ data: input })}
                     onDeleted={refresh}
                     trigger={
-                      <Button variant="ghost" size="xs">
-                        Delete
+                      <Button variant="ghost" size="icon-sm" className="size-7" title="Delete size">
+                        <Trash2 className="size-3.5" />
                       </Button>
                     }
                   />
@@ -520,63 +555,63 @@ function SellsAs({
   };
 
   return (
-    <Section
-      title="How it sells"
-      description="The one thing that decides what everything else means."
-    >
+    <Section title="Sales channel" description="Choose how this product is sold.">
       <div className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
+          <Channel
+            selected={!isRun}
             disabled={busy}
-            onClick={() => void apply("stock")}
-            className={`flex flex-col gap-1 rounded-md border-2 p-3 text-left transition-colors ${
-              isRun ? "border-border hover:bg-surface-sunken" : "border-primary bg-surface-sunken"
-            }`}
+            onSelect={() => void apply("stock")}
+            icon={<Package className="size-5" />}
+            title="In stock"
+            body="Sell from available inventory. Manage sizes and stock levels."
+          />
+          <Channel
+            selected={isRun}
+            disabled={busy}
+            onSelect={() => void apply("run")}
+            icon={<Clock className="size-5" />}
+            title="Made to order"
+            body="Take orders now and make them after. Define the run size."
           >
-            <span className="font-display text-sm font-semibold">From stock</span>
-            <span className="text-xs text-muted-foreground">
-              You have them. Each size sells what it has, and runs out on its own.
-            </span>
-          </button>
-
-          <div
-            className={`flex flex-col gap-2 rounded-md border-2 p-3 ${
-              isRun ? "border-primary bg-surface-sunken" : "border-border"
-            }`}
-          >
-            <span className="font-display text-sm font-semibold">As a run</span>
-            <span className="text-xs text-muted-foreground">
-              Take orders now, make them after. Any size mix, capped in total.
-            </span>
-            <div className="flex items-end gap-2">
-              <Field className="w-24">
-                <Label htmlFor="cap" className="text-xs">
-                  Pieces
-                </Label>
-                <Input
-                  id="cap"
-                  inputMode="numeric"
-                  value={cap}
-                  onChange={(e) => setCap(e.target.value)}
-                />
-              </Field>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => void apply("run")}>
-                {isRun ? "Update run" : "Sell as a run"}
-              </Button>
-            </div>
-          </div>
+            {isRun ? (
+              <div className="flex items-end gap-2 pt-1">
+                <Field className="w-20">
+                  <Label htmlFor="cap" className="text-xs">
+                    Run size
+                  </Label>
+                  <Input
+                    id="cap"
+                    inputMode="numeric"
+                    value={cap}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setCap(e.target.value)}
+                    className="h-8"
+                  />
+                </Field>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void apply("run");
+                  }}
+                >
+                  Update
+                </Button>
+              </div>
+            ) : null}
+          </Channel>
         </div>
 
-        {isRun ? (
-          <Facts
-            rows={[
-              ["Run size", preorder.cap],
-              ["Sold", preorder.claimed],
-              ["Left", preorder.remaining ?? "—"],
-            ]}
-          />
-        ) : null}
+        <Facts
+          rows={[
+            ["Run size", preorder.cap ?? "—"],
+            ["Sold", preorder.claimed],
+            ["Left", preorder.remaining ?? "—"],
+          ]}
+        />
 
         <Outcome error={error} done={done} />
 
@@ -588,6 +623,60 @@ function SellsAs({
         ) : null}
       </div>
     </Section>
+  );
+}
+
+/**
+ * One of the two ways a product can be sold, as a card you pick rather than a
+ * value you set in a dropdown. The choice decides what a row in the sizes table
+ * MEANS, so it earns the room that makes both options readable at once.
+ */
+function Channel({
+  selected,
+  disabled,
+  onSelect,
+  icon,
+  title,
+  body,
+  children,
+}: {
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div
+      role="radio"
+      aria-checked={selected}
+      tabIndex={disabled ? -1 : 0}
+      onClick={() => !disabled && !selected && onSelect()}
+      onKeyDown={(e) => {
+        if (disabled || selected) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`relative flex cursor-pointer flex-col gap-1.5 rounded-lg border p-3.5 pt-9 transition-colors ${
+        selected ? "border-primary bg-primary/5" : "border-border hover:border-border-strong"
+      } ${disabled ? "pointer-events-none opacity-60" : ""}`}
+    >
+      <span
+        className={`absolute top-3.5 left-3.5 flex size-4 items-center justify-center rounded-full border-2 ${
+          selected ? "border-primary" : "border-border-strong"
+        }`}
+      >
+        {selected ? <span className="size-2 rounded-full bg-primary" /> : null}
+      </span>
+      <span className="text-sm font-semibold">{title}</span>
+      <span className="text-xs text-muted-foreground">{body}</span>
+      <span className="absolute right-3.5 bottom-3.5 text-muted-foreground">{icon}</span>
+      {children}
+    </div>
   );
 }
 
@@ -615,7 +704,8 @@ function Variants({
 
   return (
     <Section
-      title="Sizes"
+      title="Variants"
+      description="Sizes, SKUs and inventory."
       actions={<AddSize productId={productId} slug={slug} runCap={runCap} onAdded={refresh} />}
     >
       <div className="flex flex-col gap-3">
@@ -636,15 +726,17 @@ function Variants({
               <Td>
                 <div className="flex items-center gap-1">
                   <Input
-                    className="h-8 w-16"
+                    className="h-7 w-12"
                     inputMode="numeric"
                     value={deltas[variant.id] ?? "1"}
                     onChange={(e) => setDeltas({ ...deltas, [variant.id]: e.target.value })}
                   />
                   <Button
-                    size="xs"
+                    size="icon-sm"
                     variant="outline"
+                    className="size-7"
                     disabled={busy}
+                    title="Add units"
                     onClick={() =>
                       void run(
                         () =>
@@ -663,9 +755,11 @@ function Variants({
                     +
                   </Button>
                   <Button
-                    size="xs"
+                    size="icon-sm"
                     variant="outline"
+                    className="size-7"
                     disabled={busy}
+                    title="Remove units"
                     onClick={() =>
                       void run(
                         () =>

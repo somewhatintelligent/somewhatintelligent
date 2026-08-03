@@ -416,10 +416,10 @@
       }
     },
     "apps/platform.commerce/app/components/product-identity.tsx": {
-      "complexity_high": {
+      "complexity_critical": {
         "count": 1
       },
-      "crap_high": {
+      "crap_critical": {
         "count": 1
       },
       "crap_moderate": {
@@ -467,6 +467,9 @@
     "apps/platform.commerce/app/routes/products.$productId.tsx": {
       "crap_high": {
         "count": 3
+      },
+      "crap_moderate": {
+        "count": 2
       }
     },
     "apps/platform.commerce/app/routes/products.index.tsx": {

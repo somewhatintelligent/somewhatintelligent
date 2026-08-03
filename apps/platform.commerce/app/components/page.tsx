@@ -4,21 +4,31 @@
 import { cn } from "platform.ui/lib/utils";
 
 export function PageHeader({
+  back,
   title,
+  badges,
   subtitle,
   actions,
 }: {
+  /** Where the back chevron goes. Absent on a list page, which has nowhere up. */
+  back?: React.ReactNode;
   title: React.ReactNode;
+  /** Status and version — facts that belong BESIDE a name rather than under it. */
+  badges?: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
-      <div className="min-w-0">
-        <h1 className="truncate font-display text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle ? <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div> : null}
+    <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 items-center gap-3">
+          {back}
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
+          {badges ? <div className="flex shrink-0 items-center gap-2">{badges}</div> : null}
+        </div>
+        {subtitle ? <div className="text-sm text-muted-foreground">{subtitle}</div> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
   );
 }
@@ -39,17 +49,20 @@ export function Section({
   return (
     <section
       className={cn(
-        // `self-start` so a panel is as tall as its content. Inside a grid row a
-        // stretched panel leaves the dead space that made a one-row table look
-        // like a bug.
-        "self-start rounded-md border border-border bg-card p-3.5",
+        // `self-start` so a panel is as tall as its content. Stretched to fill a
+        // grid row, a one-row table left a screenful of dead space under it.
+        "self-start rounded-xl border border-border bg-card p-5",
         className,
       )}
     >
-      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="font-display text-sm font-semibold tracking-wide uppercase">{title}</h2>
-        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-        {description ? <p className="w-full text-xs text-muted-foreground">{description}</p> : null}
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          {description ? (
+            <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
       {children}
     </section>

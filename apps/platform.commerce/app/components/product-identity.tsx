@@ -12,20 +12,30 @@
  * sits under it as the quiet consequence of the title it is derived from.
  */
 import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ImageUp, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Image as ImageIcon,
+  ImageUp,
+  MoreVertical,
+  Plus,
+  Star,
+  Trash2,
+} from "lucide-react";
 
-import { Badge } from "platform.ui/components/badge";
 import { Button } from "platform.ui/components/button";
 import { Field } from "platform.ui/components/field";
 import { Input } from "platform.ui/components/input";
 import { Label } from "platform.ui/components/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "platform.ui/components/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "platform.ui/components/dropdown-menu";
 import { Textarea } from "platform.ui/components/textarea";
 
 import type { ProductDetail, ProductMediaRole } from "../../domain/Contracts.ts";
@@ -199,6 +209,7 @@ function Gallery({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [dragging, setDragging] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
   const index = Math.min(at, Math.max(0, media.length - 1));
@@ -251,7 +262,7 @@ function Gallery({
   };
 
   return (
-    <div className="flex w-full flex-none flex-col gap-2 lg:w-72">
+    <div className="flex w-full flex-none flex-col gap-2.5 lg:w-[19rem]">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -264,8 +275,8 @@ function Gallery({
           const file = e.dataTransfer.files[0];
           if (file) void upload(file);
         }}
-        className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border-2 ${
-          dragging ? "border-primary bg-primary/5" : "border-dashed border-border"
+        className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border ${
+          dragging ? "border-primary bg-primary/5" : "border-border"
         }`}
       >
         {current ? (
@@ -276,34 +287,73 @@ function Gallery({
               className="h-full w-full object-cover"
               loading="lazy"
             />
-            {media.length > 1 ? (
-              <>
-                <button
-                  type="button"
-                  aria-label="Previous image"
-                  onClick={() => setAt(index === 0 ? media.length - 1 : index - 1)}
-                  className="absolute top-1/2 left-1.5 -translate-y-1/2 rounded-full bg-background/85 p-1.5 hover:bg-background"
-                >
-                  <ChevronLeft className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next image"
-                  onClick={() => setAt(index === media.length - 1 ? 0 : index + 1)}
-                  className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-full bg-background/85 p-1.5 hover:bg-background"
-                >
-                  <ChevronRight className="size-4" />
-                </button>
-              </>
-            ) : null}
-            <span className="absolute top-1.5 left-1.5">
-              <Badge variant={current.role === "cover" ? "default" : "outline"} size="sm">
-                {current.role}
-              </Badge>
-            </span>
-            {media.length > 1 ? (
-              <span className="tnum absolute right-1.5 bottom-1.5 rounded-full bg-background/85 px-2 py-0.5 text-xs">
-                {index + 1}/{media.length}
+            {/*
+              ONE MENU, not a row of icon buttons. The reorder controls used to
+              wear the same chevron as the arrows on the image, so the button
+              you pressed to see the next photograph silently changed which one
+              leads.
+            */}
+            <div className="absolute top-2 right-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button size="icon-sm" variant="secondary" aria-label="Image options">
+                      <MoreVertical className="size-4" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Role</DropdownMenuLabel>
+                  {ROLES.map((role) => (
+                    <DropdownMenuItem
+                      key={role}
+                      disabled={busy || current.role === role}
+                      onClick={() =>
+                        void act(() =>
+                          setProductMediaRole({
+                            data: {
+                              productId,
+                              mediaId: current.id,
+                              role,
+                              commandId: commandId(),
+                            },
+                          }),
+                        )
+                      }
+                    >
+                      {role === "cover" ? (
+                        <Star className="size-4" />
+                      ) : (
+                        <ImageIcon className="size-4" />
+                      )}
+                      {role}
+                      {current.role === role ? <Check className="ml-auto size-4" /> : null}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={busy || index === 0} onClick={() => void shift(-1)}>
+                    <ArrowLeft className="size-4" />
+                    Move earlier
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={busy || index === media.length - 1}
+                    onClick={() => void shift(1)}
+                  >
+                    <ArrowRight className="size-4" />
+                    Move later
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setConfirming(true)}>
+                    <Trash2 className="size-4" />
+                    Delete image
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {current.role === "cover" ? (
+              <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium">
+                Cover
               </span>
             ) : null}
           </>
@@ -320,6 +370,40 @@ function Gallery({
         )}
       </div>
 
+      {/*
+        THE STRIP IS THE NAVIGATION. Every image is visible and one click away,
+        which is what carousel arrows were standing in for badly — and the
+        selected one is ringed rather than counted.
+      */}
+      <div className="flex flex-wrap gap-2">
+        {media.map((item, i) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setAt(i)}
+            aria-label={`Show ${item.alt || `image ${i + 1}`}`}
+            className={`relative size-14 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
+              i === index ? "border-primary" : "border-border hover:border-border-strong"
+            }`}
+          >
+            <img src={item.href} alt="" className="h-full w-full object-cover" loading="lazy" />
+            {item.role === "cover" ? (
+              <span className="absolute inset-x-0 bottom-0 bg-background/85 text-center text-[0.6rem] leading-tight">
+                cover
+              </span>
+            ) : null}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          aria-label="Add an image"
+          className="flex size-14 shrink-0 items-center justify-center rounded-md border-2 border-dashed border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
+        >
+          <Plus className="size-4" />
+        </button>
+      </div>
+
       <input
         ref={input}
         type="file"
@@ -332,84 +416,30 @@ function Gallery({
         }}
       />
 
-      {current ? (
-        <div className="flex items-center gap-1.5">
-          <Select
-            value={current.role}
-            onValueChange={(role) =>
-              role &&
-              void act(() =>
-                setProductMediaRole({
-                  data: {
-                    productId,
-                    mediaId: current.id,
-                    role: role as ProductMediaRole,
-                    commandId: commandId(),
-                  },
-                }),
-              )
-            }
-          >
-            <SelectTrigger className="h-8 flex-1 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLES.map((role) => (
-                <SelectItem key={role} value={role}>
-                  {role}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {media.length > 0 && !media.some((item) => item.role === "cover") ? (
+        <p className="text-xs text-warning">
+          No image is set as the cover, so a listing would show no picture. Publish still accepts
+          it.
+        </p>
+      ) : null}
 
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            disabled={busy || index === 0}
-            onClick={() => void shift(-1)}
-            title="Move earlier"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            disabled={busy || index === media.length - 1}
-            onClick={() => void shift(1)}
-            title="Move later"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={() => input.current?.click()}
-            title="Add an image"
-          >
-            <ImageUp className="size-4" />
-          </Button>
-          <DeletionDialog
-            label="image"
-            plan={() =>
-              planProductMediaDeletion({
-                data: { productId, mediaId: current.id, commandId: commandId() },
-              })
-            }
-            confirm={(payload) => deleteProductMedia({ data: payload })}
-            onDeleted={async () => {
-              setAt(0);
-              await refresh();
-            }}
-            trigger={
-              <Button type="button" size="icon-sm" variant="ghost" title="Delete image">
-                <Trash2 className="size-4" />
-              </Button>
-            }
-          />
-        </div>
+      {current && confirming ? (
+        <DeletionDialog
+          label="image"
+          open={confirming}
+          onOpenChange={setConfirming}
+          plan={() =>
+            planProductMediaDeletion({
+              data: { productId, mediaId: current.id, commandId: commandId() },
+            })
+          }
+          confirm={(payload) => deleteProductMedia({ data: payload })}
+          onDeleted={async () => {
+            setConfirming(false);
+            setAt(0);
+            await refresh();
+          }}
+        />
       ) : null}
 
       <Outcome error={error} />

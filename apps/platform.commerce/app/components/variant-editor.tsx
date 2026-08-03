@@ -120,9 +120,14 @@ export function VariantEditor({
 
   return (
     <>
-      <Button variant="ghost" size="xs" onClick={() => onOpenChange(true)}>
-        <Pencil />
-        Edit
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="size-7"
+        title={`Edit ${variant.size}`}
+        onClick={() => onOpenChange(true)}
+      >
+        <Pencil className="size-3.5" />
       </Button>
 
       <Dialog open={open} onOpenChange={onOpenChange}>

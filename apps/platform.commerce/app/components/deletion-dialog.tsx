@@ -16,7 +16,7 @@
  * `activeReleaseAffected` gets its own warning because it is the one outcome
  * that changes what shoppers see the instant it commits.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Trash2 } from "lucide-react";
 
 import { Button } from "platform.ui/components/button";
@@ -45,6 +45,8 @@ export function DeletionDialog({
   confirm,
   onDeleted,
   trigger,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
 }: {
   /** What is being deleted, in the operator's words. */
   label: string;
@@ -54,8 +56,21 @@ export function DeletionDialog({
   confirm: (input: { confirmationToken: string; commandId: string }) => Promise<ConfirmResult>;
   onDeleted: () => void | Promise<void>;
   trigger?: React.ReactNode;
+  /**
+   * CONTROLLED, for the callers that have no trigger of their own — a menu item
+   * cannot host a dialog, because the menu unmounts on select and takes the
+   * dialog with it. Absent, the dialog owns its own state and renders a button.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolled, setUncontrolled] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : uncontrolled;
+  const setOpen = (next: boolean) => {
+    if (!controlled) setUncontrolled(next);
+    onOpenChangeProp?.(next);
+  };
   const [planned, setPlanned] = useState<DeletionPlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -75,14 +90,7 @@ export function DeletionDialog({
     }
   };
 
-  const onOpenChange = (next: boolean) => {
-    setOpen(next);
-    if (next) void startPlanning();
-    else {
-      setPlanned(null);
-      setError(null);
-    }
-  };
+  const onOpenChange = (next: boolean) => setOpen(next);
 
   const doConfirm = async () => {
     if (!planned) return;
@@ -117,11 +125,28 @@ export function DeletionDialog({
     }
   };
 
+  /**
+   * PLANNING IS DRIVEN BY THE OPEN STATE, not by the click that caused it.
+   * A controlled caller flips `open` without ever calling `onOpenChange`, so
+   * hanging the plan off the handler left those dialogs showing an empty
+   * impact panel forever.
+   */
+  useEffect(() => {
+    if (open) void startPlanning();
+    else {
+      setPlanned(null);
+      setError(null);
+    }
+    // `startPlanning` closes over `plan`, which callers pass inline and so
+    // re-create every render; depending on it would re-plan in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const impact = planned?.impact;
 
   return (
     <>
-      {trigger ? (
+      {controlled ? null : trigger ? (
         <span onClick={() => onOpenChange(true)}>{trigger}</span>
       ) : (
         <Button variant="ghost" size="sm" onClick={() => onOpenChange(true)}>
