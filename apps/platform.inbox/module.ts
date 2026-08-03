@@ -1,7 +1,8 @@
+import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import { Path } from "effect/Path";
-import { PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
+import { PRODUCTION_STAGE, PRODUCTION_ZONE, TEAM_DOMAIN } from "platform.names";
 
 // Type-only, and load-bearing: each namespace types as
 // `DurableObjectNamespace<Class>` so app code gets a typed stub rather than
@@ -62,6 +63,44 @@ const ACCESS_APP_AUD = "a0046cb0773459b27a32ff7123e52e18d985c2e4aa75df35ba35828c
 const EMAIL_ADDRESSES: string[] = [];
 
 /**
+ * THE STAGE GUARD, and the reason this app is not stage-parameterised at all.
+ *
+ * Every physical name below is fixed: the worker, the R2 bucket, the AI gateway
+ * id, the Access policy name, the hostname, and the zone whose catch-all is a
+ * per-zone singleton. Combined with the stack's `adopt(true)`, that made a
+ * deploy at ANY stage a deploy to production — `alchemy plan --stage dev_stoli`
+ * and `--stage prod` produced byte-identical plans against the live account,
+ * down to reassigning where the zone delivers every unrouted address.
+ *
+ * The fix is not per-stage copies. There is one inbox: one set of Durable
+ * Objects holding the actual mail, one Access application, one catch-all. A
+ * `dev_stoli` clone would be a second empty mailbox that steals the zone's
+ * mail, which is worse than not existing. So a non-production DEPLOY is
+ * refused outright, and `alchemy dev` — which is how you work on the UI — is
+ * allowed through and skips the two zone-level resources.
+ *
+ * If a real staging inbox is ever wanted, it needs its own zone, not a stage
+ * suffix on this one.
+ */
+const Deployment = Effect.gen(function* () {
+  const stage = yield* Alchemy.Stage;
+  const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+
+  if (stage !== PRODUCTION_STAGE && !local) {
+    return yield* Effect.die(
+      new Error(
+        `platform.inbox deploys at "${PRODUCTION_STAGE}" only; got "${stage}". ` +
+          `Every name it owns is fixed and the stack adopts, so this deploy would ` +
+          `reconfigure the live inbox and repoint ${PRODUCTION_ZONE}'s mail catch-all. ` +
+          `Use ALCHEMY_STAGE=prod to deploy it, or \`vp run inbox:dev\` to work on it.`,
+      ),
+    );
+  }
+
+  return { local };
+});
+
+/**
  * The app: React Router, built by this package's own `vite.config.ts` with
  * alchemy's Cloudflare plugin appended, and deployed as the Worker.
  *
@@ -73,6 +112,7 @@ export class Inbox extends Cloudflare.Website.Vite<Inbox>()(
   "Inbox",
   Effect.gen(function* () {
     const path = yield* Path;
+    const { local } = yield* Deployment;
 
     return {
       name: WORKER_NAME,
@@ -94,8 +134,15 @@ export class Inbox extends Cloudflare.Website.Vite<Inbox>()(
        */
       main: path.join(".", "workers", "app.ts"),
       compatibility: { date: "2025-11-28", flags: ["nodejs_compat"] },
-      domain: APP_DOMAIN,
-      /** No workers.dev: `mail.<zone>` is the single Access-gated surface. */
+      /**
+       * The hostname is claimed by a real deploy only. `alchemy dev` serves on a
+       * local port and would otherwise still reconcile the custom domain — which
+       * for this app means repointing the live `mail.` record at whatever the dev
+       * session happens to be. `url: false` for the deploy because
+       * `mail.<zone>` is the single Access-gated surface, and a workers.dev
+       * hostname is on Cloudflare's zone where no Access application can sit.
+       */
+      ...(local ? {} : { domain: APP_DOMAIN }),
       url: false,
       observability: { enabled: true },
       env: {
@@ -132,6 +179,8 @@ export type InboxEnv = Cloudflare.Workers.InferEnv<Inbox>;
  * composition, not this app's business.
  */
 export const InboxModule = Effect.gen(function* () {
+  const { local } = yield* Deployment;
+
   /**
    * Attached to the dashboard-managed application by `aud`, not by reference.
    * `adopt` matches the live policy on `ACCESS_POLICY_NAME`.
@@ -144,6 +193,16 @@ export const InboxModule = Effect.gen(function* () {
   });
 
   const site = yield* Inbox;
+
+  /**
+   * ZONE-LEVEL, and therefore skipped under `alchemy dev`. A dev session cannot
+   * receive mail — inbound delivery goes to the deployed script by name, not to
+   * a local port — so reconciling these would take on the zone's routing to no
+   * benefit. See `Deployment` for why that matters more here than elsewhere.
+   */
+  if (local) {
+    return { url: `https://${APP_DOMAIN}`, workerName: site.workerName, accessAud: ACCESS_APP_AUD };
+  }
 
   /**
    * Inbound mail. The zone is named rather than owned — alchemy looks it up —
