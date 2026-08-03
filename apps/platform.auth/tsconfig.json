@@ -27,6 +27,7 @@
   "include": [
     "module.ts",
     "index.ts",
+    "paths.ts",
     "vite.config.ts",
 
     "shared/**/*.ts",

@@ -12,6 +12,8 @@ import { defineConfig } from "vite-plus";
  */
 const effecttsgo = "effecttsgo" as unknown as NonNullable<OxlintConfig["plugins"]>[number];
 
+const worktrees = "**/worktrees/**";
+
 export default defineConfig({
   /**
    * THE GATE. Every check runs here, on every commit — an agent must never have
@@ -71,6 +73,7 @@ export default defineConfig({
       "**/.alchemy/**",
       "**/*.gen.ts",
       "**/migrations/**",
+      worktrees,
     ],
   },
   lint: {
@@ -112,6 +115,7 @@ export default defineConfig({
       "**/.alchemy/**",
       "**/*.gen.ts",
       "**/migrations/**",
+      worktrees,
     ],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },
@@ -148,6 +152,9 @@ export default defineConfig({
         },
       },
     ],
+  },
+  test: {
+    exclude: ["**/node_modules/**", "**/.git/**", worktrees],
   },
   run: {
     cache: true,

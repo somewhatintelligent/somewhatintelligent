@@ -36,6 +36,7 @@ build
 
 # AI agent worktrees
 .claude/worktrees/
+worktrees/
 
 # Alchemy local state, bundles and logs
 .alchemy

@@ -39,6 +39,7 @@
     "**/scripts/**",
     "**/generated/**",
     "**/email/preview/**",
+    "**/worktrees/**",
   ],
   // ── BOUNDARIES ───────────────────────────────────────────────────────────
   // Tiers, not units. The dot-namespace makes the tier readable off the
