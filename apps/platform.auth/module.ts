@@ -2,8 +2,7 @@ import * as Alchemy from "alchemy";
 
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Output from "alchemy/Output";
-import { Effect, Layer } from "effect";
-import * as Drizzle from "alchemy/Drizzle";
+import { Effect } from "effect";
 
 import { AvatarBucket } from "./api/avatars.ts";
 import { AuthDatabase, PRODUCTION_DATABASE_ID, PRODUCTION_DATABASE_NAME } from "./api/database.ts";
@@ -12,7 +11,6 @@ import { PACKAGE_DIR } from "./paths.ts";
 import AuthWorker from "./api/worker.ts";
 import { DEV_PORT, ingress, PRODUCTION_STAGE } from "./shared/ingress.ts";
 import { authDefines } from "./shared/surfaces.ts";
-import { Auth, type AuthRouting } from "./index.ts";
 
 import { AuthSchema } from "./api/schema.ts";
 
@@ -61,48 +59,55 @@ export class Identity extends Cloudflare.Website.Vite<Identity>()(
 
 export type IdentityEnv = Cloudflare.Workers.InferEnv<Identity>;
 
-export default Auth.make(
-  {
-    state: Cloudflare.state(),
-    providers: Layer.mergeAll(Cloudflare.providers(), Drizzle.providers()),
-  },
-  Effect.gen(function* () {
-    const { stage } = yield* Alchemy.Stack;
-    const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+/**
+ * THE DEPLOYABLE UNIT, and everything it owns.
+ *
+ * Parameterless: every resource below reads the stage it needs from
+ * `Alchemy.Stack` itself, so a composer never passes one down. The state layer,
+ * the providers and the adopt policy live in `stacks/platform.auth/` — they are
+ * composition, not this app's business.
+ *
+ * The returned shape is checked against `AuthRouting` by `Auth.make` at the
+ * composition site rather than by a `satisfies` here. The contract belongs to
+ * the stack that publishes it, and the app importing it back would point an app
+ * at a stack.
+ */
+export const AuthModule = Effect.gen(function* () {
+  const { stage } = yield* Alchemy.Stack;
+  const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
 
-    yield* AuthSchema;
-    const database = yield* AuthDatabase;
-    yield* Identity;
+  yield* AuthSchema;
+  const database = yield* AuthDatabase;
+  yield* Identity;
 
-    // The same pure function the auth worker's own bindings come from, never
-    // `identity.url`: in production the app claims a hostname and has no
-    // workers.dev URL to report.
-    const { origin, cookieDomain } = ingress(stage, local);
+  // The same pure function the auth worker's own bindings come from, never
+  // `identity.url`: in production the app claims a hostname and has no
+  // workers.dev URL to report.
+  const { origin, cookieDomain } = ingress(stage, local);
 
-    // The same resolved options the worker runs and the schema is generated
-    // from, so `authBaseURL` is composed from the real mount path rather than
-    // restated beside it.
-    const features = yield* authFeatures;
+  // The same resolved options the worker runs and the schema is generated
+  // from, so `authBaseURL` is composed from the real mount path rather than
+  // restated beside it.
+  const features = yield* authFeatures;
 
-    return {
-      origin,
-      authBaseURL: `${origin}${features.basePath}`,
-      cookieDomain,
-      features,
-      /**
-       * Adoption matches by NAME and CREATES on a miss, so a wrong name is a
-       * green deploy onto an empty database. This turns that into a failed one.
-       */
-      databaseId: Output.map(database.databaseId, (id) => {
-        if (stage === PRODUCTION_STAGE && id !== PRODUCTION_DATABASE_ID) {
-          throw new Error(
-            `Refusing production: adopted database ${id}, expected ${PRODUCTION_DATABASE_ID}. ` +
-              `"${PRODUCTION_DATABASE_NAME}" did not resolve to the live database — this deploy ` +
-              `would point production at an empty one.`,
-          );
-        }
-        return id;
-      }),
-    } satisfies Alchemy.InputProps<AuthRouting>;
-  }).pipe(Alchemy.AdoptPolicy.adopt()),
-);
+  return {
+    origin,
+    authBaseURL: `${origin}${features.basePath}`,
+    cookieDomain,
+    features,
+    /**
+     * Adoption matches by NAME and CREATES on a miss, so a wrong name is a
+     * green deploy onto an empty database. This turns that into a failed one.
+     */
+    databaseId: Output.map(database.databaseId, (id) => {
+      if (stage === PRODUCTION_STAGE && id !== PRODUCTION_DATABASE_ID) {
+        throw new Error(
+          `Refusing production: adopted database ${id}, expected ${PRODUCTION_DATABASE_ID}. ` +
+            `"${PRODUCTION_DATABASE_NAME}" did not resolve to the live database — this deploy ` +
+            `would point production at an empty one.`,
+        );
+      }
+      return id;
+    }),
+  };
+});

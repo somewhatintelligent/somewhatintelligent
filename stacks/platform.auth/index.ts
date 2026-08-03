@@ -3,13 +3,17 @@ import type { AuthFeatures } from "lib.better-auth-manifest";
 import * as Alchemy from "alchemy";
 
 /**
- * The DEPLOY-TIME face of this package, and deliberately nothing else.
+ * THE CONTRACT, and deliberately nothing else.
  *
- * Importing this module pulls in alchemy, so nothing a worker executes at
- * runtime may be re-exported here — one entry mixing the two puts a deploy
- * dependency in an app's bundle the moment it reaches for a constant. The
- * runtime-safe values live in `shared/` and are published separately as
- * `platform.auth/shared/*`; see this package's `exports`.
+ * This file used to sit inside the app as its deploy-time face, keeping a
+ * hand-maintained separation from anything a worker executes — because one
+ * entry mixing the two puts a deploy dependency in an app's bundle the moment
+ * it reaches for a constant. Living in `stacks/` makes that separation
+ * structural instead of remembered: nothing here can reach an app's runtime,
+ * and the runtime-safe values stay where they were, published as
+ * `platform.auth/shared/*`.
+ *
+ * A consumer imports this to `yield* Auth`. It never imports the app.
  */
 
 /**
@@ -21,7 +25,13 @@ import * as Alchemy from "alchemy";
  * Nothing downstream re-derives these — a second copy of the origin is a second
  * thing that can disagree with what Better Auth mints.
  */
-export interface AuthRouting {
+/**
+ * NOT EXPORTED, yet. The interface is what `Auth` is parameterised by, so it is
+ * live — but no stack yields Auth today, and fallow correctly reports a public
+ * name with no reader. A consumer gets this shape structurally from
+ * `yield* Auth`; export it the day one needs to spell it in a signature.
+ */
+interface AuthRouting {
   /** Where to send someone to sign in. */
   readonly origin: string;
   /** The auth server's HTTP surface, for an app resolving a session itself. */

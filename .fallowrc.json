@@ -20,7 +20,7 @@
       { "name": "auth-server", "patterns": ["apps/platform.auth/api/**"] },
       {
         "name": "auth-infra",
-        "patterns": ["apps/platform.auth/alchemy.run.ts", "apps/platform.auth/index.ts"]
+        "patterns": ["apps/platform.auth/module.ts", "stacks/platform.auth/**"]
       },
       { "name": "auth-shared", "patterns": ["apps/platform.auth/shared/**"] },
       { "name": "auth-app", "patterns": ["apps/platform.auth/app/**"] },

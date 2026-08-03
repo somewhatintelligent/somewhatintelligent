@@ -15,9 +15,9 @@
     "mezedes:plan": "alchemy plan stacks/mezedes/alchemy.run.ts",
     "mezedes:deploy": "vp run mezedes#build && alchemy deploy stacks/mezedes/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
     "mezedes:destroy": "alchemy destroy stacks/mezedes/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
-    "auth:plan": "alchemy plan apps/platform.auth/alchemy.run.ts",
-    "auth:deploy": "alchemy deploy apps/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
-    "auth:destroy": "alchemy destroy apps/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes"
+    "auth:plan": "alchemy plan stacks/platform.auth/alchemy.run.ts",
+    "auth:deploy": "alchemy deploy stacks/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
+    "auth:destroy": "alchemy destroy stacks/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes"
   },
   "devDependencies": {
     "@effect/platform-bun": "catalog:",

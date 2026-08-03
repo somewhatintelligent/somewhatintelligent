@@ -12,4 +12,4 @@
  * server re-checks the caller's cookie on every method rather than trusting that
  * the caller reached it.
  */
-export type { IdentityEnv } from "../alchemy.run.ts";
+export type { IdentityEnv } from "../module.ts";
