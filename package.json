@@ -9,15 +9,18 @@
   ],
   "type": "module",
   "scripts": {
-    "ready": "vp check && vp run -r test && vp run -r build",
+    "access:deploy": "alchemy deploy stacks/platform.access/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
+    "access:destroy": "alchemy destroy stacks/platform.access/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
+    "access:plan": "alchemy plan stacks/platform.access/alchemy.run.ts",
+    "auth:deploy": "alchemy deploy stacks/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
+    "auth:destroy": "alchemy destroy stacks/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
+    "auth:plan": "alchemy plan stacks/platform.auth/alchemy.run.ts",
     "dev": "vp run website#dev",
-    "prepare": "vp config",
-    "mezedes:plan": "alchemy plan stacks/mezedes/alchemy.run.ts",
     "mezedes:deploy": "vp run mezedes#build && alchemy deploy stacks/mezedes/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
     "mezedes:destroy": "alchemy destroy stacks/mezedes/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
-    "auth:plan": "alchemy plan stacks/platform.auth/alchemy.run.ts",
-    "auth:deploy": "alchemy deploy stacks/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
-    "auth:destroy": "alchemy destroy stacks/platform.auth/alchemy.run.ts --stage $ALCHEMY_STAGE --yes"
+    "mezedes:plan": "alchemy plan stacks/mezedes/alchemy.run.ts",
+    "prepare": "vp config",
+    "ready": "vp check && vp run -r test && vp run -r build"
   },
   "devDependencies": {
     "@effect/platform-bun": "catalog:",
