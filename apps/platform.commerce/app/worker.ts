@@ -60,16 +60,24 @@ const serveMedia = async (env: OperatorEnv, mediaId: string): Promise<Response> 
   const client = toRpcAsync<typeof CommerceWorker>(env.COMMERCE);
 
   /**
-   * The content type FIRST, because its `null` is the existence check — a
-   * stream method is typed `Promise<ReadableStream>` and has no null to give,
-   * so a miss would otherwise arrive as an empty 200 that renders as a broken
-   * image rather than a 404.
+   * BOTH CALLS ANSWER `null` ON A MISS, so either can be the existence check.
+   * The content type is asked for first because it costs one indexed row and
+   * settles the 404 before an R2 object is opened.
    */
   const contentType = await client.operatorMediaContentType(mediaId);
   if (contentType === null) return new Response("not found", { status: 404 });
 
+  /**
+   * A REAL `ReadableStream`. `streamOperatorMedia` deliberately returns the R2
+   * body rather than an Effect `Stream` — the latter is framed into an
+   * `RpcStreamEnvelope` on its way across the binding and arrives as a stream
+   * of the framing, which is a 200 that renders as a broken image. See the
+   * method's own note in `workers/CommerceSurface.ts`.
+   */
   const body = await client.streamOperatorMedia(mediaId);
-  return new Response(body as unknown as BodyInit, {
+  if (body === null) return new Response("not found", { status: 404 });
+
+  return new Response(body, {
     headers: {
       "content-type": contentType,
       /**

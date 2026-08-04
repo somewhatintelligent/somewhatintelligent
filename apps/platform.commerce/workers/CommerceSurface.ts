@@ -20,7 +20,6 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Stream from "effect/Stream";
 
 import * as Catalog from "../domain/Catalog.ts";
 import type {
@@ -230,23 +229,31 @@ export const commerceSurface = Effect.fn("commerceSurface")(function* (provider:
      * `domain/Media.ts` for why that gate stays exactly as it is and why this
      * being binding-only is what makes a second reader safe.
      *
-     * An empty stream for a miss, because the bridge types a stream method as
-     * `Promise<ReadableStream>` and has no null to give. The caller pairs this
-     * with {@link operatorMediaContentType}, whose `null` IS the 404 signal.
+     * A RAW `ReadableStream`, NOT an Effect `Stream`, and the difference is the
+     * whole bug this shape exists to avoid.
+     *
+     * An Effect `Stream` cannot cross a service binding as itself: the bridge
+     * frames it into an `RpcStreamEnvelope`, and what arrives is a stream of
+     * that framing rather than of the bytes. Handing it to `new Response(...)`
+     * produced a 200 of the right length-ish with a body no decoder accepts —
+     * every image in the console rendered broken while the identical media id
+     * served correctly through `platform.site`, which reaches the Media worker
+     * by plain `fetch` and passes the response through untouched.
+     *
+     * A `ReadableStream` is natively transferable over Workers RPC, so the
+     * bytes move without an encoding step, and the bridge types this method
+     * from its Effect success value — `Promise<ReadableStream | null>`. Nothing
+     * is buffered: the R2 body is handed straight to the caller.
+     *
+     * `null` for a miss, which the caller can now check directly rather than
+     * inferring from {@link operatorMediaContentType}.
      */
     streamOperatorMedia: (mediaId: string) =>
-      Stream.unwrap(
-        Effect.gen(function* () {
-          const database = yield* Database;
-          const blob = yield* Media.openOperatorMedia(database.db, mediaId);
-          return blob === null
-            ? Stream.empty
-            : Stream.fromReadableStream({
-                evaluate: () => blob.body,
-                onError: (error) => error,
-              });
-        }).pipe(Effect.provide(layer)),
-      ),
+      Effect.gen(function* () {
+        const database = yield* Database;
+        const blob = yield* Media.openOperatorMedia(database.db, mediaId);
+        return blob === null ? null : blob.body;
+      }).pipe(Effect.provide(layer)),
 
     /** The content type for {@link streamOperatorMedia}, and its existence check. */
     operatorMediaContentType: (mediaId: string) =>
