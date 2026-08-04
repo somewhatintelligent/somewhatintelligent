@@ -1,0 +1,228 @@
+---
+// THE CART, and the checkout form with it.
+//
+// The lines live in `localStorage` and are rendered by script, so this page
+// server-renders only the chrome and the empty state. That is not a shortcut:
+// the cart is per-browser and uncacheable, and server-rendering it would mean
+// putting it in a cookie or a session — which is a write path and a second
+// place for it to disagree with itself.
+//
+// The two fields are here rather than on the payment page because `placeOrder`
+// needs both BEFORE a session opens: the address is the order's only owner, and
+// the destination fixes the shipping rate and pins Stripe's address form to one
+// country. Everything else — name, street, card — is Stripe's to collect.
+import Base from "../../layouts/Base.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import "../../styles/shop.css";
+---
+
+<Base title="Cart — somewhatintelligent" description="Your cart.">
+  <div class="site-frame">
+    <SiteHeader />
+
+    <main class="cart-main">
+      <section class="cart-head">
+        <h1>CART</h1>
+        <p class="cart-deck">objects held, not yet bought</p>
+      </section>
+
+      <section class="cart-body" aria-label="Cart">
+        <div class="cart-lines" id="cart-lines" aria-live="polite">
+          <p class="cart-empty" id="cart-empty">Nothing in the cart yet.</p>
+        </div>
+
+        <form class="cart-checkout" id="cart-checkout" novalidate>
+          <h2>Checkout</h2>
+
+          <label class="cart-field" for="email">
+            <span>Email</span>
+            <input type="email" id="email" name="email" required autocomplete="email" />
+            <small>Your receipt, and how you look this order up later.</small>
+          </label>
+
+          <fieldset class="cart-field">
+            <legend>Shipping to</legend>
+            <div class="cart-destinations" role="radiogroup">
+              <label><input type="radio" name="destination" value="CA" checked /> Canada</label>
+              <label><input type="radio" name="destination" value="US" /> United States</label>
+            </div>
+            <small>Fixes the shipping rate. The address form is pinned to it.</small>
+          </fieldset>
+
+          <p class="cart-subtotal">
+            <span>Line items</span>
+            <strong id="cart-subtotal">$0 CAD</strong>
+          </p>
+          <p class="cart-note">Shipping and tax are added on the payment page.</p>
+
+          <button type="submit" id="cart-pay" disabled>Pay</button>
+          <p class="cart-state" id="cart-state" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <SiteFooter />
+  </div>
+</Base>
+
+<script>
+  import {
+    MAX_QUANTITY,
+    MIN_QUANTITY,
+    readCart,
+    readHints,
+    removeLine,
+    setQuantity,
+    subscribeCart,
+    type CartHint,
+  } from "../../lib/cart.ts";
+
+  const price = (cents: number): string => {
+    const dollars = cents / 100;
+    return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)} CAD`;
+  };
+
+  const linesEl = document.getElementById("cart-lines");
+  const form = document.getElementById("cart-checkout") as HTMLFormElement | null;
+  const payBtn = document.getElementById("cart-pay") as HTMLButtonElement | null;
+  const stateEl = document.getElementById("cart-state");
+  const subtotalEl = document.getElementById("cart-subtotal");
+
+  /**
+   * ONE COMMAND ID PER CART, minted when the page loads and reused for every
+   * submit. It is the idempotency key: a double-clicked Pay, or a resubmit
+   * after a dropped connection, replays the first order instead of reserving
+   * the stock twice. It is deliberately NOT regenerated on retry.
+   */
+  let commandId = crypto.randomUUID();
+
+  const REFUSALS: Record<string, string> = {
+    empty_cart: "The cart is empty.",
+    invalid_quantity: "One of the quantities is out of range.",
+    variant_not_found: "A size in your cart no longer exists.",
+    product_unavailable: "Something in your cart is no longer on sale.",
+    out_of_stock: "Something in your cart just sold out.",
+    preorder_full: "That run is now fully subscribed.",
+    in_progress: "This order is already being placed — one moment.",
+    payments_unavailable: "Payments are unavailable right now. Try again shortly.",
+    invalid_email: "That email address does not look right.",
+    cart_too_large: "That is more lines than one order can carry.",
+    unavailable: "The shop is unreachable right now. Try again shortly.",
+  };
+
+  function render(): void {
+    if (!linesEl || !payBtn || !subtotalEl) return;
+    const lines = readCart();
+    const hints = readHints();
+
+    if (lines.length === 0) {
+      linesEl.innerHTML = `<p class="cart-empty">Nothing in the cart yet. <a href="/shop/">See the objects</a>.</p>`;
+      subtotalEl.textContent = price(0);
+      payBtn.disabled = true;
+      return;
+    }
+
+    let subtotal = 0;
+    const rows = lines.map((line) => {
+      const hint: CartHint | undefined = hints[line.variantId];
+      // A line with no hint still renders and still checks out — the hint is a
+      // display cache, never the thing that decides what is in the cart.
+      subtotal += (hint?.priceCents ?? 0) * line.quantity;
+      const cover = hint?.coverHref
+        ? `<img src="${hint.coverHref}" alt="" loading="lazy" />`
+        : `<span class="cart-noimage"></span>`;
+      return `
+        <article class="cart-line" data-variant="${line.variantId}">
+          <figure class="cart-line-image">${cover}</figure>
+          <div class="cart-line-meta">
+            <h2>${hint?.title ?? "Object"}</h2>
+            <p>${hint?.size ? `Size ${hint.size}` : "—"}</p>
+          </div>
+          <div class="cart-line-qty">
+            <label class="sr-only" for="qty-${line.variantId}">Quantity</label>
+            <input id="qty-${line.variantId}" type="number" inputmode="numeric"
+                   min="${MIN_QUANTITY}" max="${MAX_QUANTITY}" value="${line.quantity}" />
+          </div>
+          <p class="cart-line-price">${hint ? price(hint.priceCents * line.quantity) : "—"}</p>
+          <button type="button" class="cart-line-remove" aria-label="Remove">Remove</button>
+        </article>`;
+    });
+
+    linesEl.innerHTML = rows.join("");
+    subtotalEl.textContent = price(subtotal);
+    payBtn.disabled = false;
+
+    for (const el of linesEl.querySelectorAll<HTMLElement>(".cart-line")) {
+      const variantId = el.dataset.variant ?? "";
+      el.querySelector(".cart-line-remove")?.addEventListener("click", () => removeLine(variantId));
+      el.querySelector("input")?.addEventListener("change", (event) => {
+        setQuantity(variantId, Number((event.target as HTMLInputElement).value));
+      });
+    }
+  }
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!payBtn || !stateEl) return;
+
+    const data = new FormData(form);
+    const email = String(data.get("email") ?? "").trim();
+    const destination = String(data.get("destination") ?? "CA");
+    if (email.length < 3) {
+      stateEl.textContent = REFUSALS.invalid_email ?? "";
+      return;
+    }
+
+    payBtn.disabled = true;
+    stateEl.textContent = "Opening the payment page…";
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, destination, commandId, items: readCart() }),
+      });
+      const result = (await response.json()) as
+        | { ok: true; checkoutUrl: string | null; orderNumber: string }
+        | { ok: false; error: string };
+
+      if (!result.ok) {
+        stateEl.textContent = REFUSALS[result.error] ?? "That did not go through.";
+        payBtn.disabled = false;
+        return;
+      }
+
+      /**
+       * The address is remembered so the return from Stripe can look the order
+       * up without asking for it again. It is the buyer's own, in their own
+       * browser, and it never travels in a URL.
+       */
+      try {
+        window.localStorage.setItem("si:cart:email", email);
+      } catch {
+        // ignore
+      }
+
+      /**
+       * THE CART IS NOT CLEARED HERE. The order is placed but unpaid, and the
+       * buyer may well come back — `cancel_url` returns them to this page. The
+       * sweep releases an abandoned reservation after fifteen minutes; clearing
+       * on redirect would lose a cart someone is still deciding on.
+       */
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+        return;
+      }
+      // No hosted page (a provider that mints none). Show the order instead.
+      window.location.href = `/orders/${result.orderNumber}`;
+    } catch {
+      stateEl.textContent = REFUSALS.unavailable ?? "";
+      payBtn.disabled = false;
+      /** A NEW ID for a genuinely failed attempt: nothing was reserved, so a retry is a new order. */
+      commandId = crypto.randomUUID();
+    }
+  });
+
+  subscribeCart(render);
+  render();
+</script>

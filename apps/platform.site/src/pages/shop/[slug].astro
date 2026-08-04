@@ -121,3 +121,52 @@ const sizing =
     <SiteFooter />
   </div>
 </Base>
+
+<script>
+  /**
+   * SIZE SELECTION AND ADD-TO-CART.
+   *
+   * Scoped to this page's markup and bails when it is absent, so the handler is
+   * a no-op on every other route. The cart stores only `{ variantId, quantity }`
+   * — the hint written alongside it is a rendering snapshot for `/cart` and is
+   * never sent anywhere, because checkout re-prices from the active release.
+   */
+  import { addLine, cartCount } from "../../lib/cart.ts";
+
+  const sheet = document.querySelector<HTMLElement>(".product-sheet[data-slug]");
+  const addBtn = document.getElementById("add-to-cart") as HTMLButtonElement | null;
+  const stateEl = document.getElementById("buy-state");
+  const sizeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".product-size"));
+
+  let selected: { variantId: string; size: string } | null = null;
+
+  for (const button of sizeButtons) {
+    if (button.disabled) continue;
+    button.addEventListener("click", () => {
+      selected = {
+        variantId: button.dataset.variant ?? "",
+        size: button.dataset.size ?? "",
+      };
+      for (const other of sizeButtons) {
+        other.setAttribute("aria-pressed", other === button ? "true" : "false");
+      }
+      if (addBtn) addBtn.disabled = false;
+      if (stateEl) stateEl.textContent = `Size ${selected.size} selected.`;
+    });
+  }
+
+  addBtn?.addEventListener("click", () => {
+    if (!selected || !sheet) return;
+    addLine(selected.variantId, 1, {
+      slug: sheet.dataset.slug ?? "",
+      title: sheet.dataset.title ?? "",
+      size: selected.size,
+      priceCents: Number(sheet.dataset.priceCents ?? "0"),
+      coverHref: sheet.dataset.cover ? sheet.dataset.cover : null,
+    });
+    if (stateEl) {
+      const count = cartCount();
+      stateEl.textContent = `Added. ${count} ${count === 1 ? "item" : "items"} in the cart.`;
+    }
+  });
+</script>

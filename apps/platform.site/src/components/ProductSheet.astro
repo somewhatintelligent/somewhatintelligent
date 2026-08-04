@@ -6,6 +6,7 @@
 // carries its own availability. The route is left as the page's SHAPE (three
 // plates and a notes rail); this is the part with decisions in it.
 import { formatPrice } from "../lib/format.ts";
+import ProductDescription from "./ProductDescription.astro";
 import ProductSizes from "./ProductSizes.astro";
 import type { StorefrontProductDTO } from "../lib/commerce.ts";
 
@@ -18,25 +19,26 @@ interface Props {
 }
 
 const { product, availability, paragraphs } = Astro.props;
+
+/** Resolved here so the markup carries no fallback of its own. */
+const cover = product.media[0]?.href ?? "";
 ---
 
-<section class="product-sheet">
+<section
+  class="product-sheet"
+  data-slug={product.slug}
+  data-title={product.title}
+  data-price-cents={String(product.priceCents)}
+  data-cover={cover}
+>
   <p>Object / {product.slug} / release {product.version}</p>
   <h1 id="product-title">{product.title}</h1>
 
-  {
-    paragraphs.length > 0 && (
-      <div class="product-description">
-        {paragraphs.map((p) => (
-          <p>{p}</p>
-        ))}
-      </div>
-    )
-  }
+  <ProductDescription paragraphs={paragraphs} />
 
   <p class="product-price">{formatPrice(product.priceCents)}</p>
 
-  {product.variants.length > 0 && <ProductSizes variants={product.variants} />}
+  <ProductSizes variants={product.variants} />
 
-  <p class="product-state" aria-live="polite">{availability}</p>
+  <p class="product-state" id="buy-state" aria-live="polite">{availability}</p>
 </section>

@@ -1,10 +1,14 @@
 ---
-// The size grid.
+// The size grid — now the buy control.
 //
-// A LIST, NOT BUTTONS. `available` is derived server-side from BOTH counters —
-// live stock and the pre-order run — so it is the same judgement checkout will
-// make. Nothing here is interactive because nothing on this deployment can take
-// an order yet, and a disabled "Add to cart" would imply otherwise.
+// BUTTONS, not a list. When this was written nothing on the deployment could
+// take an order, so a disabled "Add to cart" would have implied otherwise; the
+// checkout path exists now, so the sizes are the selector for it.
+//
+// `available` is derived server-side from BOTH counters — live stock and the
+// pre-order run — so it is the same judgement checkout will make. A sold-out
+// size is `disabled` rather than hidden: which sizes exist is information, and
+// one that vanishes on selling out reads as one that was never made.
 import type { StorefrontProductDTO } from "../lib/commerce.ts";
 
 interface Props {
@@ -13,25 +17,39 @@ interface Props {
 
 const { variants } = Astro.props;
 
-// Decided here so the markup carries no conditions: the strike-through is
-// invisible to a screen reader, hence the spoken half.
+// Decided here so the markup carries no conditions.
 const sizes = variants.map((v) => ({
+  id: v.id,
   size: v.size,
   gone: !v.available,
   spoken: v.available ? "available" : "sold out",
 }));
 ---
 
-<div class="product-size-field">
-  <p>Size</p>
-  <ul class="product-sizes" role="list">
-    {
-      sizes.map((s) => (
-        <li class:list={["product-size", { "is-gone": s.gone }]}>
-          <span>{s.size}</span>
-          <span class="sr-only">{s.spoken}</span>
-        </li>
-      ))
-    }
-  </ul>
-</div>
+{
+  sizes.length > 0 && (
+    <div class="product-size-field">
+      <p>Size</p>
+      <div class="product-sizes" role="group" aria-label="Size">
+        {sizes.map((s) => (
+          <button
+            type="button"
+            class:list={["product-size", { "is-gone": s.gone }]}
+            data-variant={s.id}
+            data-size={s.size}
+            aria-pressed="false"
+            disabled={s.gone}
+          >
+            <span>{s.size}</span>
+            {/* The strike-through is invisible to a screen reader. */}
+            <span class="sr-only">{s.spoken}</span>
+          </button>
+        ))}
+      </div>
+
+      <button type="button" class="product-buy" id="add-to-cart" disabled>
+        Add to cart
+      </button>
+    </div>
+  )
+}

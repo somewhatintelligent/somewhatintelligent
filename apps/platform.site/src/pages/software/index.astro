@@ -1,0 +1,65 @@
+---
+// The software registry, not yet built.
+//
+// A REAL ROUTE RATHER THAN A REMOVED NAV ITEM. `SiteHeader` has linked
+// `/software/` since the site was scaffolded and nothing served it, so every
+// page carried a 404 in its primary navigation. The registry itself is a later
+// track; this is the honest placeholder in the meantime, and it uses the same
+// unpublished plate the shop and writing index already render.
+import Base from "../../layouts/Base.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import "../../styles/shop.css";
+---
+
+<Base
+  title="Software — somewhatintelligent"
+  description="Systems and tools published by somewhatintelligent."
+>
+  <div class="site-frame">
+    <SiteHeader />
+
+    <main class="shop-main">
+      <section class="objects-intro" aria-labelledby="software-title">
+        <h1 id="software-title">
+          <span class="sr-only">SOFTWARE</span>
+          <svg
+            aria-hidden="true"
+            class="objects-title-plane"
+            preserveAspectRatio="none"
+            viewBox="0 0 1000 1000"
+          >
+            <text x="20" y="912" font-size="1110" lengthAdjust="spacingAndGlyphs" textLength="930">
+              SYSTEMS
+            </text>
+          </svg>
+        </h1>
+        <p class="objects-deck">
+          Digital solutions to problems created by digital solutions to problems.
+        </p>
+      </section>
+
+      <section class="object-ledger" aria-label="Software registry">
+        <article class="object-entry object-entry-compact">
+          <span class="object-number">01</span>
+          <div class="object-meta">
+            <h2>Nothing registered yet</h2>
+            <p>The registry opens when the first system is worth publishing.</p>
+            <dl>
+              <div>
+                <dt>Status</dt>
+                <dd>Unpublished</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="object-placeholder-field" aria-label="No software published">
+            <span>System / unpublished</span>
+            <strong>COMING SOON</strong>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <SiteFooter />
+  </div>
+</Base>

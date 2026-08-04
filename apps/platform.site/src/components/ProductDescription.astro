@@ -1,0 +1,26 @@
+---
+// The product's prose.
+//
+// ESCAPED PARAGRAPHS ONLY — never `set:html`. The description is
+// operator-authored and reaches this page unsanitised, so splitting on blank
+// lines gets the shape of prose without handing a template the ability to
+// inject markup.
+//
+// Its own component so `ProductSheet` carries one branch instead of three: the
+// presence check, the map, and the wrapper all live here now.
+interface Props {
+  paragraphs: readonly string[];
+}
+
+const { paragraphs } = Astro.props;
+---
+
+{
+  paragraphs.length > 0 && (
+    <div class="product-description">
+      {paragraphs.map((paragraph) => (
+        <p>{paragraph}</p>
+      ))}
+    </div>
+  )
+}

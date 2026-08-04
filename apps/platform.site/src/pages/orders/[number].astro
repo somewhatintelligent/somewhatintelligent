@@ -1,0 +1,232 @@
+---
+// ONE ORDER, to the person who placed it.
+//
+// This route does double duty: it is `success_url` for a hosted checkout AND
+// the standing lookup page for an order number someone still has in an email.
+// Both need the address the order was placed with, so both go through the same
+// form — the return from Stripe just fills it in from what the cart remembered.
+//
+// NOTHING IS READ SERVER-SIDE HERE. The lookup needs an email, an email must
+// not travel in a URL, and this page is reachable by GET — so the read happens
+// after the page loads, against `POST /api/order`.
+import Base from "../../layouts/Base.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import "../../styles/shop.css";
+
+const { number } = Astro.params;
+
+/**
+ * Stripe substitutes `{CHECKOUT_SESSION_ID}` into `success_url` on redirect, so
+ * its presence is what separates "you have just paid" from "you reloaded an old
+ * confirmation". It is the only handle the buyer has before the webhook lands —
+ * the ORDER will still read `pending/unpaid` for a few seconds after a
+ * successful payment, and saying so is the difference between a calm page and a
+ * support ticket.
+ */
+const justPaid = Astro.url.searchParams.has("session_id");
+---
+
+<Base title={`Order ${number} — somewhatintelligent`} description="Your order.">
+  <div class="site-frame">
+    <SiteHeader />
+
+    <main class="cart-main">
+      <section class="cart-head">
+        <h1>ORDER</h1>
+        <p class="cart-deck">{number}</p>
+      </section>
+
+      <section class="cart-body" aria-label="Order">
+        <div class="cart-lines" id="order-body" aria-live="polite" data-order={number}>
+          {
+            justPaid ? (
+              <p class="order-settling">
+                Payment received. Confirming with the payment provider — this page updates itself.
+              </p>
+            ) : null
+          }
+        </div>
+
+        <form class="cart-checkout" id="order-lookup" novalidate>
+          <h2>Find this order</h2>
+          <label class="cart-field" for="order-email">
+            <span>Email</span>
+            <input type="email" id="order-email" name="email" required autocomplete="email" />
+            <small>The address the order was placed with.</small>
+          </label>
+          <button type="submit">Show order</button>
+          <p class="cart-state" id="order-state" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <SiteFooter />
+  </div>
+</Base>
+
+<script>
+  import { clearCart } from "../../lib/cart.ts";
+
+  const EMAIL_KEY = "si:cart:email";
+
+  const price = (cents: number): string => {
+    const dollars = cents / 100;
+    return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)} CAD`;
+  };
+  const day = (ms: number): string =>
+    new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(ms));
+
+  const bodyEl = document.getElementById("order-body");
+  const form = document.getElementById("order-lookup") as HTMLFormElement | null;
+  const emailEl = document.getElementById("order-email") as HTMLInputElement | null;
+  const stateEl = document.getElementById("order-state");
+  const orderNumber = bodyEl?.dataset.order ?? "";
+  const justPaid = new URLSearchParams(window.location.search).has("session_id");
+
+  interface OrderItem {
+    title: string;
+    size: string;
+    unitPriceCents: number;
+    quantity: number;
+    preorder: boolean;
+    expectedShipAt: number | null;
+  }
+  interface Order {
+    orderNumber: string;
+    status: string;
+    paymentStatus: string;
+    subtotalCents: number;
+    shippingCents: number;
+    taxCents: number;
+    totalCents: number;
+    carrier: string | null;
+    trackingNumber: string | null;
+    shippedAt: number | null;
+    createdAt: number;
+    items: OrderItem[];
+  }
+
+  const paid = (order: Order): boolean =>
+    order.paymentStatus === "paid" || order.paymentStatus === "no_payment_required";
+
+  function draw(order: Order): void {
+    if (!bodyEl) return;
+    const items = order.items
+      .map(
+        (item) => `
+        <article class="order-line">
+          <div class="order-line-meta">
+            <h2>${item.title}</h2>
+            <p>Size ${item.size} · ${item.quantity} ×
+              ${item.preorder ? " · pre-order" : ""}
+              ${item.expectedShipAt ? ` · ships ${day(item.expectedShipAt)}` : ""}
+            </p>
+          </div>
+          <p class="order-line-price">${price(item.unitPriceCents * item.quantity)}</p>
+        </article>`,
+      )
+      .join("");
+
+    /**
+     * TOTALS ARE ZERO UNTIL THE ORDER IS PAID — shipping and tax do not exist
+     * before the payment page computes them. Rendering the four rows anyway
+     * would show a $0 shipping charge on an unpaid order, so an unpaid one gets
+     * its line-item subtotal and a sentence saying that is what it is.
+     */
+    const totals = paid(order)
+      ? `<dl class="order-totals">
+           <div><dt>Items</dt><dd>${price(order.subtotalCents)}</dd></div>
+           <div><dt>Shipping</dt><dd>${price(order.shippingCents)}</dd></div>
+           <div><dt>Tax</dt><dd>${price(order.taxCents)}</dd></div>
+           <div class="order-total"><dt>Paid</dt><dd>${price(order.totalCents)}</dd></div>
+         </dl>`
+      : `<dl class="order-totals">
+           <div><dt>Items</dt><dd>${price(order.subtotalCents)}</dd></div>
+         </dl>
+         <p class="order-settling">Not paid yet. Shipping and tax are added at payment.</p>`;
+
+    const shipped =
+      order.shippedAt && order.trackingNumber
+        ? `<p class="order-shipped">Shipped ${day(order.shippedAt)} —
+             ${order.carrier ?? "carrier"} ${order.trackingNumber}</p>`
+        : "";
+
+    bodyEl.innerHTML = `
+      <p class="order-status">${order.status} · placed ${day(order.createdAt)}</p>
+      ${items}${totals}${shipped}`;
+
+    form?.setAttribute("hidden", "");
+
+    /**
+     * THE CART EMPTIES ONLY ONCE THE ORDER IS PAID, not when checkout opened.
+     * An abandoned payment page returns the buyer to a cart that still has
+     * their objects in it, which is what `cancel_url` is for.
+     */
+    if (paid(order)) clearCart();
+  }
+
+  async function look(email: string, quiet = false): Promise<boolean> {
+    if (!stateEl) return false;
+    if (!quiet) stateEl.textContent = "Looking…";
+    try {
+      const response = await fetch("/api/order", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orderNumber, email }),
+      });
+      if (!response.ok) {
+        if (!quiet) stateEl.textContent = "No order matches that number and address.";
+        return false;
+      }
+      const result = (await response.json()) as { ok: true; order: Order };
+      stateEl.textContent = "";
+      try {
+        window.localStorage.setItem(EMAIL_KEY, email);
+      } catch {
+        // ignore
+      }
+      draw(result.order);
+      return paid(result.order);
+    } catch {
+      if (!quiet) stateEl.textContent = "Could not reach the shop. Try again shortly.";
+      return false;
+    }
+  }
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void look(String(new FormData(form).get("email") ?? "").trim());
+  });
+
+  /**
+   * A RETURN FROM STRIPE looks it up without asking, using the address the cart
+   * remembered — and then POLLS, because the webhook that marks the order paid
+   * is racing this page. Five tries at three seconds covers the ordinary case;
+   * after that the buyer still has a correct, if unpaid-looking, order and a
+   * form to re-check it with.
+   */
+  let remembered = "";
+  try {
+    remembered = window.localStorage.getItem(EMAIL_KEY) ?? "";
+  } catch {
+    // ignore
+  }
+
+  if (remembered) {
+    if (emailEl) emailEl.value = remembered;
+    void (async () => {
+      let settled = await look(remembered, true);
+      if (!justPaid) return;
+      for (let attempt = 0; attempt < 5 && !settled; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        settled = await look(remembered, true);
+      }
+    })();
+  }
+</script>
