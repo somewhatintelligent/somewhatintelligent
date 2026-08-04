@@ -368,6 +368,8 @@ export const placeOrder = Effect.fn("Checkout.placeOrder")(function* (
       orderId,
       orderNumber,
       subtotalCents: totals.subtotalCents,
+      /** The same address the order row above was written with — see the port. */
+      email: input.email,
       destination: input.destination,
       expiresAt: now + SESSION_TTL_MS,
       lines: totals.lines.map((line) => ({

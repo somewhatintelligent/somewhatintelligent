@@ -123,6 +123,7 @@ export const layer = Layer.effect(
       readonly orderId: string;
       readonly orderNumber: string;
       readonly subtotalCents: number;
+      readonly email: string;
       readonly destination: Destination;
       readonly expiresAt: number;
       readonly lines: ReadonlyArray<{
@@ -226,6 +227,19 @@ export const layer = Layer.effect(
             // releases it if they never come back.
             cancel_url: `${config.storefrontUrl}/cart?order=${input.orderNumber}`,
             expires_at: Math.floor(input.expiresAt / 1000),
+            /**
+             * THE ADDRESS THE ORDER IS FILED UNDER, carried onto the page the
+             * buyer actually sees. Stripe prefills it and — because it was
+             * supplied rather than collected — will not let it be edited here,
+             * which is the property that matters: the order row, the receipt
+             * and `session.customer_details.email` are then the same string by
+             * construction instead of by coincidence.
+             *
+             * The storefront has always collected this; it simply stopped at
+             * the order row, so the hosted page opened with an empty field and
+             * asked for it again.
+             */
+            customer_email: input.email,
             /**
              * Pinned to the destination the cart was priced for. The buyer picked
              * it on the storefront and the shipping rate above was chosen from

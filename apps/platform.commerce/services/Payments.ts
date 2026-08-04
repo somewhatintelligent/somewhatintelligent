@@ -156,6 +156,18 @@ export class Payments extends Context.Service<
        */
       readonly subtotalCents: number;
       /**
+       * The buyer's address, taken on the storefront before the session opens —
+       * `placeOrder` already requires it, because the order row is filed under
+       * it and it is how the buyer looks the order up later.
+       *
+       * PASSED SO THE HOSTED PAGE OPENS WITH IT. Until it was, the provider
+       * asked for an address it had never been given and the buyer typed a
+       * second one; {@link Session.email} then came back as whatever they typed
+       * there, so the receipt could go somewhere the order was not filed under
+       * and neither copy was wrong enough to notice.
+       */
+      readonly email: string;
+      /**
        * Where the cart is going, chosen on the storefront before checkout opens.
        * It fixes both the shipping rate and the countries the address form will
        * accept, so a buyer cannot pay one country's postage to another's.
