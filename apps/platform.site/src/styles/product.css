@@ -135,14 +135,34 @@
   height: 35px;
   align-items: center;
   justify-content: center;
+  /* THE UA PAINTS BUTTONS IF YOU LET IT. Nothing here set a background, so
+     `ButtonFace` — a mid grey — filled every size on top of the inverted
+     stage. That is what "unstyled" looked like: five grey slabs. Transparent
+     lets `--color-inverse` show through, and `appearance` keeps the rest of
+     the native chrome from coming back on another engine. */
+  appearance: none;
   border: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
+}
+
+/* THE SELECTED SIZE. The page script has always set `aria-pressed`, but
+   nothing read it, so choosing a size moved the state line and left the grid
+   looking untouched — the one control whose whole job is to show a choice.
+   Inverted rather than outlined, so it reads against four that are not. */
+.product-size[aria-pressed="true"] {
+  border-color: var(--color-inverse-foreground);
+  background: var(--color-inverse-foreground);
+  color: var(--color-inverse);
 }
 
 /* Struck through rather than merely dimmed: a sold-out size has to read as
    unavailable without relying on contrast alone. */
 .product-size.is-gone {
+  cursor: not-allowed;
   opacity: 0.45;
   text-decoration: line-through;
 }
@@ -238,14 +258,24 @@
 
 /* THE BUY CONTROL. It lived in `shop.css` and the product page does not load
    that sheet, so the button rendered completely unstyled — shrink-wrapped to
-   its text and sitting on top of the size grid. */
+   its text and sitting on top of the size grid.
+
+   THE INVERSE PAIR, not the plain one, and that is the whole of the second
+   bug. This is the only route that flips ground and figure (see the top of
+   this file): `.product-main` paints itself `--color-inverse`, so on the dark
+   document theme the sheet is LIGHT while `--color-foreground` is still the
+   document's near-white. A background of `--color-foreground` therefore
+   painted a near-white bar on a near-white sheet — present, correctly sized,
+   and invisible. The disabled state's 0.45 opacity finished the job. */
 .product-buy {
   width: 100%;
   height: 46px;
   margin-top: 16px;
+  appearance: none;
   border: 0;
-  background: var(--color-foreground);
-  color: var(--color-background);
+  background: var(--color-inverse-foreground);
+  color: var(--color-inverse);
+  cursor: pointer;
   font-family: var(--font-mono);
   font-size: 13px;
   text-transform: uppercase;
