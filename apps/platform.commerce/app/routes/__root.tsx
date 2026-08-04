@@ -105,12 +105,20 @@ function Shell({ children }: { children: React.ReactNode }) {
 
         <div className="ml-auto flex items-center gap-2">
           {/*
-           * LIVE IS LOUD. The same buttons move real money on `live` and do
+           * LIVE IS LOUD. The same buttons move real money on `prod` and do
            * not on `dev`, and the only thing that says which is this.
+           *
+           * `"prod"`, NOT `"live"`. `PAYMENTS_ENVIRONMENT` is bound from
+           * `environmentFor(stage)`, whose whole range is `dev | preprod |
+           * prod` — `"live"` is not in it, so this comparison was never true
+           * and the production console wore the same quiet badge as a dev one.
+           * The `live` notion does exist, but elsewhere and differently:
+           * `StripeConfig` derives it from the key prefix, and that value is
+           * not what reaches this binding.
            */}
           {paymentsEnvironment ? (
             <Badge
-              variant={paymentsEnvironment === "live" ? "destructive" : "outline"}
+              variant={paymentsEnvironment === "prod" ? "destructive" : "outline"}
               size="sm"
               title="Which Stripe account this deployment settles against"
             >
