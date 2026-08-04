@@ -49,9 +49,22 @@ export function Section({
   return (
     <section
       className={cn(
-        // `self-start` so a panel is as tall as its content. Stretched to fill a
-        // grid row, a one-row table left a screenful of dead space under it.
-        "self-start rounded-xl border border-border bg-card p-5",
+        /**
+         * `self-start` so a panel is as tall as its content — stretched to fill
+         * a grid row, a one-row table left a screenful of dead space under it.
+         *
+         * `w-full` BECAUSE `self-start` MEANS TWO DIFFERENT THINGS. `align-self`
+         * acts on the cross axis, which in the grids this was written for is
+         * vertical — but the page shell is a `flex-col`, and there the cross
+         * axis is HORIZONTAL. So every panel placed directly in a page rather
+         * than inside a grid collapsed to the width of its own text: the
+         * overview's "Ready to ship" sat at a third of the window and its
+         * "Payments" card at a sixth, each with the rest of the row empty.
+         *
+         * Width is stated explicitly instead, which is the same in both: 100%
+         * of a grid area, 100% of a flex row.
+         */
+        "w-full self-start rounded-xl border border-border bg-card p-5",
         className,
       )}
     >
