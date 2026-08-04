@@ -16,7 +16,8 @@
     "effect": "catalog:",
     "lib.astro-alchemy": "workspace:*",
     "platform.commerce": "workspace:*",
-    "platform.design": "workspace:*"
+    "platform.design": "workspace:*",
+    "platform.names": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5",

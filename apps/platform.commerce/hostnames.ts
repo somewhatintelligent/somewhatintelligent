@@ -28,6 +28,28 @@ import * as Alchemy from "alchemy";
 import * as Effect from "effect/Effect";
 import { PRODUCTION_STAGE, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
 
+/**
+ * WHERE A BUYER RETURNS after a hosted checkout, on production.
+ *
+ * A PLAIN CONSTANT, outside the Effect below, because its reader is not a
+ * stack: `services/StripeConfig.ts` resolves it inside the Worker's init, where
+ * there is no `Alchemy.Stack` to yield. The two hostnames below need the stage;
+ * this one is production's apex or nothing.
+ *
+ * A CONSTANT RATHER THAN A DEPLOY OUTPUT, for the same reason `hooks` is one:
+ * the provider bakes this origin into every session's `success_url` and
+ * `cancel_url`, so it has to be knowable BEFORE the deploy that would report
+ * it.
+ *
+ * AND IT CANNOT BE THE SITE'S OWN `url`, which is the obvious thing to reach
+ * for now that the site deploys from this stack. The site binds Commerce and
+ * Commerce is what mints the session, so feeding the site's output back into it
+ * closes a cycle in the resource graph. Off production there is no hostname to
+ * name — a workers.dev URL carries a hash no one can derive — so those stages
+ * keep reading `STORE_STOREFRONT_URL`.
+ */
+export const STOREFRONT_ORIGIN = `https://${PRODUCTION_ZONE}`;
+
 export const Hostnames = Effect.gen(function* () {
   const { stage } = yield* Alchemy.Stack;
   const prod = stage === PRODUCTION_STAGE;

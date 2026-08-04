@@ -1,8 +1,10 @@
+import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import type * as Output from "alchemy/Output";
 import { Astro } from "lib.astro-alchemy";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import { PRODUCTION_STAGE, PRODUCTION_ZONE } from "platform.names";
 
 import CommerceWorker from "platform.commerce/workers/Commerce";
 import MediaWorker from "platform.commerce/workers/Media";
@@ -39,9 +41,34 @@ export class Site extends Astro<Site>()(
   "Site",
   Effect.gen(function* () {
     const auth = yield* AuthRouting;
+    const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+    const { stage } = yield* Alchemy.Stack;
+    /**
+     * THE APEX, AND ONLY ON PRODUCTION. Every other stage stays on workers.dev:
+     * there is one apex, a second stage claiming it would take the live
+     * storefront with it, and nothing off production needs a hostname a payment
+     * provider has to be told about.
+     *
+     * `!local` for the reason the operator console has it — `alchemy dev` would
+     * otherwise reconcile the custom domain and repoint the live apex record at
+     * whatever port that session happens to be serving.
+     *
+     * WHAT THIS COLLIDES WITH: Cloudflare permits ONE Worker per hostname, and
+     * the apex is currently attached to the previous site's Worker. Until that
+     * one is detached, this plans a change Cloudflare refuses outright — the
+     * same failure `hostnames.ts` records for `desk.`.
+     */
+    const claimsApex = !local && stage === PRODUCTION_STAGE;
 
     return {
       cwd: import.meta.dirname,
+      ...(claimsApex ? { domain: PRODUCTION_ZONE } : {}),
+      /**
+       * Left ON even when the apex is claimed. The storefront is the one
+       * surface here with nothing behind a gate, so a second address for it
+       * costs no security — and it is what a deploy reports back, which is how
+       * `SiteModule` still has a URL to publish on every stage.
+       */
       workersDev: true,
       adapter: { imageService: "passthrough" },
       env: {

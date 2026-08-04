@@ -30,6 +30,8 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
+
+import { STOREFRONT_ORIGIN } from "../hostnames.ts";
 import * as Schema from "effect/Schema";
 
 export type StripeEnvironment = "dev" | "preprod" | "prod";
@@ -191,15 +193,25 @@ export class StripeConfig extends Context.Service<
        * to, so this is not optional configuration — it is the difference between
        * a working Buy button and `Missing required param: success_url`.
        *
+       * PRODUCTION DERIVES IT AND CANNOT BE TOLD OTHERWISE. The storefront
+       * answers on the apex, this stack deploys that storefront, and the origin
+       * is therefore a fact about the deployment rather than a setting — see
+       * {@link STOREFRONT_ORIGIN}. It used to be read from the environment like
+       * the other two, and that was the one variable whose being wrong is
+       * silent: every session still opens, every payment still succeeds, and
+       * every buyer is returned to a dead page afterwards.
+       *
        * Dev may guess, because a developer's storefront is conventionally on a
        * local port and making them export a variable to place a test order is
-       * friction with no safety value. Preprod and prod MUST declare it: there is
-       * no defensible default for where a real buyer lands after paying, and a
-       * wrong guess sends paying customers to a dead page.
+       * friction with no safety value. Preprod has no hostname of its own yet,
+       * so it MUST still declare one: there is no defensible default for where
+       * a real buyer lands after paying.
        */
-      const storefrontUrl = yield* environment === "dev"
-        ? Config.string(STOREFRONT_URL_VARIABLE).pipe(Config.withDefault(DEV_STOREFRONT_URL))
-        : Config.string(STOREFRONT_URL_VARIABLE);
+      const storefrontUrl = yield* environment === "prod"
+        ? Effect.succeed(STOREFRONT_ORIGIN)
+        : environment === "dev"
+          ? Config.string(STOREFRONT_URL_VARIABLE).pipe(Config.withDefault(DEV_STOREFRONT_URL))
+          : Config.string(STOREFRONT_URL_VARIABLE);
 
       // `sk_live_…` is the only prefix that settles real money.
       const livemode = Redacted.value(secretKey).startsWith("sk_live_");
