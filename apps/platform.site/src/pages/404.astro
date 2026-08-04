@@ -1,0 +1,24 @@
+---
+// THE ONE ROUTE ASTRO PICKS WITHOUT BEING ASKED.
+//
+// Absent this file, every mistyped path — and every link this scaffold has not
+// built the far end of yet — renders Astro's OWN 404: its logo, a `Path: /…`
+// dump, and none of this site's chrome. Production was serving exactly that.
+//
+// `noindex` because a 404 is not a page. A crawler that indexes one will offer
+// it as a search result, which is how a dead address acquires traffic.
+import Base from "../layouts/Base.astro";
+import TxShell from "../components/TxShell.astro";
+---
+
+<Base title="Not found — somewhatintelligent" description="No such page." noindex>
+  <TxShell title="404" maxWidth={560}>
+    <div class="legal">
+      <p>No such page. The address may be wrong, or what was here may have been withdrawn.</p>
+      <p>
+        Try <a href="/shop/">the objects</a>, <a href="/writing/">the writing</a>, or go back to
+        <a href="/">the beginning</a>.
+      </p>
+    </div>
+  </TxShell>
+</Base>

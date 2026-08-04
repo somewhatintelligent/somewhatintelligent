@@ -124,7 +124,8 @@ a:focus-visible {
 }
 
 .desktop-nav a,
-.account-link {
+.account-link,
+.cart-link {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -137,8 +138,18 @@ a:focus-visible {
   margin-left: auto;
 }
 
-.account-link {
+.account-link,
+.cart-link {
   text-transform: uppercase;
+}
+
+.cart-link svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-width: 1.5;
 }
 
 .site-footer {
@@ -198,6 +209,13 @@ a:focus-visible {
   }
 
   .account-link {
+    display: none;
+  }
+
+  /* THE CART SURVIVES THE BREAKPOINT, and only its word goes. Account is a
+     detour on a phone; the cart is the point of the site, so it keeps the
+     glyph and the count while the label folds away. */
+  .cart-link span:first-of-type {
     display: none;
   }
 

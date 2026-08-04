@@ -5,6 +5,14 @@ interface Props {
   title?: string;
   description?: string;
   ogType?: "website" | "article";
+  /**
+   * Keep this page out of an index. For the routes that are ABOUT ONE PERSON'S
+   * TRANSACTION rather than about the shop — an order, a cart — and for the
+   * 404, which is not a page at all. The site this replaces marked its
+   * `/checkout` pair this way and the equivalents here inherited nothing, so
+   * `/orders/<number>` was indexable.
+   */
+  noindex?: boolean;
   /** Document token theme. Light pages re-darken chrome via data-theme="dark" wrappers. */
   theme?: "dark" | "light";
 }
@@ -13,6 +21,7 @@ const {
   title = "somewhatintelligent — objects, systems, texts",
   description = "Objects, systems, texts, and other side effects by Apostoli.",
   ogType = "website",
+  noindex = false,
   theme = "dark",
 } = Astro.props;
 ---
@@ -23,6 +32,7 @@ const {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
     <meta property="og:type" content={ogType} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />

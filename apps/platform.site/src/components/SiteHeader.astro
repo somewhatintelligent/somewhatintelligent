@@ -38,7 +38,47 @@ const accountHref = `${env.AUTH_ORIGIN}/account`;
     }
   </nav>
   <div class="header-end">
-    <a class="account-link" href="/cart/">Cart</a>
     <a class="account-link" href={accountHref}>Account</a>
+    {/*
+     * ITS OWN CLASS, NOT `account-link`, and that is the whole of the bug this
+     * fixes. The mobile block hides `.account-link` — correctly, for Account —
+     * and the cart was wearing it, so a phone had no route to the cart at all
+     * on a site whose entire purpose is selling. `.cart-link` survives the
+     * breakpoint and drops only its text label.
+     */}
+    <a class="cart-link" id="site-cart-link" href="/cart/" aria-label="Cart, 0 items">
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H6"></path>
+        <circle cx="10" cy="20" r="1"></circle>
+        <circle cx="18" cy="20" r="1"></circle>
+      </svg>
+      <span>Cart</span>
+      <span id="site-cart-count">(0)</span>
+    </a>
   </div>
 </header>
+
+<script>
+  /**
+   * THE COUNT, live. The cart is `localStorage` and nothing server-rendered can
+   * know it, so the header ships `(0)` and this corrects it on load and on
+   * every subsequent change — including a change made in ANOTHER TAB, which is
+   * what `subscribeCart`'s storage listener is for.
+   *
+   * Until this existed, adding to the cart moved the state line on the product
+   * page and left the header saying nothing at all.
+   */
+  import { cartCount, subscribeCart } from "../lib/cart.ts";
+
+  const link = document.getElementById("site-cart-link");
+  const count = document.getElementById("site-cart-count");
+
+  const render = (): void => {
+    const n = cartCount();
+    if (count) count.textContent = `(${n})`;
+    link?.setAttribute("aria-label", `Cart, ${n} ${n === 1 ? "item" : "items"}`);
+  };
+
+  subscribeCart(render);
+  render();
+</script>

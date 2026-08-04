@@ -27,7 +27,7 @@ const { number } = Astro.params;
 const justPaid = Astro.url.searchParams.has("session_id");
 ---
 
-<Base title={`Order ${number} — somewhatintelligent`} description="Your order.">
+<Base title={`Order ${number} — somewhatintelligent`} description="Your order." noindex>
   <div class="site-frame">
     <SiteHeader />
 
