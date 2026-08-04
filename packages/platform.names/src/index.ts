@@ -38,21 +38,6 @@ export const TEAM_DOMAIN = "https://geyerconsulting.cloudflareaccess.com";
 export const CLOUDFLARE_IDP = "950ba8bd-98c6-498e-9866-3bb71fd771cc";
 
 /**
- * THE COMMERCE STACK'S STATE KEY, and the reason it is a shared name rather
- * than a literal at each end.
- *
- * `Alchemy.Stack(name, …)` keys persisted state by this string, so it is
- * already load-bearing where the stack declares it — changing it strands
- * everything the old name owns. What earns it a place HERE is the second
- * reader: a cross-stack `Worker.ref` names its target stack as a STRING, which
- * no import graph can follow. Two literals that must agree with nothing
- * checking that they do is precisely the drift this package exists to prevent,
- * and the failure it produces is a ref resolving to nothing at deploy time
- * rather than a type error.
- */
-export const COMMERCE_STACK = "PlatformCommerce";
-
-/**
  * A stage name reduced to what a Cloudflare resource name accepts.
  *
  * Stages carry characters resource names do not — `dev_stoli` is the common

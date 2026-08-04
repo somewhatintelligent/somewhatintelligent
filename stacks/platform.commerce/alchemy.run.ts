@@ -6,34 +6,39 @@ import { Layer } from "effect";
 
 import { CommerceModule, StaffPolicy } from "platform.commerce/module";
 import * as StripeDev from "platform.commerce/infrastructure/StripeDev";
-import { COMMERCE_STACK, PRODUCTION_STAGE } from "platform.names";
+import { AuthRouting, SiteModule } from "platform.site/module";
+import { PRODUCTION_STAGE } from "platform.names";
 
+import { Auth } from "../platform.auth/index.ts";
 import { PlatformAccess } from "../platform.access/index.ts";
 
 /**
- * `COMMERCE_STACK` ("PlatformCommerce") is the state key — state is keyed by
- * stack name and stage, so changing it strands everything the old name owns.
- * It is a shared name rather than a literal because `platform.site` names this
- * stack in a `Worker.ref` to bind Commerce, and a ref's target is a string no
- * import graph can check.
+ * `"PlatformCommerce"` is the state key — state is keyed by stack name and
+ * stage, so changing it strands everything the old name owns. It was briefly a
+ * shared constant in `platform.names`, because a cross-stack `Worker.ref` named
+ * this stack as a string no import graph could check; the site binds these
+ * Workers directly now, so the second reader is gone and so is the constant.
  *
  * Drizzle's provider is here for the same reason `platform.auth`'s is: the
  * schema resource generates migrations at deploy time and Cloudflare's provider
  * alone cannot resolve it.
  *
- * No typed handle, and it turned out not to need one. `Auth` publishes an origin
- * because a different stack acts on it; what a commerce consumer wants is a
- * SERVICE BINDING, and a binding names a script — Cloudflare does not care which
- * stack declared it. `Worker.ref` resolves this stack's `Commerce` out of its
- * persisted state, so a consumer in another stack binds it exactly like a local
- * declaration and no output has to cross.
+ * IT DEPLOYS THE PUBLIC SITE TOO, and that is why the name is now narrower than
+ * the contents. The state key cannot change without stranding a live database,
+ * a bucket, a queue and an adopted Access application, so it stays.
  *
- * THIS FILE USED TO CLAIM A BINDING CANNOT CROSS A STACK BOUNDARY, and gave that
- * as the reason the operator console lives inside `apps/platform.commerce`. The
- * console does still belong there, but for a better reason: it is this app's own
- * surface. The storefront did NOT land the same way — it is `/shop` on
- * `platform.site`, in its own stack, reaching Commerce by ref. See
- * `apps/platform.site/binding.ts`.
+ * WHY THE SITE MOVED IN HERE. It binds Commerce and Media, and a binding across
+ * a stack boundary only half works: `Worker.ref` reads the target out of the
+ * other stack's persisted state, which a deploy has and two `alchemy dev`
+ * sessions do not. Deployed, the shop read the catalogue correctly; locally it
+ * rendered "catalogue unavailable" on every request, because the site's
+ * miniflare had no bridge into the commerce session's registry. One stack is
+ * one dev session and one registry — the same reason the operator console could
+ * always reach Commerce locally while the site could not.
+ *
+ * `Auth` still crosses a boundary, and correctly: it publishes an ORIGIN. A URL
+ * needs no registry and no bridge, so auth stays its own stack and this one
+ * yields its handle.
  *
  * `stage[PRODUCTION_STAGE]`, not a bare `yield*`: platform.access is a singleton
  * deployed at prod alone, so every stage of this app pins to that one. The ref
@@ -85,7 +90,7 @@ import { PlatformAccess } from "../platform.access/index.ts";
 const stripeArmed = await Effect.runPromise(StripeDev.armIfDevHost());
 
 export default Alchemy.Stack(
-  COMMERCE_STACK,
+  "PlatformCommerce",
   {
     providers: Layer.mergeAll(Cloudflare.providers(), Drizzle.providers()),
     state: Cloudflare.state(),
@@ -93,9 +98,20 @@ export default Alchemy.Stack(
   Effect.gen(function* () {
     const { staffPolicyId } = yield* PlatformAccess.stage[PRODUCTION_STAGE];
 
+    const auth = yield* Auth;
+
     const commerce = yield* CommerceModule.pipe(
       Effect.provideService(StaffPolicy, { policyId: staffPolicyId }),
       Alchemy.AdoptPolicy.adopt(true),
+    );
+
+    /**
+     * AFTER the commerce module, so the Workers it binds are already in the
+     * graph. `adopt` is deliberately NOT piped here: the site is a stateless
+     * Worker whose physical name is stage-derived, so it is a clean create.
+     */
+    const site = yield* SiteModule.pipe(
+      Effect.provideService(AuthRouting, { origin: auth.origin }),
     );
 
     /**
@@ -112,6 +128,6 @@ export default Alchemy.Stack(
       yield* StripeDev.forwarder(commerce.webhookUrl);
     }
 
-    return commerce;
+    return { ...commerce, site };
   }),
 );

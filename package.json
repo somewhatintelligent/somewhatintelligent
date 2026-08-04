@@ -28,10 +28,6 @@
     "mezedes:destroy": "alchemy destroy stacks/mezedes/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
     "mezedes:plan": "alchemy plan stacks/mezedes/alchemy.run.ts",
     "prepare": "vp config && effect-tsgo patch --oxlint",
-    "site:deploy": "alchemy deploy stacks/platform.site/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
-    "site:destroy": "alchemy destroy stacks/platform.site/alchemy.run.ts --stage $ALCHEMY_STAGE --yes",
-    "site:dev": "alchemy dev stacks/platform.site/alchemy.run.ts",
-    "site:plan": "alchemy plan stacks/platform.site/alchemy.run.ts",
     "ready": "vp check && vp run -r test && vp run -r build"
   },
   "devDependencies": {
