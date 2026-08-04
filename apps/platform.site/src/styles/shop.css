@@ -521,8 +521,7 @@
   opacity: 0.75;
 }
 
-.cart-checkout button[type="submit"],
-.product-buy {
+.cart-checkout button[type="submit"] {
   width: 100%;
   height: 46px;
   border: 0;
@@ -533,8 +532,7 @@
   text-transform: uppercase;
 }
 
-.cart-checkout button[type="submit"]:disabled,
-.product-buy:disabled {
+.cart-checkout button[type="submit"]:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
