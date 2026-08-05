@@ -41,6 +41,7 @@ import type {
   FulfillOrderInput,
 } from "../domain/Contracts.ts";
 import * as Checkout from "../domain/Checkout.ts";
+import type { MarketCode } from "../core/markets.ts";
 import * as Deletion from "../domain/Deletion.ts";
 import * as Media from "../domain/Media.ts";
 import * as Orders from "../domain/Orders.ts";
@@ -578,16 +579,16 @@ export const commerceSurface = Effect.fn("commerceSurface")(function* (provider:
      * `listProducts`/`getProduct` above are the OPERATOR reads — draft-aware,
      * envelope-wrapped — and are not interchangeable with these.
      */
-    listStorefront: () =>
+    listStorefront: (market: MarketCode) =>
       Effect.gen(function* () {
         const database = yield* Database;
-        return yield* Storefront.listActiveProducts(database.db);
+        return yield* Storefront.listActiveProducts(database.db, market);
       }).pipe(Effect.provide(layer)),
 
-    getStorefrontProduct: (slug: string) =>
+    getStorefrontProduct: (slug: string, market: MarketCode) =>
       Effect.gen(function* () {
         const database = yield* Database;
-        return yield* Storefront.getActiveProductBySlug(database.db, slug);
+        return yield* Storefront.getActiveProductBySlug(database.db, slug, market);
       }).pipe(Effect.provide(layer)),
 
     /** What provider this deployment mints sessions with — asserted by the suite. */

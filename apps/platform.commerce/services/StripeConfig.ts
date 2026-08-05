@@ -72,15 +72,6 @@ const STOREFRONT_URL_VARIABLE = "STORE_STOREFRONT_URL";
 const DEV_STOREFRONT_URL = "http://localhost:5173";
 
 /**
- * Where the store ships. THE PRICE CONTAINS SHIPPING — there is no rate, no
- * threshold, and no `shipping_option` on any session. What remains of the
- * concept is this type: the country a cart is going to, chosen on the
- * storefront, which pins the address form so a buyer cannot check out to a
- * country the cart was not priced for.
- */
-export type Destination = "CA" | "US";
-
-/**
  * Stripe's tax codes for what this store sells.
  *
  * A tax code is what makes `automatic_tax` correct rather than merely enabled:
@@ -91,10 +82,6 @@ export type Destination = "CA" | "US";
  */
 const GOODS_TAX_CODE_VARIABLE = "STORE_TAX_CODE_GOODS";
 const DEFAULT_GOODS_TAX_CODE = "txcd_99999999";
-
-/** Minor-unit currency all prices are quoted in. */
-const CURRENCY_VARIABLE = "STORE_CURRENCY";
-const DEFAULT_CURRENCY = "cad";
 
 /**
  * A key that does not match the environment asking for it.
@@ -145,8 +132,6 @@ export class StripeConfig extends Context.Service<
      * its own order page.
      */
     readonly storefrontUrl: string;
-    /** Minor-unit currency for every price this deployment quotes. */
-    readonly currency: string;
     /** Stripe tax code applied to garment line items. */
     readonly goodsTaxCode: string;
   }
@@ -215,9 +200,6 @@ export class StripeConfig extends Context.Service<
         });
       }
 
-      const currency = yield* Config.string(CURRENCY_VARIABLE).pipe(
-        Config.withDefault(DEFAULT_CURRENCY),
-      );
       const goodsTaxCode = yield* Config.string(GOODS_TAX_CODE_VARIABLE).pipe(
         Config.withDefault(DEFAULT_GOODS_TAX_CODE),
       );
@@ -228,7 +210,6 @@ export class StripeConfig extends Context.Service<
         webhookSecret,
         livemode,
         storefrontUrl: storefrontUrl.replace(/\/+$/, ""),
-        currency: currency.toLowerCase(),
         goodsTaxCode,
       });
     });

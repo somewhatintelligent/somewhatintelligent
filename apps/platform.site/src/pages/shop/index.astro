@@ -3,6 +3,7 @@ import Base from "../../layouts/Base.astro";
 import ShopView from "../../components/views/ShopView.astro";
 import { SHOP_DOCUMENT } from "../../lib/shop-document.ts";
 import { listStorefront, type ProductCardDTO } from "../../lib/commerce.ts";
+import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
 import "../../styles/shop.css";
 
 // Copy/SEO come from the committed document rather than the Publisher page read
@@ -16,10 +17,15 @@ const doc = SHOP_DOCUMENT;
 // Astro's 500 with the site chrome gone; swallowing it into an empty list tells
 // a shopper the shop is empty when it is broken — the version nobody reports.
 // The 503 is how anything that is not a human finds out.
+// WHICH SHOP THIS IS. The market cookie decides the prices this page renders
+// — and what it hides: a product with no live row for this market is not in
+// this market's shop at all.
+const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
+
 let products: readonly ProductCardDTO[] = [];
 let reachable = true;
 try {
-  products = await listStorefront();
+  products = await listStorefront(market);
 } catch (cause) {
   reachable = false;
   Astro.response.status = 503;

@@ -26,16 +26,29 @@ import {
   type StorefrontProductDTO,
 } from "./Contracts.ts";
 import { isAvailable } from "../core/availability.ts";
+import { MARKETS, type MarketCode } from "../core/markets.ts";
 import { sortBySize } from "../core/money.ts";
-import { product, productRelease, productReleaseImage, productVariant } from "./Schema.ts";
+import {
+  product,
+  productRelease,
+  productReleaseImage,
+  productVariant,
+  releaseMarket,
+} from "./Schema.ts";
 
 /**
- * The storefront list. `active` only — `unavailable` is a published product
- * pulled from sale and must not appear, which is precisely the distinction the
- * four-value status domain exists to carry.
+ * The storefront list FOR ONE MARKET. `active` only — `unavailable` is a
+ * published product pulled from sale and must not appear, which is precisely
+ * the distinction the four-value status domain exists to carry.
+ *
+ * The market row is INNER-joined: a release with no live row for this market
+ * is simply not in this market's shop. The same rule checkout applies when it
+ * prices the cart, so the list cannot advertise something checkout would
+ * refuse with `market_unavailable`.
  */
 export const listActiveProducts = Effect.fn("Storefront.listActiveProducts")(function* (
   db: ClassicDb,
+  market: MarketCode,
 ) {
   const rows = yield* query(() =>
     db
@@ -43,13 +56,22 @@ export const listActiveProducts = Effect.fn("Storefront.listActiveProducts")(fun
         productId: product.id,
         slug: productRelease.slug,
         title: productRelease.title,
-        priceCents: productRelease.priceCents,
+        priceCents: releaseMarket.priceCents,
         version: productRelease.version,
         releaseId: productRelease.id,
       })
       .from(product)
       // INNER join: no active release means no row, fail-closed.
       .innerJoin(productRelease, eq(productRelease.id, product.activeReleaseId))
+      // INNER join: not sold in this market means no row either.
+      .innerJoin(
+        releaseMarket,
+        and(
+          eq(releaseMarket.releaseId, productRelease.id),
+          eq(releaseMarket.market, market),
+          eq(releaseMarket.active, true),
+        ),
+      )
       .where(eq(product.status, "active"))
       .orderBy(asc(productRelease.title)),
   );
@@ -97,6 +119,7 @@ export const listActiveProducts = Effect.fn("Storefront.listActiveProducts")(fun
       slug: row.slug,
       title: row.title,
       priceCents: row.priceCents,
+      currency: MARKETS[market].currency,
       version: row.version,
       coverHref: coverByRelease.has(row.releaseId)
         ? mediaHref(coverByRelease.get(row.releaseId) as string)
@@ -114,6 +137,7 @@ export const listActiveProducts = Effect.fn("Storefront.listActiveProducts")(fun
 export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySlug")(function* (
   db: ClassicDb,
   slug: string,
+  market: MarketCode,
 ) {
   const rows = yield* query(() =>
     db
@@ -123,7 +147,7 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
         slug: productRelease.slug,
         title: productRelease.title,
         descriptionMarkdown: productRelease.descriptionMarkdown,
-        priceCents: productRelease.priceCents,
+        priceCents: releaseMarket.priceCents,
         version: productRelease.version,
         /** The run, because `available` below is a claim about BOTH counters. */
         preorderCap: product.preorderCap,
@@ -131,6 +155,16 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
       })
       .from(product)
       .innerJoin(productRelease, eq(productRelease.id, product.activeReleaseId))
+      // Not sold in this market reads as `null` — the same answer as no such
+      // product, because for this shopper that is what it is.
+      .innerJoin(
+        releaseMarket,
+        and(
+          eq(releaseMarket.releaseId, productRelease.id),
+          eq(releaseMarket.market, market),
+          eq(releaseMarket.active, true),
+        ),
+      )
       .where(and(eq(product.status, "active"), eq(productRelease.slug, slug)))
       .limit(1),
   );
@@ -172,6 +206,7 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
     title: row.title,
     descriptionMarkdown: row.descriptionMarkdown,
     priceCents: row.priceCents,
+    currency: MARKETS[market].currency,
     version: row.version,
     media: media.map((image) => ({
       href: mediaHref(image.imageId),

@@ -17,8 +17,8 @@ import * as Effect from "effect/Effect";
 import type { CoreOutcome } from "../services/Audit.ts";
 import { Database, type ClassicDb, type DbStatement } from "../services/Database.ts";
 import { Ids } from "../services/Ids.ts";
+import { MARKETS, type MarketCode } from "../core/markets.ts";
 import { Payments } from "../services/Payments.ts";
-import type { Destination } from "../services/StripeConfig.ts";
 import { err, ok } from "./Contracts.ts";
 import {
   classifyGuards,
@@ -52,13 +52,15 @@ export interface PlaceOrderInput {
   readonly email: string;
   readonly customerId: string;
   /**
-   * Where the cart is going, chosen on the storefront before checkout opens.
+   * The market the cart is being bought from, chosen on the storefront before
+   * checkout opens.
    *
-   * Required rather than inferred, because it pins the countries the address
-   * form will accept — and inferring it from an address we do not have yet is
-   * the mistake that ships a cart to a country it was never priced for.
+   * Required rather than inferred, because it decides which prices the cart is
+   * priced at, what currency the session charges in, and which countries the
+   * address form will accept — and inferring it from an address we do not have
+   * yet is the mistake that ships a cart to a country it was never priced for.
    */
-  readonly destination: Destination;
+  readonly market: MarketCode;
 }
 
 interface PlacedOrder {
@@ -80,6 +82,8 @@ type CheckoutError =
   | "variant_not_found"
   | "product_unavailable"
   | "out_of_stock"
+  /** On sale, but not in the buyer's market. Canada-only is one flipped flag. */
+  | "market_unavailable"
   /** A pre-order run is fully subscribed — distinct from a shelf being empty. */
   | "preorder_full"
   /**
@@ -122,7 +126,7 @@ const orderWriteStatements = (
      * writing a guess would put a number in the books that no receipt agrees
      * with. The settlement path fills all three from the paid event.
      */
-    shipCountry: input.destination,
+    shipCountry: input.market,
     /**
      * BORN RELEASED, and cleared only once the reservation is known good.
      *
@@ -193,15 +197,17 @@ export const placeOrder = Effect.fn("Checkout.placeOrder")(function* (
   const db = database.db;
 
   /**
-   * The currency the order is QUOTED in, recorded on the row rather than left to
-   * the column default. The default is right only by coincidence today, and the
-   * column exists precisely so the constant can stop being constant.
+   * The currency the order is QUOTED in — the market's, recorded on the row
+   * rather than left to the column default. The prices loaded below are minor
+   * units of this currency and no other, because they come off the same
+   * market's release rows.
    */
-  const currency = payments.currency;
+  const currency = MARKETS[input.market].currency;
 
   const { variants, products } = yield* loadPricingInputs(
     db,
     input.items.map((item) => item.variantId),
+    input.market,
   );
   const totals = computeTotals(input.items, variants, products);
   if (!totals.ok) {
@@ -369,7 +375,7 @@ export const placeOrder = Effect.fn("Checkout.placeOrder")(function* (
       subtotalCents: totals.subtotalCents,
       /** The same address the order row above was written with — see the port. */
       email: input.email,
-      destination: input.destination,
+      market: input.market,
       expiresAt: now + SESSION_TTL_MS,
       lines: totals.lines.map((line) => ({
         title: line.title,
@@ -418,7 +424,7 @@ export const placeOrder = Effect.fn("Checkout.placeOrder")(function* (
       detail: {
         lines: totals.lines.length,
         subtotalCents: totals.subtotalCents,
-        destination: input.destination,
+        market: input.market,
         preorder: totals.lines.some((line) => line.preorder),
       },
     },

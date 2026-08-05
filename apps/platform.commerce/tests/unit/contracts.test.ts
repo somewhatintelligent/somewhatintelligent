@@ -29,7 +29,6 @@ const draft: ProductDraftDTO = {
   revision: 3,
   title: "Field Tee",
   descriptionMarkdown: "Heavyweight cotton.",
-  priceCents: 4_500,
   status: "active",
   activeVersion: "1.2.0",
   updatedAt: 1_767_225_600_000,
@@ -130,6 +129,10 @@ describe("domain values survive the RPC boundary", () => {
   test("a product detail assembled from its parts", () => {
     const detail = {
       draft,
+      markets: [
+        { market: "CA" as const, priceCents: 8_500, active: true },
+        { market: "US" as const, priceCents: 7_500, active: false },
+      ],
       preorder: { cap: null, claimed: 0, remaining: null },
       releases: [{ id: "rel-1", version: "1.2.0", publishedAt: 1_767_225_600_000 }],
       variants: [variant],
@@ -175,8 +178,12 @@ describe("the schema rejects what the domain must never emit", () => {
   });
 
   test("a missing required field", () => {
-    const { priceCents, ...withoutPrice } = draft;
-    expect(decode(Rpc.ProductDraft, withoutPrice)).toThrow();
+    const { title: _title, ...withoutTitle } = draft;
+    expect(decode(Rpc.ProductDraft, withoutTitle)).toThrow();
+  });
+
+  test("a market outside the two supported", () => {
+    expect(decode(Rpc.MarketPrice, { market: "EU", priceCents: 7_500, active: true })).toThrow();
   });
 
   test("an empty commandId — the one thing the browser supplies toward idempotency", () => {

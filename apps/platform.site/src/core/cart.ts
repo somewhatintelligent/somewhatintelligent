@@ -33,6 +33,12 @@ export interface CartHint {
   readonly title: string;
   readonly size: string;
   readonly priceCents: number;
+  /**
+   * The currency the price was SHOWN in — the market the shopper was browsing
+   * when they added it. Display only, like everything else here: checkout
+   * re-prices the cart in whatever market they finally submit from.
+   */
+  readonly currency: string;
   readonly coverHref: string | null;
 }
 

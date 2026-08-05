@@ -55,21 +55,23 @@ export default class StorefrontWorker extends Cloudflare.Worker<StorefrontWorker
        * The same active-release reads the GET routes below answer, now declared
        * so a client shares the type instead of restating it.
        */
-      listStorefront: () =>
-        Effect.provide(
-          Effect.flatMap(Database, (database) => Storefront.listActiveProducts(database.db)),
-          layer,
-        ),
-
-      getStorefrontProduct: ({ slug }) =>
+      listStorefront: ({ market }) =>
         Effect.provide(
           Effect.flatMap(Database, (database) =>
-            Storefront.getActiveProductBySlug(database.db, slug),
+            Storefront.listActiveProducts(database.db, market),
           ),
           layer,
         ),
 
-      placeOrder: ({ commandId, email, destination, items }) =>
+      getStorefrontProduct: ({ slug, market }) =>
+        Effect.provide(
+          Effect.flatMap(Database, (database) =>
+            Storefront.getActiveProductBySlug(database.db, slug, market),
+          ),
+          layer,
+        ),
+
+      placeOrder: ({ commandId, email, market, items }) =>
         Effect.flatMap(
           commerce.placeOrder(
             customerCall(email, commandId, {
@@ -77,7 +79,7 @@ export default class StorefrontWorker extends Cloudflare.Worker<StorefrontWorker
               // The subject doubles as the customer id: a guest order still
               // needs a stable owner, and this is the only one on offer.
               customerId: `customer:${email.trim().toLowerCase()}`,
-              destination,
+              market,
               items: items.map((item) => ({ ...item })),
             }),
           ),
@@ -132,13 +134,16 @@ export default class StorefrontWorker extends Cloudflare.Worker<StorefrontWorker
      */
     const reads = Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
-      const path = new URL(request.url, "http://catalog").pathname;
+      const url = new URL(request.url, "http://catalog");
+      const path = url.pathname;
       const segments = path.split("/").filter(Boolean);
+      /** `?market=US` prices the read; anything else is the home market. */
+      const market = url.searchParams.get("market") === "US" ? ("US" as const) : ("CA" as const);
 
       {
         if (request.method === "GET" && path === "/products") {
           const database = yield* Database;
-          const products = yield* Storefront.listActiveProducts(database.db);
+          const products = yield* Storefront.listActiveProducts(database.db, market);
           return yield* HttpServerResponse.json({ products });
         }
 
@@ -147,6 +152,7 @@ export default class StorefrontWorker extends Cloudflare.Worker<StorefrontWorker
           const found = yield* Storefront.getActiveProductBySlug(
             database.db,
             segments[1] as string,
+            market,
           );
           return found
             ? yield* HttpServerResponse.json({ product: found })

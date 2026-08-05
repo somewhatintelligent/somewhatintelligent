@@ -168,7 +168,9 @@ function Overview() {
                   >
                     <ProductStatusBadge status={product.status} />
                     <span className="truncate">{product.title}</span>
-                    <span className="ml-auto tnum">{money(product.priceCents)}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {product.activeVersion ?? "unpublished"}
+                    </span>
                   </Link>
                 </li>
               ))}

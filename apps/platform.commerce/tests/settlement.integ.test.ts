@@ -283,7 +283,15 @@ test(
           commandId: cmd("create"),
           slug,
           title: `Settle ${slug}`,
-          priceCents: 4000,
+        });
+        yield* client.saveProductDraft({
+          commandId: cmd("markets"),
+          productId: created.productId,
+          expectedRevision: 1,
+          markets: [
+            { market: "CA", priceCents: 4000, active: true },
+            { market: "US", priceCents: 4000, active: true },
+          ],
         });
         yield* client.ingestProductMedia({
           commandId: cmd("media"),
@@ -303,7 +311,7 @@ test(
         yield* client.publishProduct({
           commandId: cmd("publish"),
           productId: created.productId,
-          expectedRevision: 1,
+          expectedRevision: 2,
           version: "1.0.0",
         });
         return { variantId: variant.variantId };
@@ -314,7 +322,7 @@ test(
       client.placeOrder({
         commandId: cmd("buy"),
         email: `settle-${RUN}@spike.local`,
-        destination: "CA",
+        market: "CA",
         items: [{ variantId, quantity: 1 }],
       }),
     );
@@ -378,7 +386,15 @@ test(
           commandId: cmd("create"),
           slug,
           title: `Own ${slug}`,
-          priceCents: 3000,
+        });
+        yield* client.saveProductDraft({
+          commandId: cmd("markets"),
+          productId: created.productId,
+          expectedRevision: 1,
+          markets: [
+            { market: "CA", priceCents: 3000, active: true },
+            { market: "US", priceCents: 3000, active: true },
+          ],
         });
         yield* client.ingestProductMedia({
           commandId: cmd("media"),
@@ -398,7 +414,7 @@ test(
         yield* client.publishProduct({
           commandId: cmd("publish"),
           productId: created.productId,
-          expectedRevision: 1,
+          expectedRevision: 2,
           version: "1.0.0",
         });
         return { variantId: variant.variantId };
@@ -409,7 +425,7 @@ test(
       client.placeOrder({
         commandId: cmd("buy"),
         email: `own-${RUN}@spike.local`,
-        destination: "US",
+        market: "US",
         items: [{ variantId, quantity: 1 }],
       }),
     );
@@ -430,7 +446,7 @@ test(
         shippingCents: 2200,
         taxCents: 390,
         totalCents: 5590,
-        currency: "cad",
+        currency: "usd",
       },
     });
 
@@ -466,7 +482,15 @@ test(
           commandId: cmd("create"),
           slug,
           title: `Refund ${slug}`,
-          priceCents: 2000,
+        });
+        yield* client.saveProductDraft({
+          commandId: cmd("markets"),
+          productId: created.productId,
+          expectedRevision: 1,
+          markets: [
+            { market: "CA", priceCents: 2000, active: true },
+            { market: "US", priceCents: 2000, active: true },
+          ],
         });
         yield* client.ingestProductMedia({
           commandId: cmd("media"),
@@ -486,7 +510,7 @@ test(
         yield* client.publishProduct({
           commandId: cmd("publish"),
           productId: created.productId,
-          expectedRevision: 1,
+          expectedRevision: 2,
           version: "1.0.0",
         });
         return { productId: created.productId, variantId: variant.variantId };
@@ -497,7 +521,7 @@ test(
       client.placeOrder({
         commandId: cmd("buy"),
         email: `refund-${RUN}@spike.local`,
-        destination: "CA",
+        market: "CA",
         items: [{ variantId, quantity: 1 }],
       }),
     );
@@ -562,7 +586,15 @@ test(
           commandId: cmd("create"),
           slug,
           title: `Release ${slug}`,
-          priceCents: 1500,
+        });
+        yield* client.saveProductDraft({
+          commandId: cmd("markets"),
+          productId: created.productId,
+          expectedRevision: 1,
+          markets: [
+            { market: "CA", priceCents: 1500, active: true },
+            { market: "US", priceCents: 1500, active: true },
+          ],
         });
         yield* client.ingestProductMedia({
           commandId: cmd("media"),
@@ -582,7 +614,7 @@ test(
         yield* client.publishProduct({
           commandId: cmd("publish"),
           productId: created.productId,
-          expectedRevision: 1,
+          expectedRevision: 2,
           version: "1.0.0",
         });
         return { productId: created.productId, variantId: variant.variantId };
@@ -593,7 +625,7 @@ test(
       client.placeOrder({
         commandId: cmd("buy"),
         email: `release-${RUN}@spike.local`,
-        destination: "CA",
+        market: "CA",
         items: [{ variantId, quantity: 2 }],
       }),
     );
@@ -648,7 +680,15 @@ test(
           commandId: cmd("create"),
           slug,
           title: `Partial ${slug}`,
-          priceCents: 2500,
+        });
+        yield* client.saveProductDraft({
+          commandId: cmd("markets"),
+          productId: created.productId,
+          expectedRevision: 1,
+          markets: [
+            { market: "CA", priceCents: 2500, active: true },
+            { market: "US", priceCents: 2500, active: true },
+          ],
         });
         yield* client.ingestProductMedia({
           commandId: cmd("media"),
@@ -668,7 +708,7 @@ test(
         yield* client.publishProduct({
           commandId: cmd("publish"),
           productId: created.productId,
-          expectedRevision: 1,
+          expectedRevision: 2,
           version: "1.0.0",
         });
         return { productId: created.productId, variantId: variant.variantId };
@@ -679,7 +719,7 @@ test(
       client.placeOrder({
         commandId: cmd("buy"),
         email: `partial-${RUN}@spike.local`,
-        destination: "CA",
+        market: "CA",
         items: [{ variantId, quantity: 2 }],
       }),
     );

@@ -26,7 +26,7 @@ const MIN_EMAIL = 3;
 /** A UUID is 36 characters; anything shorter cannot be one. */
 const MIN_COMMAND_ID = 8;
 
-type Destination = "CA" | "US";
+type Market = "CA" | "US";
 
 interface CheckoutLine {
   readonly variantId: string;
@@ -35,7 +35,7 @@ interface CheckoutLine {
 
 interface CheckoutInput {
   readonly email: string;
-  readonly destination: Destination;
+  readonly market: Market;
   readonly commandId: string;
   readonly items: readonly CheckoutLine[];
 }
@@ -48,7 +48,7 @@ const parseEmail = (value: unknown): string | null => {
   return email;
 };
 
-const parseDestination = (value: unknown): Destination | null =>
+const parseMarket = (value: unknown): Market | null =>
   value === "CA" || value === "US" ? value : null;
 
 /**
@@ -117,13 +117,13 @@ type CheckoutParse =
  */
 // fallow-ignore-next-line complexity
 export const parseCheckout = (body: unknown): CheckoutParse => {
-  const { email, destination, commandId, items } = (body ?? {}) as Record<string, unknown>;
+  const { email, market, commandId, items } = (body ?? {}) as Record<string, unknown>;
 
   const parsedEmail = parseEmail(email);
   if (parsedEmail === null) return { ok: false, error: "invalid_email" };
 
-  const parsedDestination = parseDestination(destination);
-  if (parsedDestination === null) return { ok: false, error: "invalid_destination" };
+  const parsedMarket = parseMarket(market);
+  if (parsedMarket === null) return { ok: false, error: "invalid_market" };
 
   const parsedCommandId = parseCommandId(commandId);
   if (parsedCommandId === null) return { ok: false, error: "invalid_command_id" };
@@ -135,7 +135,7 @@ export const parseCheckout = (body: unknown): CheckoutParse => {
     ok: true,
     value: {
       email: parsedEmail,
-      destination: parsedDestination,
+      market: parsedMarket,
       commandId: parsedCommandId,
       items: parsedItems,
     },

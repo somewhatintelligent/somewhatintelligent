@@ -67,7 +67,7 @@ function StorefrontProduct() {
           <span className="flex flex-wrap items-center gap-2">
             <span>{product.slug}</span>
             <span>· v{product.version}</span>
-            <span>· {money(product.priceCents)}</span>
+            <span>· {money(product.priceCents, product.currency.toUpperCase())}</span>
           </span>
         }
         actions={back}

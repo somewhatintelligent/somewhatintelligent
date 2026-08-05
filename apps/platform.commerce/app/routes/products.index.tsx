@@ -21,7 +21,7 @@ import { Outcome } from "../components/outcome.tsx";
 import { ProductStatusBadge } from "../components/badges.tsx";
 import { RecordList, Td, type Column } from "../components/table.tsx";
 import { createProduct, listProducts } from "../lib/catalog.functions.ts";
-import { centsFrom, commandId, money, refusalText, when } from "../lib/format.ts";
+import { commandId, refusalText, when } from "../lib/format.ts";
 
 const STATUSES: Array<ProductStatus | "all"> = [
   "all",
@@ -35,7 +35,6 @@ const COLUMNS: Column[] = [
   { label: "Product" },
   { label: "Status" },
   { label: "Live version" },
-  { label: "Price", align: "right" },
   { label: "Updated" },
 ];
 
@@ -64,7 +63,7 @@ function Products() {
   const router = useRouter();
 
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ slug: "", title: "", price: "45.00" });
+  const [form, setForm] = useState({ slug: "", title: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -72,11 +71,6 @@ function Products() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const priceCents = centsFrom(form.price);
-    if (priceCents === null || priceCents < 0) {
-      setError(new Error("Price must be a number, in dollars — 45.00"));
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -84,7 +78,6 @@ function Products() {
         data: {
           slug: form.slug.trim(),
           title: form.title.trim(),
-          priceCents,
           commandId: commandId(),
         },
       });
@@ -93,7 +86,7 @@ function Products() {
         return;
       }
       setCreating(false);
-      setForm({ slug: "", title: "", price: "45.00" });
+      setForm({ slug: "", title: "" });
       /** Straight into the product, because a bare draft is not yet sellable. */
       await navigate({
         to: "/products/$productId",
@@ -121,9 +114,12 @@ function Products() {
       />
 
       {creating ? (
-        <Section title="New product" description="Three fields now; the rest on the product page.">
+        <Section
+          title="New product"
+          description="Two fields now; prices per market on the product page."
+        >
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <Label htmlFor="new-title">Title</Label>
                 <Input
@@ -144,17 +140,6 @@ function Products() {
                   required
                 />
                 <FieldDescription>The storefront URL. Must be unique.</FieldDescription>
-              </Field>
-              <Field>
-                <Label htmlFor="new-price">Price</Label>
-                <Input
-                  id="new-price"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  inputMode="decimal"
-                  required
-                />
-                <FieldDescription>Dollars. Stored as cents.</FieldDescription>
               </Field>
             </div>
             <Outcome error={error} />
@@ -199,7 +184,6 @@ function Products() {
               <ProductStatusBadge status={product.status} />
             </Td>
             <Td className="text-muted-foreground">{product.activeVersion ?? "unpublished"}</Td>
-            <Td align="right">{money(product.priceCents)}</Td>
             <Td className="text-xs text-muted-foreground">{when(product.updatedAt)}</Td>
           </tr>
         ))}

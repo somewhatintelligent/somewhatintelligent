@@ -17,11 +17,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { commerce } from "./commerce.server.ts";
 import { requireOperator } from "./server-fn-actor.ts";
 
+/**
+ * Previewed in the HOME market. The per-market prices being verified live in
+ * the draft editor beside their switches; this answers "is it on sale, with
+ * the right photo" for the shop most buyers see.
+ */
 export const listStorefront = createServerFn({ method: "GET" })
   .middleware([requireOperator])
-  .handler(async () => commerce().listStorefront());
+  .handler(async () => commerce().listStorefront("CA"));
 
 export const getStorefrontProduct = createServerFn({ method: "GET" })
   .middleware([requireOperator])
   .validator((data: { slug: string }) => data)
-  .handler(async ({ data }) => commerce().getStorefrontProduct(data.slug));
+  .handler(async ({ data }) => commerce().getStorefrontProduct(data.slug, "CA"));

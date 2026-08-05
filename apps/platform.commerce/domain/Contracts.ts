@@ -16,6 +16,7 @@
 import type * as Rpc from "./Rpc.ts";
 import type * as StorefrontRpc from "./Storefront.rpc.ts";
 import type { Bump } from "../core/versions.ts";
+import type { MarketCode } from "../core/markets.ts";
 
 // ── Result envelope ──────────────────────────────────────────────────────────
 
@@ -101,6 +102,7 @@ export { isValidVersion, nextVersion, type Bump } from "../core/versions.ts";
  */
 export type ProductStatus = typeof Rpc.ProductStatus.Type;
 export type ProductDraftDTO = typeof Rpc.ProductDraft.Type;
+export type MarketPriceDTO = typeof Rpc.MarketPrice.Type;
 export type ProductVariantDTO = typeof Rpc.ProductVariant.Type;
 export type ProductMediaRole = typeof Rpc.MediaRole.Type;
 export type ProductMediaDTO = typeof Rpc.ProductMedia.Type;
@@ -168,7 +170,6 @@ export interface CreateProductInput {
   slug: string;
   title: string;
   descriptionMarkdown?: string | null;
-  priceCents: number;
 }
 
 export interface SaveProductDraftInput {
@@ -176,8 +177,13 @@ export interface SaveProductDraftInput {
   expectedRevision: number;
   title?: string;
   descriptionMarkdown?: string | null;
-  priceCents?: number;
   slug?: string;
+  /**
+   * Per-market price and switch, upserted under the same revision guard as
+   * the copy. Omitted markets are untouched; `active: false` stops selling
+   * without forgetting the price.
+   */
+  markets?: readonly { market: MarketCode; priceCents: number; active: boolean }[];
 }
 
 export interface PublishProductInput {

@@ -23,6 +23,8 @@ export class CartRefused extends Schema.TaggedErrorClass<CartRefused>()("CartRef
     "variant_not_found",
     "product_unavailable",
     "out_of_stock",
+    /** On sale, but not in the buyer's market. */
+    "market_unavailable",
     /** The run is fully subscribed. Distinct from a shelf being empty. */
     "preorder_full",
     /** A duplicate of this exact request is already being processed. */
@@ -36,8 +38,13 @@ export class OrderNotFound extends Schema.TaggedErrorClass<OrderNotFound>()("Ord
   orderNumber: Schema.String,
 }) {}
 
-/** Where a cart is going. Pins the address form to one country. */
-const Destination = Schema.Literals(["CA", "US"]);
+/**
+ * The market a shopper is buying from. Decides which prices every read
+ * returns, what currency checkout charges in, and which country the address
+ * form accepts. Mirrors `core/markets.ts` — spelled locally because a wire
+ * contract restating its literals is the point of a wire contract.
+ */
+const Market = Schema.Literals(["CA", "US"]);
 
 const MediaRole = Schema.Literals(["cover", "gallery", "evidence"]);
 
@@ -54,7 +61,9 @@ const MediaRole = Schema.Literals(["cover", "gallery", "evidence"]);
 export const ProductCard = Schema.Struct({
   slug: Schema.String,
   title: Schema.String,
+  /** Minor units of `currency` — the price in the market that was asked for. */
   priceCents: Schema.Number,
+  currency: Schema.String,
   version: Schema.String,
   coverHref: Schema.NullOr(Schema.String),
 });
@@ -63,7 +72,9 @@ export const StorefrontProduct = Schema.Struct({
   slug: Schema.String,
   title: Schema.String,
   descriptionMarkdown: Schema.NullOr(Schema.String),
+  /** Minor units of `currency` — the price in the market that was asked for. */
   priceCents: Schema.Number,
+  currency: Schema.String,
   version: Schema.String,
   media: Schema.Array(Schema.Struct({ href: Schema.String, alt: Schema.String, role: MediaRole })),
   /** `available` is DERIVED server-side from live stock and the pre-order run. */
@@ -140,11 +151,12 @@ export class StorefrontRpcs extends RpcGroup.make(
        */
       email: Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(254)),
       /**
-       * Chosen on the storefront BEFORE checkout opens, because it pins the
-       * address form to one country. Asking Stripe to infer it from an address
-       * the buyer has not typed yet is not possible.
+       * Chosen on the storefront BEFORE checkout opens, because it decides the
+       * prices, the currency, and the one country the address form accepts.
+       * Asking Stripe to infer it from an address the buyer has not typed yet
+       * is not possible.
        */
-      destination: Destination,
+      market: Market,
       /**
        * BOUNDED, and not only for taste. Pricing the cart issues an `inArray`
        * over the distinct variants, and D1 allows at most 100 bound parameters
@@ -182,12 +194,12 @@ export class StorefrontRpcs extends RpcGroup.make(
    * is published.
    */
   Rpc.make("listStorefront", {
-    payload: {},
+    payload: { market: Market },
     success: Schema.Array(ProductCard),
   }),
 
   Rpc.make("getStorefrontProduct", {
-    payload: { slug: Schema.String },
+    payload: { slug: Schema.String, market: Market },
     success: Schema.NullOr(StorefrontProduct),
   }),
 

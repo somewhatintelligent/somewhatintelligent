@@ -1,8 +1,9 @@
 /**
  * The store's D1 schema. Every timestamp is an integer of unix MILLISECONDS and
  * every monetary column is an integer of minor units (cents). There is no
- * currency column and no decimal or float type anywhere: currency is a
- * system-wide constant, not data.
+ * decimal or float type anywhere. A price column's CURRENCY is decided by the
+ * market row it sits on — see `product_release_market` — and an order records
+ * the currency it was actually quoted in.
  *
  * The product aggregate is a RELEASE MODEL: a thin `product` identity row, one
  * mutable `product_draft` working copy, N immutable-while-retained
@@ -127,13 +128,36 @@ export const productDraft = sqliteTable(
     revision: integer("revision").notNull().default(1),
     title: text("title").notNull(),
     descriptionMarkdown: text("description_markdown"),
-    priceCents: integer("price_cents").notNull(),
     updatedBySub: text("updated_by_sub").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
-  () => [
-    check("product_draft_revision_min", sql`revision >= 1`),
-    check("product_draft_price_non_negative", sql`price_cents >= 0`),
+  () => [check("product_draft_revision_min", sql`revision >= 1`)],
+);
+
+/**
+ * PRICE AND AVAILABILITY PER MARKET — the editable side, mirroring the
+ * draft/release split the copy already has. Edited under the draft's revision
+ * guard and published into {@link releaseMarket}.
+ *
+ * There is deliberately NO price column on the draft or release row any more:
+ * two places a price can live is the second-source-of-truth problem, and this
+ * table is the one that survived.
+ */
+export const draftMarket = sqliteTable(
+  "product_draft_market",
+  {
+    productId: text("product_id")
+      .notNull()
+      .references(() => product.id, { onDelete: "cascade" }),
+    /** A `MarketCode` from `core/markets.ts`. Constant, so no market table. */
+    market: text("market").notNull(),
+    /** Minor units of THAT MARKET'S currency. Independent prices, not conversions. */
+    priceCents: integer("price_cents").notNull(),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+  },
+  (t) => [
+    primaryKey({ columns: [t.productId, t.market] }),
+    check("product_draft_market_price_non_negative", sql`price_cents >= 0`),
   ],
 );
 
@@ -154,13 +178,40 @@ export const productRelease = sqliteTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     descriptionMarkdown: text("description_markdown"),
-    priceCents: integer("price_cents").notNull(),
     publishedBySub: text("published_by_sub").notNull(),
     publishedAt: integer("published_at").notNull(),
   },
+  (t) => [uniqueIndex("product_release_product_version_unique").on(t.productId, t.version)],
+);
+
+/**
+ * PRICE AND AVAILABILITY PER MARKET, snapshotted with the release for the same
+ * reason the title is: what a buyer was charged must never be rewritten by a
+ * later edit.
+ *
+ * `price_cents` is minor units of THAT MARKET'S currency — 8500 under CA is
+ * $85 CAD, 7500 under US is $75 USD. They are two independent prices, not one
+ * converted, because the gap between them is a deliberate decision about who
+ * absorbs the tariff.
+ *
+ * NO ROW means this release is not sold in that market — a real state, not an
+ * error, and the storefront and checkout both fail closed on it. `active` is
+ * the softer version: keep the price, stop selling, put it back later — the
+ * per-market kill switch, and it needs no deploy.
+ */
+export const releaseMarket = sqliteTable(
+  "product_release_market",
+  {
+    releaseId: text("release_id")
+      .notNull()
+      .references(() => productRelease.id, { onDelete: "cascade" }),
+    market: text("market").notNull(),
+    priceCents: integer("price_cents").notNull(),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+  },
   (t) => [
-    uniqueIndex("product_release_product_version_unique").on(t.productId, t.version),
-    check("product_release_price_non_negative", sql`price_cents >= 0`),
+    primaryKey({ columns: [t.releaseId, t.market] }),
+    check("product_release_market_price_non_negative", sql`price_cents >= 0`),
   ],
 );
 

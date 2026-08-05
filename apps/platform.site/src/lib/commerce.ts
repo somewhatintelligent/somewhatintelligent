@@ -43,15 +43,18 @@ const commerce = () => toRpcAsync<typeof CommerceWorker>(env.COMMERCE);
  * rule checkout applies when it prices a cart, so this cannot advertise
  * something checkout would refuse to sell.
  */
-export const listStorefront = (): Promise<readonly ProductCardDTO[]> => commerce().listStorefront();
+export const listStorefront = (market: "CA" | "US"): Promise<readonly ProductCardDTO[]> =>
+  commerce().listStorefront(market);
 
 /**
  * One product by slug, matched on the RELEASE's slug rather than the identity
  * row — renaming a slug in a draft must not break the URL of what is currently
  * published. `null` when nothing active answers to it.
  */
-export const getStorefrontProduct = (slug: string): Promise<StorefrontProductDTO | null> =>
-  commerce().getStorefrontProduct(slug);
+export const getStorefrontProduct = (
+  slug: string,
+  market: "CA" | "US",
+): Promise<StorefrontProductDTO | null> => commerce().getStorefrontProduct(slug, market);
 
 /**
  * BUY A CART. The one write this site can reach, and the only one it ever will.
@@ -66,13 +69,13 @@ export const getStorefrontProduct = (slug: string): Promise<StorefrontProductDTO
  * PRICES ARE NOT ACCEPTED. Only variant ids and quantities cross; the active
  * release is the price authority and Commerce re-prices the whole cart.
  *
- * `destination` is required BEFORE the payment page opens, because it pins the
- * address form to one country. Stripe cannot infer it from an address the buyer
- * has not typed yet.
+ * `market` is required BEFORE the payment page opens, because it decides the
+ * prices, the currency, and the one country the address form accepts. Stripe
+ * cannot infer it from an address the buyer has not typed yet.
  */
 export const placeOrder = (input: {
   email: string;
-  destination: "CA" | "US";
+  market: "CA" | "US";
   commandId: string;
   items: readonly { variantId: string; quantity: number }[];
 }) => {
@@ -81,7 +84,7 @@ export const placeOrder = (input: {
     customerCall(email, input.commandId, {
       email,
       customerId: `customer:${email}`,
-      destination: input.destination,
+      market: input.market,
       items: input.items.map((item) => ({ ...item })),
     }),
   );

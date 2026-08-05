@@ -72,7 +72,9 @@ function Storefront() {
                   )}
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="truncate font-medium">{product.title}</span>
-                    <span className="tnum shrink-0">{money(product.priceCents)}</span>
+                    <span className="tnum shrink-0">
+                      {money(product.priceCents, product.currency.toUpperCase())}
+                    </span>
                   </div>
                   <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
                     <span className="truncate">{product.slug}</span>

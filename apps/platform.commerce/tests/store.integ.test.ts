@@ -171,7 +171,12 @@ const publishedProduct = (url: string, slug: string, priceCents = 4500) =>
         commandId: cmd("create"),
         slug,
         title: `Product ${slug}`,
-        priceCents,
+      });
+      yield* client.saveProductDraft({
+        commandId: cmd("markets"),
+        productId: created.productId,
+        expectedRevision: 1,
+        markets: [{ market: "CA", priceCents, active: true }],
       });
       const media = yield* client.ingestProductMedia({
         commandId: cmd("media"),
@@ -191,7 +196,7 @@ const publishedProduct = (url: string, slug: string, priceCents = 4500) =>
       const release = yield* client.publishProduct({
         commandId: cmd("publish"),
         productId: created.productId,
-        expectedRevision: 1,
+        expectedRevision: 2,
       });
       return {
         productId: created.productId,
@@ -212,7 +217,6 @@ test(
         commandId: cmd("draft-only"),
         slug: slugFor("unpublished"),
         title: "Unpublished",
-        priceCents: 1000,
       }),
     );
     show("A · created draft", created);
@@ -245,7 +249,6 @@ test(
         commandId: cmd("gates"),
         slug: slugFor("gated"),
         title: "Gated",
-        priceCents: 2000,
       }),
     );
 
@@ -307,7 +310,6 @@ test(
         commandId: cmd("concurrency"),
         slug: slugFor("concurrent"),
         title: "Concurrent",
-        priceCents: 3000,
       }),
     );
 
@@ -357,8 +359,8 @@ test(
       client.saveProductDraft({
         commandId: cmd("reprice"),
         productId: product.productId,
-        expectedRevision: 1,
-        priceCents: 9999,
+        expectedRevision: 2,
+        markets: [{ market: "CA", priceCents: 9999, active: true }],
       }),
     );
 
@@ -564,11 +566,11 @@ test(
      */
     const outcome = yield* Effect.exit(
       withClient(edgeUrl, (client) =>
-        client.createProduct({
+        client.saveProductDraft({
           commandId: cmd("negative"),
-          slug: slugFor("negative-price"),
-          title: "Negative",
-          priceCents: -1,
+          productId: "prod-never-reached",
+          expectedRevision: 1,
+          markets: [{ market: "CA", priceCents: -1, active: true }],
         }),
       ),
     );
@@ -606,13 +608,13 @@ test(
         yield* client.saveProductDraft({
           commandId: cmd("edit"),
           productId: product.productId,
-          expectedRevision: 1,
+          expectedRevision: 2,
           title: "Corrected title",
         });
         return yield* client.publishProduct({
           commandId: cmd("republish"),
           productId: product.productId,
-          expectedRevision: 2,
+          expectedRevision: 3,
         });
       }),
     );
@@ -638,13 +640,13 @@ test(
           yield* client.saveProductDraft({
             commandId: cmd("edit2"),
             productId: product.productId,
-            expectedRevision: 2,
+            expectedRevision: 3,
             title: "Third",
           });
           return yield* client.publishProduct({
             commandId: cmd("clash"),
             productId: product.productId,
-            expectedRevision: 3,
+            expectedRevision: 4,
             version: "1.0.0",
           });
         }),
@@ -693,7 +695,7 @@ test(
           client.placeOrder({
             commandId,
             email: `dbl-${RUN}@spike.local`,
-            destination: "CA",
+            market: "CA",
             items: [{ variantId: product.variantId, quantity: 2 }],
           }),
         ),

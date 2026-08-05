@@ -4,18 +4,17 @@
  */
 
 /**
- * Format integer cents as `$68 CAD` (whole) or `$68.50 CAD` (fractional).
+ * Format integer cents as `$68 CAD` (whole) or `$68.50 USD` (fractional).
  *
- * CENTS IN, and the currency is not a parameter. Prices cross the wire as
- * integers and carry no currency of their own — `product_release` has a price
- * column and no currency column, and an order's only defaults to `cad` — so a
- * currency argument here would be a second place to disagree about a value the
- * substrate holds exactly once. It becomes a parameter the day a price does.
+ * CENTS IN, WITH THEIR CURRENCY. The day this promised to become a parameter
+ * arrived: every price now crosses the wire beside the minor-unit code of the
+ * market it was asked for, so the label comes from the data rather than a
+ * constant that was only right in one market.
  */
-export function formatPrice(priceCents: number): string {
+export function formatPrice(priceCents: number, currency: string): string {
   const dollars = priceCents / 100;
   const body = Number.isInteger(dollars) ? String(dollars) : dollars.toFixed(2);
-  return `$${body} CAD`;
+  return `$${body} ${currency.toUpperCase()}`;
 }
 
 /** Format an epoch-ms timestamp as `18 Jul 2026` (UTC, locale-stable). */

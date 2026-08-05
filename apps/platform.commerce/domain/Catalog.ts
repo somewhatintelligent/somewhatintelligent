@@ -50,12 +50,14 @@ import { isAvailable } from "../core/availability.ts";
 import { isNonNegativeInt, sortBySize } from "../core/money.ts";
 import { pageWindow, splitPage } from "../core/paging.ts";
 import {
+  draftMarket,
   product,
   productDraft,
   productImage,
   productRelease,
   productReleaseImage,
   productVariant,
+  releaseMarket,
 } from "./Schema.ts";
 
 // ── Reads ────────────────────────────────────────────────────────────────────
@@ -66,7 +68,6 @@ const toDraftDTO = (row: {
   revision: number;
   title: string;
   descriptionMarkdown: string | null;
-  priceCents: number;
   status: string;
   activeVersion: string | null;
   updatedAt: number;
@@ -76,7 +77,6 @@ const toDraftDTO = (row: {
   revision: row.revision,
   title: row.title,
   descriptionMarkdown: row.descriptionMarkdown,
-  priceCents: row.priceCents,
   status: row.status as ProductStatus,
   activeVersion: row.activeVersion,
   updatedAt: row.updatedAt,
@@ -108,7 +108,6 @@ const draftColumns = {
   revision: productDraft.revision,
   title: productDraft.title,
   descriptionMarkdown: productDraft.descriptionMarkdown,
-  priceCents: productDraft.priceCents,
 };
 
 /**
@@ -197,6 +196,19 @@ export const getProduct = Effect.fn("Catalog.getProduct")(function* (
   const row = rows[0];
   if (!row) return { failure: err("not_found") };
 
+  /** Ordered by code so CA and US land in a stable order for the editor. */
+  const markets = yield* query(() =>
+    db
+      .select({
+        market: draftMarket.market,
+        priceCents: draftMarket.priceCents,
+        active: draftMarket.active,
+      })
+      .from(draftMarket)
+      .where(eq(draftMarket.productId, productId))
+      .orderBy(asc(draftMarket.market)),
+  );
+
   const releases = yield* query(() =>
     db
       .select({
@@ -235,6 +247,11 @@ export const getProduct = Effect.fn("Catalog.getProduct")(function* (
     statements: [],
     response: ok({
       draft: toDraftDTO(row),
+      markets: markets.map((entry) => ({
+        market: entry.market as "CA" | "US",
+        priceCents: entry.priceCents,
+        active: entry.active,
+      })),
       preorder: {
         cap: row.preorderCap,
         claimed: row.preorderClaimed,
@@ -302,10 +319,7 @@ export const createProduct = Effect.fn("Catalog.createProduct")(function* (
   actorSub: string,
   now: number,
   productId: string,
-): Effect.fn.Return<
-  CoreOutcome<{ productId: string; revision: 1 }, "slug_taken" | "invalid_price">
-> {
-  if (!isNonNegativeInt(input.priceCents)) return { failure: err("invalid_price") };
+): Effect.fn.Return<CoreOutcome<{ productId: string; revision: 1 }, "slug_taken">> {
   if (yield* slugTaken(db, input.slug)) return { failure: err("slug_taken") };
 
   return {
@@ -324,7 +338,6 @@ export const createProduct = Effect.fn("Catalog.createProduct")(function* (
         revision: 1,
         title: input.title,
         descriptionMarkdown: input.descriptionMarkdown ?? null,
-        priceCents: input.priceCents,
         updatedBySub: actorSub,
         updatedAt: now,
       }) as unknown as DbStatement,
@@ -353,8 +366,8 @@ export const saveProductDraft = Effect.fn("Catalog.saveProductDraft")(function* 
     "not_found" | "revision_conflict" | "slug_taken" | "invalid_price"
   >
 > {
-  if (input.priceCents !== undefined && !isNonNegativeInt(input.priceCents)) {
-    return { failure: err("invalid_price") };
+  for (const entry of input.markets ?? []) {
+    if (!isNonNegativeInt(entry.priceCents)) return { failure: err("invalid_price") };
   }
 
   const rows = yield* query(() =>
@@ -382,7 +395,6 @@ export const saveProductDraft = Effect.fn("Catalog.saveProductDraft")(function* 
   if (input.descriptionMarkdown !== undefined) {
     draftPatch.descriptionMarkdown = input.descriptionMarkdown;
   }
-  if (input.priceCents !== undefined) draftPatch.priceCents = input.priceCents;
 
   const statements: DbStatement[] = [
     db
@@ -407,6 +419,29 @@ export const saveProductDraft = Effect.fn("Catalog.saveProductDraft")(function* 
         .update(product)
         .set({ slug: input.slug })
         .where(eq(product.id, input.productId)) as unknown as DbStatement,
+    );
+  }
+
+  /**
+   * The market rows ride the same batch as the revision-guarded draft update,
+   * so a lost revision race rolls them back with everything else. UPSERT per
+   * (product, market): omitted markets are untouched, and there is no delete —
+   * `active: false` is "stop selling" with the price kept.
+   */
+  for (const entry of input.markets ?? []) {
+    statements.push(
+      db
+        .insert(draftMarket)
+        .values({
+          productId: input.productId,
+          market: entry.market,
+          priceCents: entry.priceCents,
+          active: entry.active,
+        })
+        .onConflictDoUpdate({
+          target: [draftMarket.productId, draftMarket.market],
+          set: { priceCents: entry.priceCents, active: entry.active },
+        }) as unknown as DbStatement,
     );
   }
 
@@ -442,6 +477,7 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
     | "version_exists"
     | "missing_media"
     | "missing_variant"
+    | "missing_market"
     | "preorder_cap_missing"
   >
 > {
@@ -452,7 +488,6 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
         revision: productDraft.revision,
         title: productDraft.title,
         descriptionMarkdown: productDraft.descriptionMarkdown,
-        priceCents: productDraft.priceCents,
       })
       .from(product)
       .innerJoin(productDraft, eq(productDraft.productId, product.id))
@@ -517,6 +552,24 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
   if ((variants[0]?.total ?? 0) === 0) return { failure: err("missing_variant") };
 
   /**
+   * A release with no market rows would be on sale nowhere, in no currency —
+   * every storefront hides it and every checkout refuses it, while the console
+   * reads "published". Priced-but-paused rows pass: all-inactive is a
+   * deliberate state an operator flipped, not a forgotten editor.
+   */
+  const draftMarkets = yield* query(() =>
+    db
+      .select({
+        market: draftMarket.market,
+        priceCents: draftMarket.priceCents,
+        active: draftMarket.active,
+      })
+      .from(draftMarket)
+      .where(eq(draftMarket.productId, input.productId)),
+  );
+  if (draftMarkets.length === 0) return { failure: err("missing_market") };
+
+  /**
    * PUBLISH IS THE DOOR TO `active` — the statement below writes the status
    * itself — so this gate has to be here and not only on `setProductStatus`.
    * Guarding one of two doors is not guarding.
@@ -551,10 +604,22 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
         slug: row.slug,
         title: row.title,
         descriptionMarkdown: row.descriptionMarkdown,
-        priceCents: row.priceCents,
         publishedBySub: actorSub,
         publishedAt: now,
       }) as unknown as DbStatement,
+      /**
+       * The market set is FROZEN with the release, exactly like the image set:
+       * a later draft edit must never rewrite what a published release charges.
+       */
+      ...draftMarkets.map(
+        (entry) =>
+          db.insert(releaseMarket).values({
+            releaseId,
+            market: entry.market,
+            priceCents: entry.priceCents,
+            active: entry.active,
+          }) as unknown as DbStatement,
+      ),
       ...images.map(
         (image) =>
           db.insert(productReleaseImage).values({

@@ -1,5 +1,6 @@
 ---
 import { env } from "cloudflare:workers";
+import { MARKET_COOKIE, MARKET_LABELS, parseMarket } from "../core/market.ts";
 
 const NAV = [
   { section: "shop", href: "/shop/", label: "Shop" },
@@ -13,6 +14,13 @@ const active =
   path === "/" ? "home" : (NAV.find(({ section }) => path.startsWith(`/${section}`))?.section ?? "");
 
 const accountHref = `${env.AUTH_ORIGIN}/account`;
+
+/**
+ * The shopper's market, server-read so the switcher shows what the pages are
+ * already priced in. Changing it reloads: the prices ARE the page, so there is
+ * nothing meaningful to patch client-side.
+ */
+const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
 ---
 
 <header class="site-header">
@@ -38,6 +46,18 @@ const accountHref = `${env.AUTH_ORIGIN}/account`;
     }
   </nav>
   <div class="header-end">
+    <label class="market-switch">
+      <span class="sr-only">Shipping to</span>
+      <select id="site-market">
+        {
+          (Object.entries(MARKET_LABELS) as ["CA" | "US", string][]).map(([code, label]) => (
+            <option value={code} selected={code === market}>
+              {label}
+            </option>
+          ))
+        }
+      </select>
+    </label>
     <a class="account-link" href={accountHref}>Account</a>
     {/*
      * ITS OWN CLASS, NOT `account-link`, and that is the whole of the bug this
@@ -81,4 +101,18 @@ const accountHref = `${env.AUTH_ORIGIN}/account`;
 
   subscribeCart(render);
   render();
+</script>
+<script>
+  /**
+   * THE MARKET SWITCH. A cookie rather than storage because the SERVER prices
+   * the pages — see `src/core/market.ts` — and a reload because the prices are
+   * the page. `path=/` so the shop, the product pages and the cart all read
+   * the same choice.
+   */
+  const select = document.getElementById("site-market") as HTMLSelectElement | null;
+  select?.addEventListener("change", () => {
+    const value = select.value === "US" ? "US" : "CA";
+    document.cookie = `si_market=${value}; path=/; max-age=31536000; samesite=lax`;
+    window.location.reload();
+  });
 </script>

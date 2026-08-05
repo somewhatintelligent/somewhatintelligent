@@ -37,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "platform.ui/components/dropdown-menu";
+import { Switch } from "platform.ui/components/switch";
 import { Textarea } from "platform.ui/components/textarea";
 
 import type { ProductDetail, ProductMediaRole } from "../../domain/Contracts.ts";
@@ -169,31 +170,81 @@ export function Identity({
 }
 
 /**
- * PRICE IS PRODUCT-LEVEL, not a variant column. It gets its own small card so
- * it remains prominent without narrowing the title, address and description
- * fields beside the gallery.
+ * A PRICE PER MARKET, and the per-market kill switch beside it.
+ *
+ * Two independent numbers in two currencies — the CAD/USD gap is a pricing
+ * decision about who absorbs the tariff, never a conversion. The switch is
+ * "sold here at all": off keeps the price and stops the selling, which is how
+ * the store goes Canada-only without a deploy.
+ *
+ * Edits land on the DRAFT and change nothing a shopper sees until the next
+ * publish freezes them into the release, exactly like the title.
  */
-export function ProductPrice({
+const MARKET_FORM = [
+  { code: "CA" as const, label: "Canada", currency: "CAD" },
+  { code: "US" as const, label: "United States", currency: "USD" },
+];
+
+export function ProductMarkets({
   productId,
   draft,
+  markets,
   refresh,
 }: {
   productId: string;
   draft: ProductDetail["draft"];
+  markets: ProductDetail["markets"];
   refresh: () => Promise<void>;
 }) {
-  const [price, setPrice] = useState(dollarsFrom(draft.priceCents));
+  const stored = new Map(markets.map((entry) => [entry.market, entry]));
+  const initial = Object.fromEntries(
+    MARKET_FORM.map(({ code }) => {
+      const row = stored.get(code);
+      return [
+        code,
+        // No row yet reads as "not sold here": price empty, switch off.
+        { price: row ? dollarsFrom(row.priceCents) : "", active: row?.active ?? false },
+      ];
+    }),
+  ) as Record<"CA" | "US", { price: string; active: boolean }>;
+
+  const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [done, setDone] = useState<string | null>(null);
-  const dirty = price !== dollarsFrom(draft.priceCents);
+  const dirty = MARKET_FORM.some(
+    ({ code }) =>
+      form[code].price !== initial[code].price || form[code].active !== initial[code].active,
+  );
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    const priceCents = centsFrom(price);
-    if (priceCents === null || priceCents < 0) {
-      setError(new Error("Price must be a number of dollars — 45.00"));
-      return;
+
+    /**
+     * Only markets with a price save — an untouched blank row is "still not
+     * sold here", not a zero-dollar listing. A blank price with the switch ON
+     * is the one shape that cannot mean anything, so it refuses.
+     */
+    const entries: { market: "CA" | "US"; priceCents: number; active: boolean }[] = [];
+    for (const { code, label } of MARKET_FORM) {
+      const value = form[code];
+      if (value.price.trim() === "") {
+        if (value.active) {
+          setError(new Error(`${label} is on but has no price.`));
+          return;
+        }
+        if (stored.has(code)) {
+          setError(new Error(`${label} has a saved price — turn it off instead of blanking it.`));
+          return;
+        }
+        continue;
+      }
+      const priceCents = centsFrom(value.price);
+      if (priceCents === null || priceCents < 0) {
+        setError(new Error(`${label} price must be a number of dollars — 45.00`));
+        return;
+      }
+      entries.push({ market: code, priceCents, active: value.active });
     }
 
     setBusy(true);
@@ -204,7 +255,7 @@ export function ProductPrice({
         data: {
           productId,
           expectedRevision: draft.revision,
-          priceCents,
+          markets: entries,
           commandId: commandId(),
         },
       });
@@ -212,7 +263,7 @@ export function ProductPrice({
         setError(new Error(refusalText(result.error, result.message)));
         return;
       }
-      setDone("Price saved");
+      setDone("Markets saved");
       await refresh();
     } catch (cause) {
       setError(cause);
@@ -227,32 +278,50 @@ export function ProductPrice({
       className="flex h-full min-h-0 self-stretch flex-col overflow-auto rounded-xl border border-border bg-card p-5"
     >
       <div className="mb-4">
-        <h2 className="text-base font-semibold tracking-tight">Price</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">One price across every variant.</p>
+        <h2 className="text-base font-semibold tracking-tight">Markets</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          A price per market, in its currency. Off means not sold there.
+        </p>
       </div>
-      <div className="flex flex-1 items-center">
-        <Field className="w-full">
-          <Label htmlFor="price" className="sr-only">
-            Price in dollars
-          </Label>
-          <div className="flex items-center gap-3">
-            <div className="relative min-w-0 flex-1">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-base text-muted-foreground">
-                $
-              </span>
-              <Input
-                id="price"
-                inputMode="decimal"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="h-14 pl-7 font-display text-2xl tnum"
+      <div className="flex flex-1 flex-col justify-center gap-3">
+        {MARKET_FORM.map(({ code, label, currency }) => (
+          <Field key={code}>
+            <div className="flex items-center gap-3">
+              <Switch
+                id={`market-${code}`}
+                checked={form[code].active}
+                onCheckedChange={(active) =>
+                  setForm({ ...form, [code]: { ...form[code], active } })
+                }
+                aria-label={`Sell in ${label}`}
               />
+              <Label htmlFor={`market-price-${code}`} className="w-24 shrink-0 text-xs">
+                {label}
+              </Label>
+              <div className="relative min-w-0 flex-1">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+                  $
+                </span>
+                <Input
+                  id={`market-price-${code}`}
+                  inputMode="decimal"
+                  value={form[code].price}
+                  placeholder="—"
+                  onChange={(e) =>
+                    setForm({ ...form, [code]: { ...form[code], price: e.target.value } })
+                  }
+                  className="h-11 pl-7 font-display text-lg tnum"
+                />
+              </div>
+              <span className="w-10 shrink-0 text-xs text-muted-foreground">{currency}</span>
             </div>
-            <Button type="submit" variant="outline" disabled={busy || !dirty} className="h-14">
-              {busy ? "Saving…" : "Save price"}
-            </Button>
-          </div>
-        </Field>
+          </Field>
+        ))}
+        <div className="flex justify-end">
+          <Button type="submit" variant="outline" disabled={busy || !dirty}>
+            {busy ? "Saving…" : "Save markets"}
+          </Button>
+        </div>
       </div>
       <Outcome error={error} done={done} />
     </form>

@@ -65,7 +65,14 @@ export interface PricingVariant {
 export interface PricingProduct {
   readonly id: string;
   readonly title: string;
-  readonly priceCents: number;
+  /**
+   * The price in the market the cart is being bought from, or `null` when this
+   * release is NOT SOLD THERE — no `product_release_market` row, or one turned
+   * off. Null is a real state, not a missing value: it is what makes
+   * `market_unavailable` distinguishable from a product that has no active
+   * release at all.
+   */
+  readonly priceCents: number | null;
   readonly status: string;
   readonly preorderCap: number | null;
   readonly preorderClaimed: number;
@@ -128,6 +135,15 @@ export const computeTotals = (
     const owner = productById.get(variant.productId);
     if (!owner || owner.status !== "active") {
       return { ok: false, error: "product_unavailable", message: variant.productId };
+    }
+    /**
+     * ON SALE, BUT NOT HERE. A release with no active row for the buyer's
+     * market is a real state — Canada-only is one flipped flag — and it is
+     * reported as its own refusal because "unavailable" implies the product is
+     * gone when it is merely not sold where the buyer is.
+     */
+    if (owner.priceCents === null) {
+      return { ok: false, error: "market_unavailable", message: owner.title };
     }
     /**
      * ONE CHECK FOR BOTH MODES. `stock` is units on a shelf for a stocked

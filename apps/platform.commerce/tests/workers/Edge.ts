@@ -120,12 +120,7 @@ export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
       createProduct: ({ commandId, ...input }) =>
         Effect.flatMap(
           commerce.createProduct(envelope("createProduct", commandId, input)),
-          (result) =>
-            lift(result, (error) =>
-              error === "slug_taken"
-                ? new SlugTaken({ slug: input.slug })
-                : new InvalidPrice({ priceCents: input.priceCents }),
-            ),
+          (result) => lift(result, () => new SlugTaken({ slug: input.slug })),
         ),
 
       saveProductDraft: ({ commandId, ...input }) =>
@@ -138,7 +133,12 @@ export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
               if (error === "revision_conflict")
                 return new RevisionConflict({ expected: input.expectedRevision });
               if (error === "slug_taken") return new SlugTaken({ slug: input.slug ?? "" });
-              return new InvalidPrice({ priceCents: input.priceCents ?? 0 });
+              return new InvalidPrice({
+                priceCents:
+                  input.markets?.find(
+                    (entry) => !Number.isInteger(entry.priceCents) || entry.priceCents < 0,
+                  )?.priceCents ?? -1,
+              });
             }),
         ),
 

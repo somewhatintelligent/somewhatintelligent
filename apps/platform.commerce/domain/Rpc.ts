@@ -60,10 +60,26 @@ export const ProductDraft = Schema.Struct({
   revision: Schema.Number,
   title: Schema.String,
   descriptionMarkdown: Schema.NullOr(Schema.String),
-  priceCents: Schema.Number,
   status: ProductStatus,
   activeVersion: Schema.NullOr(Schema.String),
   updatedAt: Schema.Number,
+});
+
+/** A market this store sells into. Mirrors `core/markets.ts`. */
+const Market = Schema.Literals(["CA", "US"]);
+
+/**
+ * One market's price and switch on the DRAFT — what the editor edits, and
+ * what publish freezes into `product_release_market`. Absent from the list
+ * page's rows: the list joining every product's market rows would spend
+ * D1 bound parameters per product on a page capped at exactly the 100-param
+ * cliff, and the list has no price column to spend them on.
+ */
+export const MarketPrice = Schema.Struct({
+  market: Market,
+  /** Minor units of THAT market's currency. Independent, not converted. */
+  priceCents: Schema.Number,
+  active: Schema.Boolean,
 });
 
 const VariantMode = Schema.Literals(["stock", "preorder"]);
@@ -109,6 +125,8 @@ const PreorderRun = Schema.Struct({
 
 export const ProductDetail = Schema.Struct({
   draft: ProductDraft,
+  /** Where this draft would sell, and at what, if published now. */
+  markets: Schema.Array(MarketPrice),
   preorder: PreorderRun,
   releases: Schema.Array(ProductRelease),
   variants: Schema.Array(ProductVariant),
@@ -252,6 +270,11 @@ export class PublishRefused extends Schema.TaggedErrorClass<PublishRefused>()("P
     "version_exists",
     "missing_media",
     "missing_variant",
+    /**
+     * No market row on the draft — the release would be on sale nowhere, in no
+     * currency, which is a broken listing wearing a green publish button.
+     */
+    "missing_market",
     "no_release",
     /**
      * Going ACTIVE with pre-order variants and no run cap. The run guard
@@ -400,10 +423,9 @@ export class OperatorRpcs extends RpcGroup.make(
       slug: Schema.String.check(Schema.isMinLength(1)),
       title: Schema.String.check(Schema.isMinLength(1)),
       descriptionMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
-      priceCents: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
     }),
     success: Schema.Struct({ productId: Schema.String, revision: Schema.Number }),
-    error: Schema.Union([SlugTaken, InvalidPrice]),
+    error: SlugTaken,
   }),
   Rpc.make("saveProductDraft", {
     payload: call({
@@ -411,8 +433,21 @@ export class OperatorRpcs extends RpcGroup.make(
       expectedRevision: Schema.Int,
       title: Schema.optional(Schema.String),
       descriptionMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
-      priceCents: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
       slug: Schema.optional(Schema.String),
+      /**
+       * Upserted per (product, market) under the same revision guard as the
+       * copy. Omitted markets are left alone; there is no delete, because
+       * `active: false` is "stop selling" with the price kept.
+       */
+      markets: Schema.optional(
+        Schema.Array(
+          Schema.Struct({
+            market: Market,
+            priceCents: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+            active: Schema.Boolean,
+          }),
+        ),
+      ),
     }),
     success: Schema.Struct({ revision: Schema.Number, updatedAt: Schema.Number }),
     error: Schema.Union([NotFound, RevisionConflict, SlugTaken, InvalidPrice]),

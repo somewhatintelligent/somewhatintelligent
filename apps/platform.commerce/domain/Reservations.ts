@@ -27,11 +27,19 @@
  * it twice for the same intent, which is what `Audit.claimed` guarantees by
  * putting the ledger claim in the same batch as the guards.
  */
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import * as Effect from "effect/Effect";
 
+import type { MarketCode } from "../core/markets.ts";
 import { query, type ClassicDb, type DbStatement } from "../services/Database.ts";
-import { customerOrder, orderItem, product, productRelease, productVariant } from "./Schema.ts";
+import {
+  customerOrder,
+  orderItem,
+  product,
+  productRelease,
+  productVariant,
+  releaseMarket,
+} from "./Schema.ts";
 
 /**
  * Pricing rules and the guard classifier now live in `core/` — both are pure,
@@ -52,12 +60,19 @@ export { classifyGuards, guardWon } from "../core/guards.ts";
 
 /**
  * Load the authoritative pricing inputs: live size and stock from the variant
- * rows, and each product's title and price from its ACTIVE RELEASE. The draft
- * copy and price are never read.
+ * rows, each product's title from its ACTIVE RELEASE, and its price from that
+ * release's row FOR THE BUYER'S MARKET. The draft copy and prices are never
+ * read.
+ *
+ * The market row is LEFT-joined, not inner: a product on sale elsewhere but
+ * not here must surface as `market_unavailable`, which needs the product row
+ * present with a null price — an inner join would collapse it into the same
+ * shape as "no active release" and misreport it as `product_unavailable`.
  */
 export const loadPricingInputs = Effect.fn("Reservations.loadPricingInputs")(function* (
   db: ClassicDb,
   variantIds: readonly string[],
+  market: MarketCode,
 ) {
   if (variantIds.length === 0) {
     return { variants: [] as PricingVariant[], products: [] as PricingProduct[] };
@@ -85,7 +100,10 @@ export const loadPricingInputs = Effect.fn("Reservations.loadPricingInputs")(fun
       .select({
         id: product.id,
         title: productRelease.title,
-        priceCents: productRelease.priceCents,
+        /** Null when the release has no live row for this market. */
+        priceCents: sql<
+          number | null
+        >`case when ${releaseMarket.active} then ${releaseMarket.priceCents} else null end`,
         status: product.status,
         preorderCap: product.preorderCap,
         preorderClaimed: product.preorderClaimed,
@@ -94,6 +112,12 @@ export const loadPricingInputs = Effect.fn("Reservations.loadPricingInputs")(fun
       // INNER join through the active release: a product without one yields no
       // pricing row at all, so the cart fails closed.
       .innerJoin(productRelease, eq(productRelease.id, product.activeReleaseId))
+      // LEFT join to the market row: present-but-null price is what lets
+      // `computeTotals` say `market_unavailable` instead of `product_unavailable`.
+      .leftJoin(
+        releaseMarket,
+        and(eq(releaseMarket.releaseId, productRelease.id), eq(releaseMarket.market, market)),
+      )
       .where(inArray(product.id, productIds)),
   );
 

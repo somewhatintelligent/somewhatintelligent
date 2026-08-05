@@ -143,6 +143,16 @@ a:focus-visible {
   text-transform: uppercase;
 }
 
+/* The market switch wears the chrome's own type: a bare select, no widget. */
+.market-switch select {
+  border: none;
+  background: transparent;
+  color: currentColor;
+  font: inherit;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 .cart-link svg {
   width: 17px;
   height: 17px;

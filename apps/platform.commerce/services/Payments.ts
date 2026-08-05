@@ -17,7 +17,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
-import type { Destination } from "./StripeConfig.ts";
+import type { MarketCode } from "../core/markets.ts";
 
 /** A session's lifecycle state, normalised away from any one provider's vocabulary. */
 export type SessionStatus = "open" | "complete" | "expired";
@@ -142,11 +142,6 @@ export class EventNotVerified extends Schema.TaggedErrorClass<EventNotVerified>(
 export class Payments extends Context.Service<
   Payments,
   {
-    /**
-     * Minor-unit currency this provider quotes in. Read at order-write time so
-     * the row records what it was actually priced in.
-     */
-    readonly currency: string;
     createSession(input: {
       readonly orderId: string;
       readonly orderNumber: string;
@@ -168,11 +163,12 @@ export class Payments extends Context.Service<
        */
       readonly email: string;
       /**
-       * Where the cart is going, chosen on the storefront before checkout opens.
-       * It pins the countries the address form will accept, so a cart cannot be
-       * shipped to a country it was not priced for.
+       * The market the cart was priced in, chosen on the storefront before
+       * checkout opens. It decides the session's currency and pins the
+       * countries the address form will accept, so a cart cannot be charged in
+       * one market's currency and shipped to another's country.
        */
-      readonly destination: Destination;
+      readonly market: MarketCode;
       readonly expiresAt: number;
       readonly lines: ReadonlyArray<{
         readonly title: string;

@@ -32,7 +32,8 @@ import {
   type Session,
   type SessionStatus,
 } from "./Payments.ts";
-import { StripeConfig, type Destination } from "./StripeConfig.ts";
+import { MARKETS, type MarketCode } from "../core/markets.ts";
+import { StripeConfig } from "./StripeConfig.ts";
 
 /** The store's own id, carried on the session so an event can find its order. */
 const ORDER_ID_KEY = "storeOrderId";
@@ -123,7 +124,7 @@ export const layer = Layer.effect(
       readonly orderNumber: string;
       readonly subtotalCents: number;
       readonly email: string;
-      readonly destination: Destination;
+      readonly market: MarketCode;
       readonly expiresAt: number;
       readonly lines: ReadonlyArray<{
         readonly title: string;
@@ -133,6 +134,14 @@ export const layer = Layer.effect(
         readonly preorder: boolean;
       }>;
     }) {
+      /**
+       * THE MARKET DECIDES THE MONEY. Currency comes off the constant, never
+       * off a config variable — the line items were priced from this market's
+       * release rows, so quoting them in anything else would charge a number
+       * nobody ever set.
+       */
+      const { currency, shipTo } = MARKETS[input.market];
+
       const session = yield* Effect.tryPromise({
         try: () =>
           stripe.checkout.sessions.create({
@@ -145,7 +154,7 @@ export const layer = Layer.effect(
             line_items: input.lines.map((line) => ({
               quantity: line.quantity,
               price_data: {
-                currency: config.currency,
+                currency,
                 unit_amount: line.unitPriceCents,
                 /**
                  * EXCLUSIVE: our price is pre-tax and Stripe adds tax on top.
@@ -186,7 +195,13 @@ export const layer = Layer.effect(
              */
             // The store's own id, so a webhook can find the order without a
             // lookup table.
-            metadata: { [ORDER_ID_KEY]: input.orderId, orderNumber: input.orderNumber },
+            // The store's own ids, plus the market for reconciliation. A
+            // MIRROR for reading in the dashboard, never a source.
+            metadata: {
+              [ORDER_ID_KEY]: input.orderId,
+              orderNumber: input.orderNumber,
+              market: input.market,
+            },
             /**
              * REQUIRED. A hosted checkout will not open without somewhere to
              * return the buyer to, and Stripe rejects the create call outright.
@@ -217,12 +232,12 @@ export const layer = Layer.effect(
              */
             customer_email: input.email,
             /**
-             * Pinned to the destination the cart was priced for. The buyer
-             * picked it on the storefront; letting the address form accept the
-             * other country here would ship a cart to a country it was never
+             * Pinned to the market the cart was priced for. The buyer picked
+             * it on the storefront; letting the address form accept another
+             * market's country here would ship a cart somewhere it was never
              * priced for.
              */
-            shipping_address_collection: { allowed_countries: [input.destination] },
+            shipping_address_collection: { allowed_countries: [...shipTo] },
           }),
         catch: unavailable("createSession"),
       });
@@ -351,6 +366,6 @@ export const layer = Layer.effect(
       } satisfies ProviderEvent;
     });
 
-    return Payments.of({ currency: config.currency, createSession, retrieve, expire, parseEvent });
+    return Payments.of({ createSession, retrieve, expire, parseEvent });
   }),
 );

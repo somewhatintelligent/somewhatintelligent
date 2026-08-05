@@ -29,6 +29,7 @@ const cover = product.media[0]?.href ?? "";
   data-slug={product.slug}
   data-title={product.title}
   data-price-cents={String(product.priceCents)}
+  data-currency={product.currency}
   data-cover={cover}
 >
   <p>Object / {product.slug} / release {product.version}</p>
@@ -36,7 +37,7 @@ const cover = product.media[0]?.href ?? "";
 
   <ProductDescription paragraphs={paragraphs} />
 
-  <p class="product-price">{formatPrice(product.priceCents)}</p>
+  <p class="product-price">{formatPrice(product.priceCents, product.currency)}</p>
 
   <ProductSizes variants={product.variants} />
 

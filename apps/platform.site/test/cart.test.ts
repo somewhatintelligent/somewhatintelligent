@@ -145,7 +145,9 @@ describe("normalizeHints", () => {
   });
 
   test("an object passes through", () => {
-    const hints = { v: { slug: "s", title: "t", size: "M", priceCents: 1, coverHref: null } };
+    const hints = {
+      v: { slug: "s", title: "t", size: "M", priceCents: 1, currency: "cad", coverHref: null },
+    };
     expect(normalizeHints(hints)).toEqual(hints);
   });
 });

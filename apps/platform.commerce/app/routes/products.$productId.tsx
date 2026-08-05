@@ -42,7 +42,7 @@ import { Hint, Outcome } from "../components/outcome.tsx";
 import { ProductStatusBadge } from "../components/badges.tsx";
 import { DeletionDialog } from "../components/deletion-dialog.tsx";
 import { AddSize, VariantEditor } from "../components/variant-editor.tsx";
-import { Identity, ProductPrice } from "../components/product-identity.tsx";
+import { Identity, ProductMarkets } from "../components/product-identity.tsx";
 import { DataTable, Td, type Column } from "../components/table.tsx";
 import {
   adjustStock,
@@ -145,7 +145,7 @@ function Product() {
   }
 
   const detail: ProductDetail = result.value;
-  const { draft, preorder, releases, variants, media } = detail;
+  const { draft, markets, preorder, releases, variants, media } = detail;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 xl:h-[calc(100dvh-6rem)] xl:flex-none xl:overflow-hidden">
@@ -230,7 +230,7 @@ function Product() {
         <Identity productId={productId} draft={draft} media={media} refresh={refresh} />
 
         <div className="grid min-h-0 min-w-0 gap-4 overflow-hidden xl:h-full xl:grid-rows-[minmax(9rem,0.8fr)_minmax(0,1.2fr)]">
-          <ProductPrice productId={productId} draft={draft} refresh={refresh} />
+          <ProductMarkets productId={productId} draft={draft} markets={markets} refresh={refresh} />
           <SellsAs
             productId={productId}
             preorder={preorder}

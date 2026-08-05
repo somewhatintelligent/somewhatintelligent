@@ -14,7 +14,11 @@
 import Base from "../../layouts/Base.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
+import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
 import "../../styles/shop.css";
+
+// The same market the shop pages priced everything in — one choice, one cookie.
+const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
 ---
 
 <Base title="Cart — somewhatintelligent" description="Your cart." noindex>
@@ -44,10 +48,16 @@ import "../../styles/shop.css";
           <fieldset class="cart-field">
             <legend>Shipping to</legend>
             <div class="cart-destinations" role="radiogroup">
-              <label><input type="radio" name="destination" value="CA" checked /> Canada</label>
-              <label><input type="radio" name="destination" value="US" /> United States</label>
+              <label>
+                <input type="radio" name="market" value="CA" checked={market === "CA"} /> Canada
+              </label>
+              <label>
+                <input type="radio" name="market" value="US" checked={market === "US"} /> United
+                States
+              </label>
             </div>
-            <small>The address form is pinned to it. Shipping is included.</small>
+            <small>Sets your prices and currency. The address form is pinned to it. Shipping is
+              included.</small>
           </fieldset>
 
           <p class="cart-subtotal">
@@ -78,9 +88,9 @@ import "../../styles/shop.css";
     type CartHint,
   } from "../../lib/cart.ts";
 
-  const price = (cents: number): string => {
+  const price = (cents: number, currency: string): string => {
     const dollars = cents / 100;
-    return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)} CAD`;
+    return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)} ${currency.toUpperCase()}`;
   };
 
   const linesEl = document.getElementById("cart-lines");
@@ -102,6 +112,8 @@ import "../../styles/shop.css";
     invalid_quantity: "One of the quantities is out of range.",
     variant_not_found: "A size in your cart no longer exists.",
     product_unavailable: "Something in your cart is no longer on sale.",
+    market_unavailable: "Something in your cart is not sold where you're shipping.",
+    invalid_market: "Pick where this is shipping first.",
     out_of_stock: "Something in your cart just sold out.",
     preorder_full: "That run is now fully subscribed.",
     in_progress: "This order is already being placed — one moment.",
@@ -118,17 +130,25 @@ import "../../styles/shop.css";
 
     if (lines.length === 0) {
       linesEl.innerHTML = `<p class="cart-empty">Nothing in the cart yet. <a href="/shop/">See the objects</a>.</p>`;
-      subtotalEl.textContent = price(0);
+      subtotalEl.textContent = "—";
       payBtn.disabled = true;
       return;
     }
 
     let subtotal = 0;
+    /**
+     * The subtotal is a sum of HINTS, and hints remember the currency they
+     * were shown in. One currency sums; a cart whose hints span two markets
+     * (added, then switched) shows per-line prices only — the real number is
+     * minted at checkout, where the whole cart is re-priced in one market.
+     */
+    const currencies = new Set<string>();
     const rows = lines.map((line) => {
       const hint: CartHint | undefined = hints[line.variantId];
       // A line with no hint still renders and still checks out — the hint is a
       // display cache, never the thing that decides what is in the cart.
       subtotal += (hint?.priceCents ?? 0) * line.quantity;
+      if (hint) currencies.add(hint.currency ?? "cad");
       const cover = hint?.coverHref
         ? `<img src="${hint.coverHref}" alt="" loading="lazy" />`
         : `<span class="cart-noimage"></span>`;
@@ -144,13 +164,15 @@ import "../../styles/shop.css";
             <input id="qty-${line.variantId}" type="number" inputmode="numeric"
                    min="${MIN_QUANTITY}" max="${MAX_QUANTITY}" value="${line.quantity}" />
           </div>
-          <p class="cart-line-price">${hint ? price(hint.priceCents * line.quantity) : "—"}</p>
+          <p class="cart-line-price">${hint ? price(hint.priceCents * line.quantity, hint.currency ?? "cad") : "—"}</p>
           <button type="button" class="cart-line-remove" aria-label="Remove">Remove</button>
         </article>`;
     });
 
     linesEl.innerHTML = rows.join("");
-    subtotalEl.textContent = price(subtotal);
+    const [only] = currencies;
+    subtotalEl.textContent =
+      currencies.size === 1 && only ? price(subtotal, only) : "at checkout";
     payBtn.disabled = false;
 
     for (const el of linesEl.querySelectorAll<HTMLElement>(".cart-line")) {
@@ -168,7 +190,7 @@ import "../../styles/shop.css";
 
     const data = new FormData(form);
     const email = String(data.get("email") ?? "").trim();
-    const destination = String(data.get("destination") ?? "CA");
+    const market = String(data.get("market") ?? "CA");
     if (email.length < 3) {
       stateEl.textContent = REFUSALS.invalid_email ?? "";
       return;
@@ -180,7 +202,7 @@ import "../../styles/shop.css";
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, destination, commandId, items: readCart() }),
+        body: JSON.stringify({ email, market, commandId, items: readCart() }),
       });
       const result = (await response.json()) as
         | { ok: true; checkoutUrl: string | null; orderNumber: string }
@@ -222,6 +244,18 @@ import "../../styles/shop.css";
       commandId = crypto.randomUUID();
     }
   });
+
+  /**
+   * The radio and the header switch write the SAME cookie: picking a
+   * destination here is picking a market, and the shop should re-price to
+   * match when they go back for one more thing.
+   */
+  for (const radio of form?.querySelectorAll<HTMLInputElement>('input[name="market"]') ?? []) {
+    radio.addEventListener("change", () => {
+      const value = radio.value === "US" ? "US" : "CA";
+      document.cookie = `si_market=${value}; path=/; max-age=31536000; samesite=lax`;
+    });
+  }
 
   subscribeCart(render);
   render();

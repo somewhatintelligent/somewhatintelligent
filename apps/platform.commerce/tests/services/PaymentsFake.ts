@@ -23,6 +23,7 @@ import * as Layer from "effect/Layer";
 
 import { Database, query, type ClassicDb, type DbStatement } from "../../services/Database.ts";
 import { Ids } from "../../services/Ids.ts";
+import { MARKETS, type MarketCode } from "../../core/markets.ts";
 import {
   EventNotVerified,
   Payments,
@@ -156,6 +157,7 @@ export const layer = Layer.effect(
     const createSession = Effect.fn("PaymentsFake.createSession")(function* (input: {
       readonly orderId: string;
       readonly subtotalCents: number;
+      readonly market: MarketCode;
       readonly expiresAt: number;
     }) {
       const id = `sess_${yield* ids.next()}`;
@@ -183,7 +185,8 @@ export const layer = Layer.effect(
         // provider's job, and inventing them here would let a test pass against
         // arithmetic no real payment ever performs.
         amountTotalCents: input.subtotalCents,
-        currency: "cad",
+        // The market's currency, exactly as the real adapter derives it.
+        currency: MARKETS[input.market].currency,
         paymentIntentId: null,
         expiresAt: input.expiresAt,
         checkoutUrl: null,
@@ -250,6 +253,6 @@ export const layer = Layer.effect(
       } satisfies ProviderEvent;
     });
 
-    return Payments.of({ currency: "cad", createSession, retrieve, expire, parseEvent });
+    return Payments.of({ createSession, retrieve, expire, parseEvent });
   }),
 );

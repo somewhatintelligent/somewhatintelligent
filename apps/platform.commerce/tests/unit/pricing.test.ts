@@ -154,7 +154,17 @@ describe("computeTotals — pricing", () => {
   test("the price comes from the PRODUCT's active release, never the variant", () => {
     const result = computeTotals(cart({ variantId: "var-m", quantity: 1 }), [medium], [TEE]);
     if (!result.ok) throw new Error("expected ok");
-    expect(result.lines[0]?.unitPriceCents).toBe(TEE.priceCents);
+    expect(result.lines[0]?.unitPriceCents).toBe(4_500);
+  });
+
+  test("a product with no price in the buyer's market refuses as market_unavailable", () => {
+    const elsewhere: PricingProduct = { ...TEE, priceCents: null };
+    const result = computeTotals(cart({ variantId: "var-m", quantity: 1 }), [medium], [elsewhere]);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected refusal");
+    expect(result.error).toBe("market_unavailable");
+    // The title, not the id: this refusal is rendered to a shopper.
+    expect(result.message).toBe("Tee");
   });
 
   test("subtotal is price times quantity, summed", () => {

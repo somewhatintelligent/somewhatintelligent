@@ -11,9 +11,12 @@ import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import ProductSheet from "../../components/ProductSheet.astro";
 import { getStorefrontProduct } from "../../lib/commerce.ts";
+import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
 import "../../styles/product.css";
 
 const { slug } = Astro.params;
+/** The shopper's market — it prices this page and 404s what is not sold there. */
+const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
 
 // A MISSING SLUG AND AN UNREACHABLE CATALOGUE ARE DIFFERENT ANSWERS. `null` is
 // the domain saying no active release answers to this slug — a real 404. A
@@ -21,7 +24,7 @@ const { slug } = Astro.params;
 // telling a crawler it is permanently gone would be a lie with consequences.
 let product: Awaited<ReturnType<typeof getStorefrontProduct>> = null;
 try {
-  product = slug ? await getStorefrontProduct(slug) : null;
+  product = slug ? await getStorefrontProduct(slug, market) : null;
 } catch (cause) {
   console.error("site.shop.product_failed", cause);
   return new Response(null, { status: 503 });
@@ -162,6 +165,7 @@ const sizing =
       title: sheet.dataset.title ?? "",
       size: selected.size,
       priceCents: Number(sheet.dataset.priceCents ?? "0"),
+      currency: sheet.dataset.currency ?? "cad",
       coverHref: sheet.dataset.cover ? sheet.dataset.cover : null,
     });
     if (stateEl) {
