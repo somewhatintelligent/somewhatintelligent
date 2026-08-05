@@ -176,9 +176,10 @@ export const layer = Layer.effect(
               },
             })),
 
-            // No automatic_tax until the store holds a registration. The
-            // per-line tax codes are inert without it, so registering at $30k
-            // is `automatic_tax: { enabled: true }` here and nothing else.
+            // Charges only where the account holds a registration — zero
+            // everywhere until then, and crossing the $30k threshold is a
+            // dashboard registration rather than a deploy.
+            automatic_tax: { enabled: true },
             /**
              * NO `shipping_options`, deliberately. The price contains shipping,
              * so there is nothing to charge, nothing to discount, and no line
