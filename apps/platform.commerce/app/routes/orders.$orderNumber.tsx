@@ -218,10 +218,42 @@ function Fulfilment({ order }: { order: OrderDetailDTO }) {
     }
   };
 
+  /**
+   * WHAT GOES IN THE PARCEL, as one line to read off rather than re-derive
+   * from the table above while packing. `2× M, 1× L — Field Tee` is the shape;
+   * a mixed-product order lists each title. Copy exists because this gets
+   * pasted into a consolidator form twenty times per drop, and every retyped
+   * field is a field that can be wrong.
+   */
+  const contents = [
+    ...order.items
+      .reduce((byTitle, item) => {
+        const parts = byTitle.get(item.title) ?? [];
+        parts.push(`${item.quantity}× ${item.size}`);
+        return byTitle.set(item.title, parts);
+      }, new Map<string, string[]>())
+      .entries(),
+  ]
+    .map(([title, parts]) => `${parts.join(", ")} — ${title}`)
+    .join(" · ");
+
   return (
     <Section title="Fulfilment" description="Carrier and tracking move the order to shipped.">
       <div className="flex flex-col gap-4">
         {order.trackingNumber ? <Shipment order={order} /> : null}
+
+        <div className="flex items-center gap-2 rounded-md border border-border bg-surface-sunken px-3 py-2">
+          <span className="text-xs uppercase text-muted-foreground">Contents</span>
+          <code className="min-w-0 flex-1 truncate text-sm">{contents}</code>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void navigator.clipboard.writeText(contents)}
+          >
+            Copy
+          </Button>
+        </div>
 
         <div className="flex flex-wrap items-end gap-2">
           <Field className="w-44">
