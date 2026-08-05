@@ -1,6 +1,7 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
+import { guardStage } from "./StandardizedStage.ts";
 
 const organization = Cloudflare.Access.Organization("ZeroTrustOrganization", {
   authDomain: "somewhatintelligent.cloudflareaccess.com",
@@ -35,6 +36,7 @@ export default CloudflareStack.make(
     state: Cloudflare.state(),
   },
   Effect.gen(function* () {
+    yield* guardStage("production");
     return {
       organization: yield* organization,
       cloudflareIdp: yield* cloudflareIdp,
@@ -48,7 +50,7 @@ export const InternalAccessApplication = (name: string, domain: string) =>
     const {
       cloudflareIdp: { identityProviderId },
       internalPolicy: { policyId },
-    } = yield* CloudflareStack;
+    } = yield* CloudflareStack.stage.production;
 
     return yield* Cloudflare.Access.Application(name, {
       domain,

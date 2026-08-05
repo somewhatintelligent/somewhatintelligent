@@ -1,5 +1,5 @@
 {
-  "name": "platform",
+  "name": "somewhatintelligent",
   "version": "0.0.0",
   "private": true,
   "workspaces": [
@@ -14,6 +14,7 @@
     "ready": "vp check && vp run -r test && vp run -r build"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^2.19.2",
     "@effect/platform-bun": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/tsgo": "catalog:",
