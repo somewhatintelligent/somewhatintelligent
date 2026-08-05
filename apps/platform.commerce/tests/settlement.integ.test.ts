@@ -7,7 +7,7 @@
  * test rather than a unit one — every property here is a claim about what is
  * COMMITTED, and only a real D1 can answer that.
  *
- * The suite shares `stage: "spike"` with the operator suite, so `deploy` is a
+ * The suite shares `stage: "test_spike"` with the operator suite, so `deploy` is a
  * no-op diff when both run.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
@@ -26,7 +26,7 @@ import Stack from "./alchemy.run.ts";
 
 const { test, beforeAll, deploy } = Test.make({
   providers: Layer.mergeAll(Cloudflare.providers(), Drizzle.providers()),
-  stage: "spike",
+  stage: "test_spike",
 });
 
 const HOOK_TIMEOUT = 600_000;
@@ -35,7 +35,7 @@ const TEST_TIMEOUT = 240_000;
 /**
  * This suite DEPLOYS but never DESTROYS.
  *
- * It shares `stage: "spike"` with the operator suite, so its `deploy` is a
+ * It shares `stage: "test_spike"` with the operator suite, so its `deploy` is a
  * no-op diff when that suite has already run. Teardown is owned by exactly one
  * file — `store.integ.test.ts` — because two `afterAll(destroy)` hooks over one
  * stage means whichever finishes first pulls the infrastructure out from under
@@ -233,7 +233,7 @@ test(
     const { edgeUrl } = yield* stack;
 
     /**
-     * The `spike` stage settles TEST-mode events, so a livemode event is the
+     * The `test_spike` stage settles TEST-mode events, so a livemode event is the
      * misaimed one here. Either way the property is the same: an event from the
      * wrong environment is recorded and dropped, never applied.
      */

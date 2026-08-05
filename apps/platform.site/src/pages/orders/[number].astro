@@ -70,9 +70,9 @@ const justPaid = Astro.url.searchParams.has("session_id");
 
   const EMAIL_KEY = "si:cart:email";
 
-  const price = (cents: number): string => {
+  const price = (cents: number, currency: string): string => {
     const dollars = cents / 100;
-    return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)} CAD`;
+    return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)} ${currency.toUpperCase()}`;
   };
   const day = (ms: number): string =>
     new Intl.DateTimeFormat("en-GB", {
@@ -105,6 +105,7 @@ const justPaid = Astro.url.searchParams.has("session_id");
     shippingCents: number;
     taxCents: number;
     totalCents: number;
+    currency: string;
     carrier: string | null;
     trackingNumber: string | null;
     shippedAt: number | null;
@@ -128,7 +129,7 @@ const justPaid = Astro.url.searchParams.has("session_id");
               ${item.expectedShipAt ? ` · ships ${day(item.expectedShipAt)}` : ""}
             </p>
           </div>
-          <p class="order-line-price">${price(item.unitPriceCents * item.quantity)}</p>
+          <p class="order-line-price">${price(item.unitPriceCents * item.quantity, order.currency)}</p>
         </article>`,
       )
       .join("");
@@ -141,13 +142,13 @@ const justPaid = Astro.url.searchParams.has("session_id");
      */
     const totals = paid(order)
       ? `<dl class="order-totals">
-           <div><dt>Items</dt><dd>${price(order.subtotalCents)}</dd></div>
-           <div><dt>Shipping</dt><dd>${price(order.shippingCents)}</dd></div>
-           <div><dt>Tax</dt><dd>${price(order.taxCents)}</dd></div>
-           <div class="order-total"><dt>Paid</dt><dd>${price(order.totalCents)}</dd></div>
+           <div><dt>Items</dt><dd>${price(order.subtotalCents, order.currency)}</dd></div>
+           <div><dt>Shipping</dt><dd>${price(order.shippingCents, order.currency)}</dd></div>
+           <div><dt>Tax</dt><dd>${price(order.taxCents, order.currency)}</dd></div>
+           <div class="order-total"><dt>Paid</dt><dd>${price(order.totalCents, order.currency)}</dd></div>
          </dl>`
       : `<dl class="order-totals">
-           <div><dt>Items</dt><dd>${price(order.subtotalCents)}</dd></div>
+           <div><dt>Items</dt><dd>${price(order.subtotalCents, order.currency)}</dd></div>
          </dl>
          <p class="order-settling">Not paid yet. Shipping and tax are added at payment.</p>`;
 

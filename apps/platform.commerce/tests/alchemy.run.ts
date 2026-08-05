@@ -57,7 +57,14 @@ import StorefrontWorker from "./workers/Storefront.ts";
  * which the settlement suite would still pass against, and the end-to-end suite
  * would fail with no indication why.
  */
-const stripeArmed = await Effect.runPromise(StripeDev.armIfDev());
+/**
+ * `arm()` UNCONDITIONALLY, where the deployed stack gates on `alchemy dev` —
+ * deliberately different, because this stack registers no webhook endpoint:
+ * the suite forwards events with its own `stripe listen`, so the CLI's key and
+ * signing secret are the only pair its workers could ever verify. Explicitly
+ * exported variables still win inside `arm`, so CI can supply its own.
+ */
+const stripeArmed = await Effect.runPromise(StripeDev.arm());
 
 export default Alchemy.Stack(
   "PlatformCommerceTests",

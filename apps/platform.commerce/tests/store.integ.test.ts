@@ -30,7 +30,7 @@ import Stack from "./alchemy.run.ts";
 
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Layer.mergeAll(Cloudflare.providers(), Drizzle.providers()),
-  stage: "spike",
+  stage: "test_spike",
 });
 
 const HOOK_TIMEOUT = 600_000;
