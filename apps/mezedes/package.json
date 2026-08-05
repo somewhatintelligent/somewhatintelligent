@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./module": "./module.ts"
+    "./alchemy.run": "./alchemy.run.ts"
   },
   "scripts": {
     "build": "vite build",
@@ -14,6 +14,7 @@
   "dependencies": {
     "@cloudflare/worker-bundler": "0.2.2",
     "@modelcontextprotocol/server": "2.0.0",
+    "@swi/infra": "workspace:*",
     "agents": "0.20.1",
     "jose": "6.2.6",
     "platform.names": "workspace:*",

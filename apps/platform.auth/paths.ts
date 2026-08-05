@@ -40,13 +40,6 @@ export const schemaPath = inPackage("api/schema.gen.ts");
 export const migrationsDir = inPackage("api/migrations");
 
 /**
- * Vite's root for the identity app. `Website.Vite` defaults it to
- * `process.cwd()`. Read only from `module.ts`, which never reaches a bundle —
- * at runtime this is `undefined` and unused.
- */
-export const PACKAGE_DIR = import.meta.dirname;
-
-/**
  * The generated file's name as the Better Auth generator should report it.
  * A LABEL, not a location — `generateSchema` only echoes it back as
  * `fileName`, which is discarded, and this file is written by the Action using

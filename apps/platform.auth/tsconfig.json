@@ -25,8 +25,7 @@
     "skipLibCheck": true
   },
   "include": [
-    "module.ts",
-    "index.ts",
+    "alchemy.run.ts",
     "paths.ts",
     "vite.config.ts",
 

@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.effect.json",
-  "include": ["stacks/**/*.ts", "vite.config.ts"],
+  "include": ["vite.config.ts"],
   "exclude": ["node_modules", "**/worktrees"],
   "compilerOptions": {
     "noEmit": true,

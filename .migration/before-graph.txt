@@ -1,4 +1,0 @@
-loaded config: /Users/stoli/Desktop/devel/somewhatintelligent/platform/.fallowrc.json
-  141 entry points detected (95 package.json, 25 manual entry, 21 plugin)
-
-✓ No issues found (0.13s)

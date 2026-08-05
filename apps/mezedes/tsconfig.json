@@ -33,13 +33,5 @@
 
     "skipLibCheck": true
   },
-  "include": [
-    "src/core",
-    "src/server",
-    "test",
-    "integ",
-    "module.ts",
-    "../../stacks/mezedes",
-    "vite.config.ts"
-  ]
+  "include": ["src/core", "src/server", "test", "integ", "alchemy.run.ts", "vite.config.ts"]
 }

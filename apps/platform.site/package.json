@@ -15,6 +15,7 @@
     "astro": "^7",
     "effect": "catalog:",
     "lib.astro-alchemy": "workspace:*",
+    "platform.auth": "workspace:*",
     "platform.commerce": "workspace:*",
     "platform.design": "workspace:*",
     "platform.names": "workspace:*"

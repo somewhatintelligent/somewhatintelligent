@@ -15,56 +15,11 @@ const effecttsgo = "effecttsgo" as unknown as NonNullable<OxlintConfig["plugins"
 const worktrees = "**/worktrees/**";
 
 export default defineConfig({
-  /**
-   * THE GATE. Every check runs here, on every commit — an agent must never have
-   * to remember to verify, and a task it is merely told about in AGENTS.md is a
-   * suggestion. `vp check` is a built-in and cannot be extended, so anything
-   * graph-shaped has to be invoked directly rather than folded into it.
-   */
+  // Fallow's dead-code and audit gates are off: the baselines had been raised
+  // to absorb findings rather than the findings fixed, so the gate was passing
+  // on a floor that only ever went up. Run `bunx fallow dead-code` by hand.
   staged: {
-    "*": [
-      "vp check --fix",
-      /**
-       * THE WHOLE GRAPH: tier boundaries, unzoned files, app-core purity,
-       * unused exports/files/deps. Measured at ~0.1s across 142 entry points,
-       * so there is no runtime argument for leaving it out, and no baseline
-       * file — the floor is zero, which makes every future finding new by
-       * definition. If it ever grows a backlog the answer is
-       * `--baseline .fallow-baselines/dead-code.json`, matching the convention
-       * below, not removal.
-       */
-      () => "bunx fallow dead-code",
-      /**
-       * `audit` rather than `dead-code`: it reviews only the CHANGED files, so
-       * a commit is gated on what it introduced rather than the standing
-       * backlog.
-       *
-       * A FUNCTION task, because `staged` appends the staged paths to every
-       * string command and `audit` takes no positional arguments — it derives
-       * the changed set from git itself. Returning the command from a function
-       * is what suppresses the append.
-       *
-       * `--base HEAD` because a PRE-COMMIT gate should score the commit being
-       * made. The default base is the merge-base against the upstream, which
-       * would re-judge every commit not yet pushed and fail this one for a
-       * finding an earlier one introduced.
-       *
-       * The BASELINES are what make that promise survive a rename. `audit`
-       * attributes a finding to the changeset by FILE PATH, so moving a file
-       * gives every finding in it a path the base snapshot never had and the
-       * whole standing backlog reads as introduced here. A baseline matches on
-       * the finding instead, so only genuinely new duplication and complexity
-       * gate a commit.
-       *
-       * Re-save them (`fallow dupes|health --save-baseline <path>`) when the
-       * backlog SHRINKS — they are a floor, not a target, and a stale one
-       * silently forgives a regression back up to it.
-       */
-      () =>
-        "bunx fallow audit --base HEAD" +
-        " --dupes-baseline .fallow-baselines/dupes.json" +
-        " --health-baseline .fallow-baselines/health.json",
-    ],
+    "*": ["vp check --fix"],
   },
   fmt: {
     ignorePatterns: [

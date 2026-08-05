@@ -17,9 +17,9 @@
     "apps/platform.commerce/app/routeTree.gen.ts",
     // The deployed Worker's entry. React Router's own entries are discovered
     // by fallow's framework plugin, but this one is named as a STRING in
-    // `module.ts` (`main`) precisely so the script exports the Durable Object
-    // classes and the `email()` handler that the framework build does not.
-    // No import reaches it, so without this line its whole tree reads as dead.
+    // `alchemy.run.ts` (`main`) precisely so the script exports the Durable
+    // Object classes and the `email()` handler that the framework build does
+    // not. No import reaches it, so without this line its whole tree reads dead.
     "apps/platform.inbox/workers/app.ts",
     "packages/*/src/index.ts",
     "packages/*/test/**/*.test.ts",
@@ -101,35 +101,26 @@
       // turns a forgotten one into a finding rather than a silent free pass.
       { "name": "product-app/mezedes", "patterns": ["apps/mezedes/**"] },
 
-      { "name": "platform-stack", "patterns": ["stacks/platform.*/**"] },
-      { "name": "product-stack/mezedes", "patterns": ["stacks/mezedes/**"] },
+      // Account-level infrastructure every app's `alchemy.run.ts` composes
+      // against. Replaced `stacks/`, which no longer exists.
+      { "name": "infra", "patterns": ["infra/**"] },
     ],
     "rules": [
       { "from": "app-core", "allow": [] },
       { "from": "lib", "allow": [] },
       { "from": "platform-pkg", "allow": ["lib"] },
-      { "from": "platform-app", "allow": ["app-core", "platform-pkg", "lib"] },
+      { "from": "infra", "allow": ["platform-pkg", "lib"] },
+      { "from": "platform-app", "allow": ["app-core", "infra", "platform-pkg", "lib"] },
       {
         "from": "product-app/mezedes",
-        "allow": ["app-core", "platform-app", "platform-pkg", "lib"],
-      },
-      { "from": "platform-stack", "allow": ["platform-app", "platform-pkg", "lib"] },
-      // A product's stack reaches ITS product, not the product tier at large.
-      // Under autoDiscover this could only be written as "product-app", which
-      // expanded to every discovered product — so every product stack could
-      // reach every product app.
-      {
-        "from": "product-stack/mezedes",
-        "allow": ["product-app/mezedes", "platform-stack", "platform-app", "platform-pkg", "lib"],
+        "allow": ["app-core", "infra", "platform-app", "platform-pkg", "lib"],
       },
     ],
     // Segment-aware, and matched THROUGH imports — not globs.
     //
-    // `*.ref` confines cross-stack resource refs to `apps/<ns>/binding.ts`,
-    // because a ref's target is a STRING LITERAL that no import graph can see.
-    // Still absent from the two product tiers — but now only because no product
-    // mints a ref yet, not because the config could not say so. The zones above
-    // are named, so this is a one-liner per product the day one does.
+    // `*.ref` reads a target out of another stack's persisted state by string
+    // literal, which no import graph can see. Stacks compose by `yield*` now,
+    // so nothing should mint one.
     "calls": {
       "forbidden": [
         {
@@ -137,7 +128,6 @@
           "callee": ["fetch", "caches.*", "crypto.subtle.*", "cloudflare:workers.*"],
         },
         { "from": "platform-app", "callee": "*.ref" },
-        { "from": "platform-stack", "callee": "*.ref" },
         { "from": "platform-pkg", "callee": "*.ref" },
         { "from": "lib", "callee": "*.ref" },
       ],

@@ -36,7 +36,7 @@
     "skipLibCheck": true
   },
   "include": [
-    "module.ts",
+    "alchemy.run.ts",
     "vite.config.ts",
     "vitest.config.ts",
     "vitest.setup.ts",

@@ -8,6 +8,6 @@
 //
 // `module.ts`, NOT the stack that deploys it: an app may not import from
 // `stacks/`. Type-only, so nothing from alchemy reaches the Worker bundle.
-import type { InboxEnv } from "../module.ts";
+import type { InboxEnv } from "../alchemy.run.ts";
 
 export interface Env extends InboxEnv {}

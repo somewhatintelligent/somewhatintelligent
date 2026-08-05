@@ -26,7 +26,7 @@ export const PRODUCTION_ZONE = "somewhatintelligent.ca";
  * `authDomain` as a required PROP rather than reporting it, so adopting the org
  * would need this value anyway.
  */
-export const TEAM_DOMAIN = "https://geyerconsulting.cloudflareaccess.com";
+export const TEAM_DOMAIN = "https://somewhatintelligent.cloudflareaccess.com";
 
 /**
  * The account's Cloudflare identity provider, `type: "cloudflare"` from
@@ -35,7 +35,7 @@ export const TEAM_DOMAIN = "https://geyerconsulting.cloudflareaccess.com";
  * A literal for a different reason: alchemy CAN adopt an existing IdP, but
  * adopting it means managing it, and this one is Cloudflare's to manage.
  */
-export const CLOUDFLARE_IDP = "950ba8bd-98c6-498e-9866-3bb71fd771cc";
+export const CLOUDFLARE_IDP = "47a38340-afe7-4c13-8eda-38aca32858a3";
 
 /**
  * A stage name reduced to what a Cloudflare resource name accepts.

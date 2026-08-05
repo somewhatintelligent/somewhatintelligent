@@ -1,0 +1,17 @@
+{
+  "name": "@swi/infra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "infrastructure",
+  "type": "module",
+  "exports": {
+    "./*": "./*.ts"
+  },
+  "dependencies": {
+    "alchemy": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

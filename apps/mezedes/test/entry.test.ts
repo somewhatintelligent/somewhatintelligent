@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Env } from "../module.ts";
+import type { Env } from "../alchemy.run.ts";
 import type { AuthResult } from "../src/server/auth.ts";
 import type { RouteDeps } from "../src/server/entry.ts";
 
