@@ -16,28 +16,20 @@
  *
  * WHAT THIS MODULE NO LONGER DOES: compute shipping, or compute tax.
  *
- * Both are now the payment provider's, and that is a deliberate transfer of
- * authority rather than a convenience. Tax owed on a Canadian order depends on
+ * Tax is the payment provider's, and that is a deliberate transfer of
+ * authority rather than a convenience: tax owed on a Canadian order depends on
  * the buyer's province, on registration thresholds, and on rules that change
- * without asking us; shipping depends on a rate the buyer picks at checkout.
- * Anything computed here would be a second opinion that has to agree forever
- * with the number actually charged — and when the two disagree, the charge wins
- * and the books are simply wrong.
+ * without asking us. Anything computed here would be a second opinion that has
+ * to agree forever with the number actually charged — and when the two
+ * disagree, the charge wins and the books are simply wrong.
  *
- * So this store prices LINE ITEMS and nothing else. Shipping and tax arrive back
- * from the settled payment. See `customerOrder.shippingCents`.
- */
-
-/**
- * Cart subtotal at or above which the store eats the shipping.
+ * Shipping is NOBODY'S. The store never charges for it: the price contains it,
+ * so there is no rate to pick, no threshold to clear, and no shipping line on
+ * any session. `customerOrder.shippingCents` stays as the copy of whatever the
+ * provider reports — zero, until the day a shipping line exists again.
  *
- * Still ours, because it is a PROMOTION rather than a calculation — we choose
- * which rate to attach to the checkout, and Stripe charges whatever we attach.
+ * So this store prices LINE ITEMS and nothing else.
  */
-export const FREE_SHIPPING_THRESHOLD_CENTS = 7_500;
-
-export const qualifiesForFreeShipping = (subtotalCents: number): boolean =>
-  subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS;
 
 export const isNonNegativeInt = (value: number): boolean => Number.isInteger(value) && value >= 0;
 

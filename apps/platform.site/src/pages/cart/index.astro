@@ -9,7 +9,7 @@
 //
 // The two fields are here rather than on the payment page because `placeOrder`
 // needs both BEFORE a session opens: the address is the order's only owner, and
-// the destination fixes the shipping rate and pins Stripe's address form to one
+// the destination pins Stripe's address form to one
 // country. Everything else — name, street, card — is Stripe's to collect.
 import Base from "../../layouts/Base.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
@@ -47,14 +47,14 @@ import "../../styles/shop.css";
               <label><input type="radio" name="destination" value="CA" checked /> Canada</label>
               <label><input type="radio" name="destination" value="US" /> United States</label>
             </div>
-            <small>Fixes the shipping rate. The address form is pinned to it.</small>
+            <small>The address form is pinned to it. Shipping is included.</small>
           </fieldset>
 
           <p class="cart-subtotal">
             <span>Line items</span>
             <strong id="cart-subtotal">$0 CAD</strong>
           </p>
-          <p class="cart-note">Shipping and tax are added on the payment page.</p>
+          <p class="cart-note">Shipping is included. Tax, where it applies, is added on the payment page.</p>
 
           <button type="submit" id="cart-pay" disabled>Pay</button>
           <p class="cart-state" id="cart-state" aria-live="polite"></p>

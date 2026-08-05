@@ -32,8 +32,7 @@ import {
   type Session,
   type SessionStatus,
 } from "./Payments.ts";
-import { qualifiesForFreeShipping } from "../core/money.ts";
-import { SHIPPING_TAX_CODE, StripeConfig, type Destination } from "./StripeConfig.ts";
+import { StripeConfig, type Destination } from "./StripeConfig.ts";
 
 /** The store's own id, carried on the session so an event can find its order. */
 const ORDER_ID_KEY = "storeOrderId";
@@ -134,36 +133,6 @@ export const layer = Layer.effect(
         readonly preorder: boolean;
       }>;
     }) {
-      /**
-       * ONE RATE, chosen here, and free when the cart earns it.
-       *
-       * Stripe shows every `shipping_option` to every buyer regardless of
-       * address, so offering both countries' rates would let a Canadian pick the
-       * cheaper one. The storefront already knows the destination, so the
-       * session is built for it alone — and `allowed_countries` below pins the
-       * address form to match, which is what makes the single rate honest.
-       */
-      const rate = config.shipping[input.destination];
-      const free = qualifiesForFreeShipping(input.subtotalCents);
-      const shippingRate: Stripe.Checkout.SessionCreateParams.ShippingOption = {
-        shipping_rate_data: {
-          type: "fixed_amount",
-          display_name: free ? "Free shipping" : rate.label,
-          fixed_amount: {
-            amount: free ? 0 : rate.amountCents,
-            currency: config.currency,
-          },
-          // Shipping is taxable in Canada, and carries its own code so Stripe
-          // rates it correctly rather than treating it as another garment.
-          tax_behavior: "exclusive",
-          tax_code: SHIPPING_TAX_CODE,
-          delivery_estimate: {
-            minimum: { unit: "business_day", value: rate.minDays },
-            maximum: { unit: "business_day", value: rate.maxDays },
-          },
-        },
-      };
-
       const session = yield* Effect.tryPromise({
         try: () =>
           stripe.checkout.sessions.create({
@@ -207,7 +176,14 @@ export const layer = Layer.effect(
              * crossed, rather than in a deploy.
              */
             automatic_tax: { enabled: true },
-            shipping_options: [shippingRate],
+            /**
+             * NO `shipping_options`, deliberately. The price contains shipping,
+             * so there is nothing to charge, nothing to discount, and no line
+             * item to pass — `total_details.amount_shipping` comes back absent
+             * and settlement's `shippingOf` reads it as zero.
+             * `shipping_address_collection` below is an independent parameter,
+             * so the address is still collected.
+             */
             // The store's own id, so a webhook can find the order without a
             // lookup table.
             metadata: { [ORDER_ID_KEY]: input.orderId, orderNumber: input.orderNumber },
@@ -241,10 +217,10 @@ export const layer = Layer.effect(
              */
             customer_email: input.email,
             /**
-             * Pinned to the destination the cart was priced for. The buyer picked
-             * it on the storefront and the shipping rate above was chosen from
-             * it; letting the address form accept the other country here is
-             * precisely how someone pays Canadian postage to Texas.
+             * Pinned to the destination the cart was priced for. The buyer
+             * picked it on the storefront; letting the address form accept the
+             * other country here would ship a cart to a country it was never
+             * priced for.
              */
             shipping_address_collection: { allowed_countries: [input.destination] },
           }),

@@ -72,39 +72,13 @@ const STOREFRONT_URL_VARIABLE = "STORE_STOREFRONT_URL";
 const DEV_STOREFRONT_URL = "http://localhost:5173";
 
 /**
- * Where the store ships, and what it charges to get there.
- *
- * ONE RATE PER DESTINATION, chosen by us at session creation rather than offered
- * as a menu. Stripe Checkout shows every `shipping_option` to every buyer with
- * no country filtering, so listing both a Canadian and an American rate lets a
- * Toronto buyer select the US rate and underpay. Since the storefront already
- * knows where the cart is going, the session is built for that one country and
- * carries only its rate — which removes the mis-selection entirely instead of
- * validating against it afterwards.
+ * Where the store ships. THE PRICE CONTAINS SHIPPING — there is no rate, no
+ * threshold, and no `shipping_option` on any session. What remains of the
+ * concept is this type: the country a cart is going to, chosen on the
+ * storefront, which pins the address form so a buyer cannot check out to a
+ * country the cart was not priced for.
  */
 export type Destination = "CA" | "US";
-const DESTINATIONS = ["CA", "US"] as const;
-
-interface ShippingRate {
-  readonly amountCents: number;
-  readonly label: string;
-  readonly minDays: number;
-  readonly maxDays: number;
-}
-
-/**
- * Defaults so a fresh checkout can take an order without a dashboard visit.
- * Each is overridable per environment — see {@link SHIPPING_VARIABLES}.
- */
-const DEFAULT_SHIPPING: Record<Destination, ShippingRate> = {
-  CA: { amountCents: 1_200, label: "Standard shipping (Canada)", minDays: 3, maxDays: 8 },
-  US: { amountCents: 2_200, label: "Standard shipping (United States)", minDays: 5, maxDays: 12 },
-};
-
-const SHIPPING_VARIABLES: Record<Destination, string> = {
-  CA: "STORE_SHIPPING_CENTS_CA",
-  US: "STORE_SHIPPING_CENTS_US",
-};
 
 /**
  * Stripe's tax codes for what this store sells.
@@ -117,8 +91,6 @@ const SHIPPING_VARIABLES: Record<Destination, string> = {
  */
 const GOODS_TAX_CODE_VARIABLE = "STORE_TAX_CODE_GOODS";
 const DEFAULT_GOODS_TAX_CODE = "txcd_99999999";
-/** Shipping is itself taxable in Canada, and carries its own code. */
-export const SHIPPING_TAX_CODE = "txcd_92010001";
 
 /** Minor-unit currency all prices are quoted in. */
 const CURRENCY_VARIABLE = "STORE_CURRENCY";
@@ -177,8 +149,6 @@ export class StripeConfig extends Context.Service<
     readonly currency: string;
     /** Stripe tax code applied to garment line items. */
     readonly goodsTaxCode: string;
-    /** The single shipping rate offered for a given destination. */
-    readonly shipping: Record<Destination, ShippingRate>;
   }
 >()("platform.commerce/services/StripeConfig") {
   /**
@@ -252,15 +222,6 @@ export class StripeConfig extends Context.Service<
         Config.withDefault(DEFAULT_GOODS_TAX_CODE),
       );
 
-      const shipping = {} as Record<Destination, ShippingRate>;
-      for (const destination of DESTINATIONS) {
-        const fallback = DEFAULT_SHIPPING[destination];
-        const amountCents = yield* Config.int(SHIPPING_VARIABLES[destination]).pipe(
-          Config.withDefault(fallback.amountCents),
-        );
-        shipping[destination] = { ...fallback, amountCents };
-      }
-
       return StripeConfig.of({
         environment,
         secretKey,
@@ -269,7 +230,6 @@ export class StripeConfig extends Context.Service<
         storefrontUrl: storefrontUrl.replace(/\/+$/, ""),
         currency: currency.toLowerCase(),
         goodsTaxCode,
-        shipping,
       });
     });
 

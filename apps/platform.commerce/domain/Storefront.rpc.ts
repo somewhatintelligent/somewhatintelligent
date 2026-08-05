@@ -36,7 +36,7 @@ export class OrderNotFound extends Schema.TaggedErrorClass<OrderNotFound>()("Ord
   orderNumber: Schema.String,
 }) {}
 
-/** Where a cart is going. Fixes the shipping rate and the address form. */
+/** Where a cart is going. Pins the address form to one country. */
 const Destination = Schema.Literals(["CA", "US"]);
 
 const MediaRole = Schema.Literals(["cover", "gallery", "evidence"]);
@@ -140,10 +140,9 @@ export class StorefrontRpcs extends RpcGroup.make(
        */
       email: Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(254)),
       /**
-       * Chosen on the storefront BEFORE checkout opens, because it decides the
-       * shipping rate and pins the address form to one country. Asking Stripe
-       * to infer it from an address the buyer has not typed yet is not possible,
-       * and offering both rates lets them pick the wrong one.
+       * Chosen on the storefront BEFORE checkout opens, because it pins the
+       * address form to one country. Asking Stripe to infer it from an address
+       * the buyer has not typed yet is not possible.
        */
       destination: Destination,
       /**

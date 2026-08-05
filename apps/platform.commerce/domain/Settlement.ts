@@ -371,7 +371,8 @@ export const settle = Effect.fn("Settlement.settle")(function* (
     /**
      * THE AMOUNTS ACTUALLY CHARGED, copied rather than recomputed.
      *
-     * Shipping is the rate the buyer picked and tax is what the provider
+     * Shipping is whatever the provider charged — zero, with no shipping line
+     * on the session — and tax is what the provider
      * assessed against the address they typed; neither existed when the order
      * row was written, and both are now settled fact. Recomputing either here
      * would produce a second opinion about money that has already moved — and

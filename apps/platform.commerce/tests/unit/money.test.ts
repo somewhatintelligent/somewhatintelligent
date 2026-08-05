@@ -8,13 +8,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import {
-  FREE_SHIPPING_THRESHOLD_CENTS,
-  isNonNegativeInt,
-  qualifiesForFreeShipping,
-  SIZE_ORDER,
-  sortBySize,
-} from "../../core/money.ts";
+import { isNonNegativeInt, SIZE_ORDER, sortBySize } from "../../core/money.ts";
 
 describe("isNonNegativeInt", () => {
   test("accepts zero and positive integers", () => {
@@ -35,20 +29,6 @@ describe("isNonNegativeInt", () => {
   test("rejects non-finite values", () => {
     expect(isNonNegativeInt(Number.NaN)).toBe(false);
     expect(isNonNegativeInt(Number.POSITIVE_INFINITY)).toBe(false);
-  });
-});
-
-describe("free shipping", () => {
-  test("the threshold is inclusive", () => {
-    expect(qualifiesForFreeShipping(FREE_SHIPPING_THRESHOLD_CENTS)).toBe(true);
-  });
-
-  test("one cent short does not qualify", () => {
-    expect(qualifiesForFreeShipping(FREE_SHIPPING_THRESHOLD_CENTS - 1)).toBe(false);
-  });
-
-  test("an empty cart does not qualify", () => {
-    expect(qualifiesForFreeShipping(0)).toBe(false);
   });
 });
 

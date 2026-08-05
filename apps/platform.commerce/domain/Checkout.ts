@@ -54,10 +54,9 @@ export interface PlaceOrderInput {
   /**
    * Where the cart is going, chosen on the storefront before checkout opens.
    *
-   * Required rather than inferred, because it decides the shipping rate and the
-   * countries the address form will accept — and inferring it from an address we
-   * do not have yet is the mistake that lets someone pay Canadian postage to
-   * Texas.
+   * Required rather than inferred, because it pins the countries the address
+   * form will accept — and inferring it from an address we do not have yet is
+   * the mistake that ships a cart to a country it was never priced for.
    */
   readonly destination: Destination;
 }
@@ -119,7 +118,7 @@ const orderWriteStatements = (
     currency,
     /**
      * Shipping, tax and total are deliberately LEFT AT ZERO here. They are not
-     * yet knowable — the buyer has not chosen a rate or entered an address — and
+     * yet knowable — the buyer has not entered an address — and
      * writing a guess would put a number in the books that no receipt agrees
      * with. The settlement path fills all three from the paid event.
      */

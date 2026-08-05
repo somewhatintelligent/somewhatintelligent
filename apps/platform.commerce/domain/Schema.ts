@@ -329,9 +329,10 @@ export const customerOrder = sqliteTable(
     /**
      * STRIPE'S, and zero until the payment settles.
      *
-     * Shipping is a rate the buyer chooses at checkout and tax is computed from
-     * the address they type there — neither exists when the order row is
-     * written. Guessing them here and hoping they match what was charged is how
+     * Tax is computed from the address the buyer types at checkout, and
+     * shipping is whatever the provider reports — zero, since the price
+     * contains it and no session carries a shipping line. Neither exists when
+     * the order row is written. Guessing them here and hoping they match what was charged is how
      * a store's books diverge from its processor's; instead the settlement path
      * copies the amounts that were ACTUALLY charged out of the paid event.
      *

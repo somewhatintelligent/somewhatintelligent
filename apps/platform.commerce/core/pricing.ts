@@ -41,9 +41,9 @@ export interface OrderLine {
  * What this store can price, and nothing more.
  *
  * There is no `shippingCents` and no `totalCents` here, and their absence is
- * the design: shipping is a rate the buyer picks at checkout and tax is
- * computed from the address they type there. Neither is knowable at this point,
- * so neither is guessed. The settled payment reports both.
+ * the design: the price contains shipping, so there is nothing to charge for
+ * it, and tax is computed by the provider from the address the buyer types at
+ * checkout. Neither is knowable here, so neither is guessed.
  */
 export type Totals =
   | {

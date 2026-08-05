@@ -66,9 +66,9 @@ export const getStorefrontProduct = (slug: string): Promise<StorefrontProductDTO
  * PRICES ARE NOT ACCEPTED. Only variant ids and quantities cross; the active
  * release is the price authority and Commerce re-prices the whole cart.
  *
- * `destination` is required BEFORE the payment page opens, because it fixes the
- * shipping rate and pins the address form to one country. Stripe cannot infer
- * it from an address the buyer has not typed yet.
+ * `destination` is required BEFORE the payment page opens, because it pins the
+ * address form to one country. Stripe cannot infer it from an address the buyer
+ * has not typed yet.
  */
 export const placeOrder = (input: {
   email: string;

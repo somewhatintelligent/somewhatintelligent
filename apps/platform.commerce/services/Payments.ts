@@ -43,7 +43,8 @@ export interface Session {
    * WHAT WAS ACTUALLY CHARGED, broken out.
    *
    * Line items are ours; shipping and tax are the provider's, decided from the
-   * rate the buyer picked and the address they typed. All four are zero until a
+   * address they typed; shipping stays zero because no session carries a
+   * shipping line. All four are zero until a
    * session settles, which is exactly why the order row treats them as unknown
    * until then.
    */
@@ -150,9 +151,8 @@ export class Payments extends Context.Service<
       readonly orderId: string;
       readonly orderNumber: string;
       /**
-       * Our line-item total, and NOT what the buyer will be charged — shipping
-       * and tax are added by the provider on top. Passed so the provider can
-       * decide whether the order clears the free-shipping threshold.
+       * Our line-item total, and NOT what the buyer will be charged — tax is
+       * added by the provider on top. Shipping never is: the price contains it.
        */
       readonly subtotalCents: number;
       /**
@@ -169,8 +169,8 @@ export class Payments extends Context.Service<
       readonly email: string;
       /**
        * Where the cart is going, chosen on the storefront before checkout opens.
-       * It fixes both the shipping rate and the countries the address form will
-       * accept, so a buyer cannot pay one country's postage to another's.
+       * It pins the countries the address form will accept, so a cart cannot be
+       * shipped to a country it was not priced for.
        */
       readonly destination: Destination;
       readonly expiresAt: number;
