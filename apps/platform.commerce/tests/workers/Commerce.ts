@@ -17,7 +17,7 @@
  * stack or not.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
-import { Stack } from "alchemy/Stack";
+import { StageTier } from "@swi/infra/StandardizedStage";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -29,14 +29,12 @@ export default class TestCommerceWorker extends Cloudflare.Worker<TestCommerceWo
   "Commerce",
   { main: import.meta.url, workersDev: false },
   Effect.gen(function* () {
-    const { stage } = yield* Stack;
-
     /**
      * Must agree with `tests/workers/Settlement.ts`. A session minted by one
      * provider cannot be settled by the other, so both test entries resolve
      * through the same function and the test stack declares them together.
      */
-    const provider = yield* resolveWithFake(environmentFor(stage));
+    const provider = yield* resolveWithFake(environmentFor(yield* StageTier));
 
     return yield* commerceSurface(provider);
   }).pipe(

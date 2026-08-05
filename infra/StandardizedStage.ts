@@ -13,6 +13,15 @@ import * as Data from "effect/Data";
 const PATTERN =
   /^(production|staging|test|pr_(0|[1-9][0-9]*)|(test|dev|debug)_[a-z0-9][a-z0-9-]*)$/;
 
+/**
+ * Alchemy's sentinel for a stack it evaluates without a plan — `state`, `login`,
+ * `profile show`, `unsafe nuke` all scaffold one to reach the providers and the
+ * state layer. `deploy`, `dev`, `destroy`, `tail`, `logs` and `sync` pass the
+ * real `--stage` through, so nothing that writes arrives here.
+ */
+const SCAFFOLD = "placeholder";
+export type Scaffold = typeof SCAFFOLD;
+
 export type StandardizedStageShape =
   | "production"
   | "staging"
@@ -30,12 +39,12 @@ export const StandardizedStage = Object.assign(
   Brand.make<StandardizedStage>((s) =>
     isStandardizedStage(s) ? true : `"${s}" is not a valid Stage`,
   ),
-  Effectable.Prototype<Effect.Effect<StandardizedStage, never, Alchemy.Stack>>({
+  Effectable.Prototype<Effect.Effect<StandardizedStage | Scaffold, never, Alchemy.Stack>>({
     label: "StandardizedStage",
     evaluate: () =>
       Effect.gen(function* () {
         const { stage } = yield* Alchemy.Stack;
-        return yield* decodeStandardizedStage(stage);
+        return stage === SCAFFOLD ? SCAFFOLD : yield* decodeStandardizedStage(stage);
       }).pipe(Effect.orDie),
   }),
 );
@@ -51,8 +60,13 @@ export class NonstandardStage extends Data.TaggedError("NonstandardStage")<{
 
 export type Tier = "production" | "staging" | "ephemeral";
 
-const tierOf = (stage: StandardizedStage): Tier =>
+export const tierOf = (stage: StandardizedStage): Tier =>
   stage === "production" ? "production" : stage === "staging" ? "staging" : "ephemeral";
+
+export const StageTier: Effect.Effect<Tier, never, Alchemy.Stack> = Effect.gen(function* () {
+  const stage = yield* StandardizedStage;
+  return stage === SCAFFOLD ? "ephemeral" : tierOf(stage);
+});
 
 export class DisallowedStage extends Data.TaggedError("DisallowedStage")<{
   readonly stack: string;
@@ -72,10 +86,11 @@ const decodeStandardizedStage = (
 
 export const guardStage = (
   ...allowed: readonly [Tier, ...Tier[]]
-): Effect.Effect<StandardizedStage, never, Alchemy.Stack> =>
+): Effect.Effect<StandardizedStage | Scaffold, never, Alchemy.Stack> =>
   Effect.gen(function* () {
     const { name } = yield* Alchemy.Stack;
     const stage = yield* StandardizedStage;
+    if (stage === SCAFFOLD) return stage;
     const tier = tierOf(stage);
     return allowed.includes(tier)
       ? stage

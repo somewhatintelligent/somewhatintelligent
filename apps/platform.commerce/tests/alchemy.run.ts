@@ -32,6 +32,7 @@
  * no longer manages.
  */
 import * as Alchemy from "alchemy";
+import { StageTier } from "@swi/infra/StandardizedStage";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Drizzle from "alchemy/Drizzle";
 import * as Output from "alchemy/Output";
@@ -56,7 +57,7 @@ import StorefrontWorker from "./workers/Storefront.ts";
  * which the settlement suite would still pass against, and the end-to-end suite
  * would fail with no indication why.
  */
-const stripeArmed = await Effect.runPromise(StripeDev.armIfDevHost());
+const stripeArmed = await Effect.runPromise(StripeDev.armIfDev());
 
 export default Alchemy.Stack(
   "PlatformCommerceTests",
@@ -65,8 +66,6 @@ export default Alchemy.Stack(
     state: Alchemy.localState(),
   },
   Effect.gen(function* () {
-    const { stage } = yield* Alchemy.Stack;
-
     /**
      * The schema resource resolves FIRST: it regenerates migration SQL when
      * `domain/Schema.ts` drifts, and the database applies whatever is in that
@@ -119,7 +118,7 @@ export default Alchemy.Stack(
      * `listenCommand`. This is here so `alchemy dev` on the test stack behaves
      * like `alchemy dev` on the real one.
      */
-    if (stripeArmed && environmentFor(stage) === "dev") {
+    if (stripeArmed && environmentFor(yield* StageTier) === "dev") {
       yield* StripeDev.forwarder(webhookUrl);
     }
 

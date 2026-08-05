@@ -16,8 +16,8 @@
  * The surface itself is in `SettlementSurface.ts`, shared by both entries.
  */
 import * as Alchemy from "alchemy";
+import { StageTier } from "@swi/infra/StandardizedStage";
 import * as Cloudflare from "alchemy/Cloudflare";
-import { Stack } from "alchemy/Stack";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -90,8 +90,6 @@ export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker
    */
   settlementProps,
   Effect.gen(function* () {
-    const { stage } = yield* Stack;
-
     /**
      * THE SEAM, and nothing downstream knows which side it landed on —
      * `domain/Settlement.ts`, `domain/Reconcile.ts` and `domain/Checkout.ts` all
@@ -101,7 +99,7 @@ export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker
      * environment gate in `settle` reads a constant rather than re-deriving the
      * account from a key on every event.
      */
-    const provider = yield* PaymentsProvider.resolve(environmentFor(stage));
+    const provider = yield* PaymentsProvider.resolve(environmentFor(yield* StageTier));
 
     return yield* settlementSurface(provider);
   }).pipe(

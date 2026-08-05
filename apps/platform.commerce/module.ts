@@ -13,6 +13,7 @@ import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
+import { StageTier } from "@swi/infra/StandardizedStage";
 
 /**
  * Operator console.
@@ -27,7 +28,7 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
 
     const {
       organization: { authDomain },
-    } = yield* CloudflareStack;
+    } = yield* CloudflareStack.stage["production"]!;
 
     return {
       name: `si-commerce-operator-${workerSafeStage(stage)}`,
@@ -43,7 +44,7 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
         POLICY_AUD: access.aud.as<string>() as unknown as string,
         TEAM_DOMAIN: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
         OPERATOR_AUTH: local ? "none" : "access",
-        PAYMENTS_ENVIRONMENT: environmentFor(stage) satisfies StripeEnvironment,
+        PAYMENTS_ENVIRONMENT: environmentFor(yield* StageTier) satisfies StripeEnvironment,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
       },
     };
@@ -55,7 +56,6 @@ export type OperatorEnv = Cloudflare.Workers.InferEnv<Operator>;
 
 // retained as this deploys with site.. probably all to be rehomed later
 export const CommerceModule = Effect.gen(function* () {
-  const { stage } = yield* Alchemy.Stack;
   yield* CommerceSchema;
   const database = yield* CommerceDatabase;
   yield* MediaBucket;
@@ -68,7 +68,7 @@ export const CommerceModule = Effect.gen(function* () {
   const { operator: operatorHost, hooks: hooksHost } = yield* Hostnames;
 
   return {
-    paymentsEnvironment: environmentFor(stage) satisfies StripeEnvironment,
+    paymentsEnvironment: environmentFor(yield* StageTier) satisfies StripeEnvironment,
 
     webhookUrl: Output.interpolate`${Output.map(settlement.url, (url: string | undefined) =>
       url === undefined || url === "" ? `https://${hooksHost}` : url.replace(/\/+$/, ""),

@@ -46,7 +46,7 @@ export default Alchemy.Stack(
     const origin = `https://${apex}`;
     const {
       organization: { authDomain },
-    } = yield* CloudflareStack;
+    } = yield* CloudflareStack.stage["production"]!;
 
     const worker = yield* Cloudflare.Worker("Mezedes", {
       main: path.resolve(import.meta.dirname, "src/server/entry.ts"),

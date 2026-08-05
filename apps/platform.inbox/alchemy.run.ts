@@ -17,7 +17,7 @@ const InboxAccess = Cloudflare.Access.Application(
     const {
       cloudflareIdp: { identityProviderId },
       internalPolicy: { policyId },
-    } = yield* CloudflareStack;
+    } = yield* CloudflareStack.stage["production"]!;
     return {
       type: "self_hosted" as const,
       domain: "mail.somewhatintelligent.ca",
@@ -38,7 +38,7 @@ class Inbox extends Cloudflare.Website.Vite<Inbox>()(
     const path = yield* Path;
     const {
       organization: { authDomain },
-    } = yield* CloudflareStack;
+    } = yield* CloudflareStack.stage["production"]!;
     const { aud } = yield* InboxAccess;
     return {
       name: "agentic-inbox-si",

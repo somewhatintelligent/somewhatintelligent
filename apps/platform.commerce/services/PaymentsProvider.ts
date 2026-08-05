@@ -72,10 +72,9 @@ export const stripeProvider = (config: StripeConfig["Service"]): Provider => ({
  * same thing whichever worker it hit.
  */
 export const unconfigured = (environment: StripeEnvironment, cause: unknown): string => {
-  const names = VARIABLES[environment];
   return (
     `${environment} cannot resolve its Stripe configuration ` +
-    `(${names.secretKey} / ${names.webhookSecret}): ${String(cause)}.`
+    `(${VARIABLES.secretKey} / ${VARIABLES.webhookSecret}): ${String(cause)}.`
   );
 };
 

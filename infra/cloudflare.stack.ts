@@ -50,7 +50,7 @@ export const InternalAccessApplication = (name: string, domain: string) =>
     const {
       cloudflareIdp: { identityProviderId },
       internalPolicy: { policyId },
-    } = yield* CloudflareStack.stage.production;
+    } = yield* CloudflareStack.stage["production"]!;
 
     return yield* Cloudflare.Access.Application(name, {
       domain,

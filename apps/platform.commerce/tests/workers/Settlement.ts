@@ -13,7 +13,7 @@
  * against the fake — taking money and never marking an order paid.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
-import { Stack } from "alchemy/Stack";
+import { StageTier } from "@swi/infra/StandardizedStage";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -25,8 +25,7 @@ export default class TestSettlementWorker extends Cloudflare.Worker<TestSettleme
   "Settlement",
   { main: import.meta.url },
   Effect.gen(function* () {
-    const { stage } = yield* Stack;
-    const provider = yield* resolveWithFake(environmentFor(stage));
+    const provider = yield* resolveWithFake(environmentFor(yield* StageTier));
 
     return yield* settlementSurface(provider);
   }).pipe(

@@ -19,15 +19,19 @@
  *    runs the same command itself against the deployed URL; {@link listenCommand}
  *    is shared by both so there is one definition of what the listener forwards.
  *
- * Everything here is gated on `dev`. Preprod and prod read their secrets from a
- * real endpoint's configuration and never touch this file.
+ * Everything here is gated on `alchemy dev`. Every DEPLOYED stage — ephemeral and
+ * staging as much as production — reads a registered endpoint's signing secret
+ * from its `.env` file and never touches this file.
  *
  * DEPLOY-HOST ONLY — imported by the stack file and the suite, never by a
  * Worker, so Bun's process API is available and none of it can reach a bundle.
  */
+import * as Alchemy from "alchemy";
 import * as Command from "alchemy/Command";
 import * as Output from "alchemy/Output";
+import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
@@ -150,8 +154,20 @@ const cliTestKey = Effect.fn("StripeDev.cliTestKey")(function* () {
     }),
     () => "",
   );
-  return CLI_TEST_KEY.exec(output)?.[1] ?? null;
+  const matched = CLI_TEST_KEY.exec(output)?.[1];
+  return matched === undefined ? null : Redacted.make(matched);
 });
+
+/**
+ * Whether this host was handed a value for `name`.
+ *
+ * Asked of `Config` rather than of `process.env`, so it is the same question,
+ * against the same provider, that the Workers' `Config.redacted` will ask during
+ * the plan. A lookup that answered `yes` here and `no` there — or the reverse —
+ * is how a stack arms itself against one environment and deploys another.
+ */
+const configured = (name: string) =>
+  Effect.map(Config.option(Config.redacted(name)), Option.isSome);
 
 /**
  * Arm the dev environment, and say whether it worked.
@@ -179,15 +195,13 @@ const cliTestKey = Effect.fn("StripeDev.cliTestKey")(function* () {
  * pair without the CLI being installed.
  */
 export const arm = Effect.fn("StripeDev.arm")(function* () {
-  const names = VARIABLES.dev;
-
-  if (!process.env[names.secretKey]) {
+  if (!(yield* configured(VARIABLES.secretKey))) {
     const key = yield* cliTestKey();
-    if (!key) return false;
-    process.env[names.secretKey] = key;
+    if (key === null) return false;
+    process.env[VARIABLES.secretKey] = Redacted.value(key);
   }
 
-  if (!process.env[names.webhookSecret]) {
+  if (!(yield* configured(VARIABLES.webhookSecret))) {
     /**
      * `orDie` rather than a typed failure: a stack's error channel is
      * `ConfigError` and nothing upstream could handle this anyway. A key is
@@ -195,29 +209,33 @@ export const arm = Effect.fn("StripeDev.arm")(function* () {
      * a deploy that stops with the CLI's own message attached.
      */
     const secret = yield* Effect.orDie(printSigningSecret());
-    process.env[names.webhookSecret] = Redacted.value(secret);
+    process.env[VARIABLES.webhookSecret] = Redacted.value(secret);
   }
 
   return true;
 });
 
 /**
- * {@link arm}, but only on a machine that has no preprod or prod secrets.
+ * {@link arm}, but only under `alchemy dev`.
  *
- * A host carrying either of those reads its own variables from a real endpoint's
- * configuration and must never consult a developer's CLI — so the guard belongs
- * beside `arm` rather than restated at every call site. Two entry files run this
- * (the deployed stack and the test stack), and two copies of the condition is
- * one copy that can be wrong.
+ * THE CLI'S SECRET IS LOCAL-ONLY. `stripe listen` signs for a listener forwarding
+ * to a developer's machine and nothing else. Every DEPLOYED stage — ephemeral,
+ * staging, production alike — receives its events from a registered endpoint and
+ * verifies against that endpoint's secret, which dotenvx puts in the environment
+ * before this module loads. Arming a deploy would overwrite a working secret with
+ * one no Stripe endpoint signs with, and every webhook would 400.
  *
- * Returns `true` for a configured non-dev host, because there is nothing to arm
- * and nothing is missing — the caller's question is "may the real provider be
- * used", not "did the CLI run".
+ * `ALCHEMY_DEV` is set by the `alchemy dev` command and by nothing else — not
+ * `deploy`, not `plan`, not a deployed runtime — so it is the seam between the
+ * two, and it is an environment variable rather than a stack service, which is
+ * what makes it readable here at module load. Presence of a key is NOT the seam:
+ * an ephemeral deploy is configured and still must not touch the CLI.
+ *
+ * The non-dev answer is whether the host carries a key at all, because the
+ * caller's question is "may the real provider be used", not "did the CLI run".
  */
-export const armIfDevHost = Effect.fn("StripeDev.armIfDevHost")(function* () {
-  const configured =
-    !!process.env[VARIABLES.preprod.secretKey] || !!process.env[VARIABLES.prod.secretKey];
-  return configured ? true : yield* arm();
+export const armIfDev = Effect.fn("StripeDev.armIfDev")(function* () {
+  return (yield* Alchemy.ALCHEMY_DEV) ? yield* arm() : yield* configured(VARIABLES.secretKey);
 });
 
 /**

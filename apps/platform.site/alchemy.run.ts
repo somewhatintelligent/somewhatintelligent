@@ -10,7 +10,7 @@ import { AuthRouting, SiteModule } from "platform.site/module";
 
 import { Auth } from "platform.auth/alchemy.run";
 
-const stripeArmed = await Effect.runPromise(StripeDev.armIfDevHost());
+const stripeArmed = await Effect.runPromise(StripeDev.armIfDev());
 
 export default Alchemy.Stack(
   "PlatformCommerce",

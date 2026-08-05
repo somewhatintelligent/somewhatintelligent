@@ -21,7 +21,7 @@
  * test stack exercises the same 30 methods this deploys.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
-import { Stack } from "alchemy/Stack";
+import { StageTier } from "@swi/infra/StandardizedStage";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -40,8 +40,6 @@ export default class CommerceWorker extends Cloudflare.Worker<CommerceWorker>()(
    */
   { main: import.meta.url, workersDev: false },
   Effect.gen(function* () {
-    const { stage } = yield* Stack;
-
     /**
      * Checkout mints payment sessions, so Commerce resolves the SAME provider
      * Settlement does, through the same function. They must agree: a session
@@ -49,7 +47,7 @@ export default class CommerceWorker extends Cloudflare.Worker<CommerceWorker>()(
      * checked out against Stripe while settling against something else would
      * take money and never mark an order paid.
      */
-    const provider = yield* PaymentsProvider.resolve(environmentFor(stage));
+    const provider = yield* PaymentsProvider.resolve(environmentFor(yield* StageTier));
 
     return yield* commerceSurface(provider);
   }).pipe(
