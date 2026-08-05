@@ -176,15 +176,9 @@ export const layer = Layer.effect(
               },
             })),
 
-            /**
-             * TAX IS STRIPE'S. `automatic_tax` charges only where the account
-             * holds a registration, so the same code collects GST/HST on a
-             * Canadian address and nothing on an American one until a US
-             * registration is actually added. That threshold decision lives in
-             * the Stripe dashboard, where it can be changed the day it is
-             * crossed, rather than in a deploy.
-             */
-            automatic_tax: { enabled: true },
+            // No automatic_tax until the store holds a registration. The
+            // per-line tax codes are inert without it, so registering at $30k
+            // is `automatic_tax: { enabled: true }` here and nothing else.
             /**
              * NO `shipping_options`, deliberately. The price contains shipping,
              * so there is nothing to charge, nothing to discount, and no line
