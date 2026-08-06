@@ -1,5 +1,5 @@
 import { createStart } from "@tanstack/react-start";
-import { csrfMiddleware, tracingMiddleware } from "@swi/infra/tss";
+import { csrfMiddleware, tracingMiddleware } from "lib.observability/tanstack-start";
 
 /**
  * The console resolves its actor ONCE, at the Worker boundary (`worker.ts`,

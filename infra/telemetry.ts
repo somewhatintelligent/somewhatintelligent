@@ -75,9 +75,10 @@ export const telemetry = () => {
  * standard `OTEL_EXPORTER_*` variables are the documented route in
  * (`Axiom/Dataset.ts`), read back by `signalConfig` as an implicit destination.
  *
- * These are inert on their own. `observe()` from `./observe.ts` is what reads
- * them at runtime — binding them onto a handler that isn't wrapped exports
- * nothing, which is the trap this whole pair exists to close.
+ * These are inert on their own: they are bindings, and a binding nothing reads
+ * exports nothing. Something on the other side has to read them back and open
+ * a span — binding them onto a handler that does not is the trap this whole
+ * pair exists to close.
  */
 export interface TelemetryEnv {
   readonly OTEL_SERVICE_NAME: string;

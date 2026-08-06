@@ -29,6 +29,7 @@
     "effect": "catalog:",
     "lib.better-auth-effect": "workspace:*",
     "lib.better-auth-manifest": "workspace:*",
+    "lib.observability": "workspace:*",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
     "platform.design": "workspace:*",

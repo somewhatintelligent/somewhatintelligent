@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.effect.json",
+  "compilerOptions": {
+    "target": "esnext",
+    /**
+     * `dom` because `tanstack-start/index.ts` is CLIENT-REACHABLE — `app/start.ts` is
+     * shared by both bundles, so anything it imports is compiled for a browser
+     * as well as for workerd. `node` types are here for the two `server.ts` entrypoints alone,
+     * which is the half a browser must never reach.
+     */
+    "lib": ["es2023", "dom"],
+    "moduleDetection": "force",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}

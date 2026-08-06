@@ -1,4 +1,4 @@
-import { observe } from "@swi/infra/observe";
+import { observe } from "lib.observability/server";
 import { authorize, ownerKey, type AuthResult } from "./auth.ts";
 import { serveArtifact } from "./serve.ts";
 import { handleApi } from "./api.ts";

@@ -101,6 +101,24 @@ export default defineConfig({
               patterns: [
                 { group: ["alchemy", "alchemy/*"], message: "ships to a browser" },
                 { group: ["cloudflare:workers"], message: "not available in a client bundle" },
+                /**
+                 * THE SERVER SUBPATHS OF `lib.observability`, because a bare
+                 * specifier launders what the two rules above ban by name.
+                 *
+                 * `lib.observability/server` imports `alchemy/Telemetry` and
+                 * `lib.observability/tanstack-start/server` imports
+                 * `node:async_hooks`; neither string appears in a route that
+                 * imports them, so the patterns above never see it and
+                 * `vp check` passes on exactly the shape that took the console
+                 * down — a client-reachable module reaching a Worker-only API.
+                 *
+                 * The legitimate consumers are the two `app/worker.ts` entries,
+                 * which `excludeFiles` above already exempts.
+                 */
+                {
+                  group: ["lib.observability/server", "lib.observability/tanstack-start/server"],
+                  message: "server-only: reaches alchemy or node:async_hooks",
+                },
               ],
             },
           ],

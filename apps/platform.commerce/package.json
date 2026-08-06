@@ -26,6 +26,7 @@
     "drizzle-orm": "catalog:",
     "effect": "catalog:",
     "jose": "^6.2.2",
+    "lib.observability": "workspace:*",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
     "platform.design": "workspace:*",

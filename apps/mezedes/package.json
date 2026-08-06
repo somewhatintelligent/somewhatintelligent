@@ -17,6 +17,7 @@
     "@swi/infra": "workspace:*",
     "agents": "0.20.1",
     "jose": "6.2.6",
+    "lib.observability": "workspace:*",
     "platform.names": "workspace:*",
     "zod": "4.4.3"
   },

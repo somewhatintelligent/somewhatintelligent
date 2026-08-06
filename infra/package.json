@@ -8,7 +8,6 @@
     "./*": "./*.ts"
   },
   "dependencies": {
-    "@tanstack/react-start": "^1.166.15",
     "alchemy": "catalog:",
     "effect": "catalog:",
     "platform.names": "workspace:*"

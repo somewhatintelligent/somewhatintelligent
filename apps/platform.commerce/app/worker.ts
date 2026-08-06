@@ -16,8 +16,8 @@
  */
 import startEntry from "@tanstack/react-start/server-entry";
 import { toRpcAsync } from "alchemy/Cloudflare/Bridge";
-import { observe } from "@swi/infra/observe";
-import { within } from "@swi/infra/tss";
+import { observe } from "lib.observability/server";
+import { within } from "lib.observability/tanstack-start/server";
 
 import type CommerceWorker from "../workers/Commerce.ts";
 import type { OperatorActor } from "../domain/Contracts.ts";

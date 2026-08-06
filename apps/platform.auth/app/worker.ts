@@ -1,7 +1,7 @@
 import startEntry from "@tanstack/react-start/server-entry";
 import { toRpcAsync } from "alchemy/Cloudflare/Bridge";
-import { observe } from "@swi/infra/observe";
-import { within } from "@swi/infra/tss";
+import { observe } from "lib.observability/server";
+import { within } from "lib.observability/tanstack-start/server";
 import type { IdentitySession } from "./lib/session";
 import type { AppVersion } from "./lib/version";
 import type { IdentityEnv } from "./identity-env";

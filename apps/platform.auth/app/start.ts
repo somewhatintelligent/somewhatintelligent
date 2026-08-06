@@ -1,5 +1,5 @@
 import { createStart } from "@tanstack/react-start";
-import { csrfMiddleware, tracingMiddleware } from "@swi/infra/tss";
+import { csrfMiddleware, tracingMiddleware } from "lib.observability/tanstack-start";
 
 /**
  * The Start instance. It carries no request middleware that touches identity:

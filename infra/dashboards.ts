@@ -174,10 +174,13 @@ export const dashboardDocument = (app: AppDashboard): DashboardProps["dashboard"
 
 /**
  * Server functions ARE the console's business operations — creating a product,
- * refunding an order — so `serverFn <name>` is the business panel, and it
- * exists only because the tracing middleware runs inside TanStack Start where
- * `serverFnMeta` is available. From the Worker boundary these are all one
- * indistinguishable POST.
+ * refunding an order — so `serverFn <name>` is the business panel.
+ *
+ * It reads a NAMING CONVENTION and nothing more: spans whose name starts with
+ * `serverFn ` carry the operation in the remainder. Whatever opens them has to
+ * know which one it is handling; from the Worker boundary these are all one
+ * indistinguishable POST, so a span named only by method and path cannot
+ * populate this panel.
  */
 const operatorServerFunctions = (services: readonly string[]): Chart[] => [
   timeSeries(

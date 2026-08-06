@@ -1,5 +1,6 @@
 /**
- * Telemetry for Workers that alchemy does not wrap.
+ * THE SERVER-ONLY GENERAL ENTRYPOINT — telemetry for Workers alchemy does not
+ * wrap. A browser must never reach this module.
  *
  * `buildEventTelemetry` — the thing that reads `ALCHEMY_OTEL_EXPORTERS` back
  * and flushes what it buffered — is only ever called by alchemy's own runtime
@@ -16,6 +17,11 @@
  * Two services the bridge inherits have to be supplied by hand here:
  * `ConfigProvider` (workerd has no ambient environment, so bound values are
  * unreachable without one over `env`) and `HttpClient` (the OTLP POST itself).
+ *
+ * IMPORTING `alchemy/Telemetry` IS WHY THIS IS A SEPARATE ENTRYPOINT. It is a
+ * legitimate runtime API — the Workers call it correctly and everywhere — but
+ * alchemy is also deploy machinery, and the repo's lint rule bans it from
+ * client code by name. Anything a browser can reach lives in `../index.ts`.
  */
 import { buildEventTelemetry } from "alchemy/Telemetry";
 import * as Cause from "effect/Cause";
@@ -28,68 +34,7 @@ import * as Scope from "effect/Scope";
 import * as Tracer from "effect/Tracer";
 import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
 
-/** Structural, so this module needs no Workers type dependency of its own. */
-interface Waitable {
-  waitUntil(promise: Promise<unknown>): void;
-}
-
-/**
- * Generic in all three parameters so wrapping is signature-transparent. The
- * handlers this wraps do not agree on any of them — Hono's `env` and
- * `executionCtx` are both optional, mezedes' takes a fourth argument its tests
- * inject — and a fixed shape here would reject them on variance rather than on
- * anything real.
- */
-export type FetchHandler<Req = Request, Env = unknown, Ctx = Waitable> = (
-  request: Req,
-  env: Env,
-  ctx: Ctx,
-) => Response | Promise<Response>;
-
-export interface ObserveOptions {
-  /**
-   * Names the span's low-cardinality half. Defaults to {@link templatePath},
-   * which is usually enough; pass one when an app knows its real route table
-   * and wants the template to say so.
-   */
-  readonly route?: (request: Request) => string | undefined;
-  /**
-   * Wraps the handler call with the request's span in hand.
-   *
-   * The handler is opaque to Effect — it is a promise, so nothing inside it can
-   * reach the current span to hang a child off. A framework layer that wants
-   * child spans (`./tss.ts`, for TanStack Start) passes this to stash the scope
-   * somewhere its own middleware can find it.
-   */
-  readonly within?: <A>(scope: SpanScope, body: () => Promise<A>) => Promise<A>;
-}
-
-/** The request's root span, and the telemetry services to run children under. */
-export interface SpanScope {
-  readonly parent: Tracer.AnySpan;
-  readonly context: Context.Context<never>;
-}
-
-/**
- * A path segment that is almost certainly an identifier: digits, a UUID, or
- * any long opaque token. Deliberately conservative — a false positive costs a
- * vaguer span name, a false negative costs an unbounded set of them.
- */
-const VOLATILE =
-  /^(?:\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[\w-]{16,})$/i;
-
-/**
- * Collapse identifiers out of a path so spans aggregate.
- *
- * `/media/01J8XK.../thumb` and `/media/01J8XM.../thumb` are the same operation
- * and have to share a name; left raw, every request becomes its own row and
- * both the dashboards and the monitors below stop meaning anything.
- */
-export const templatePath = (pathname: string): string =>
-  pathname
-    .split("/")
-    .map((segment) => (VOLATILE.test(segment) ? ":id" : segment))
-    .join("/") || "/";
+import { templatePath, type FetchHandler, type ObserveOptions, type Waitable } from "./index.ts";
 
 const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/;
 

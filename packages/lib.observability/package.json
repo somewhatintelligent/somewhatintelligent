@@ -1,0 +1,54 @@
+{
+  "name": "lib.observability",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runtime observability: request tracing for Workers alchemy does not wrap, and the TanStack Start bindings for it.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./server": {
+      "source": "./src/server.ts",
+      "types": "./src/server.ts",
+      "default": "./src/server.ts"
+    },
+    "./tanstack-start": {
+      "source": "./src/tanstack-start/index.ts",
+      "types": "./src/tanstack-start/index.ts",
+      "default": "./src/tanstack-start/index.ts"
+    },
+    "./tanstack-start/server": {
+      "source": "./src/tanstack-start/server.ts",
+      "types": "./src/tanstack-start/server.ts",
+      "default": "./src/tanstack-start/server.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@tanstack/react-start": "^1.166.15",
+    "@types/node": "^26.1.1",
+    "alchemy": "catalog:",
+    "effect": "catalog:",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "@tanstack/react-start": "^1.166.15",
+    "alchemy": "catalog:",
+    "effect": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-start": {
+      "optional": true
+    },
+    "alchemy": {
+      "optional": true
+    }
+  }
+}
