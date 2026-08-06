@@ -31,6 +31,42 @@ interface UserLookup {
   findMany: (query: unknown) => Promise<ReadonlyArray<Record<string, unknown>>>;
 }
 
+/**
+ * The scopes this server grants, and the claims discovery advertises for them.
+ *
+ * Together rather than inline because `advertisedMetadata.claims_supported`
+ * REPLACES the plugin's derived list (see its use below), so this file has to
+ * restate what the plugin would have computed — and what it computes depends on
+ * `AUTH_SCOPES`. Splitting them puts a derivation and its input in two places.
+ *
+ * `OIDC_CLAIMS` is exactly the plugin's own rule for `AUTH_SCOPES`: eight
+ * unconditional claims, plus `email`/`email_verified` because `email` is
+ * granted, plus the four profile claims because `profile` is.
+ * `test/scopes.test.ts` pins both against the resolved configuration, so
+ * changing one and forgetting the other fails before it reaches discovery.
+ */
+export const AUTH_SCOPES = ["openid", "profile", "email", "offline_access"] as const;
+
+const OIDC_CLAIMS = [
+  "sub",
+  "iss",
+  "aud",
+  "exp",
+  "iat",
+  "sid",
+  "scope",
+  "azp",
+  "email",
+  "email_verified",
+  "name",
+  "picture",
+  "family_name",
+  "given_name",
+] as const;
+
+/** Injected by `customIdTokenClaims` / `customUserInfoClaims` below. */
+const CUSTOM_CLAIMS = ["role"] as const;
+
 /** What `databaseHooks.user.create.before` is handed. */
 type NewUser = Record<string, unknown>;
 interface CreateContext {
@@ -100,8 +136,59 @@ export const authConfig = Effect.gen(function* () {
       oauthProvider({
         loginPage: `/sign-in`,
         consentPage: `/consent`,
-        scopes: ["openid", "profile", "email", "offline_access"],
+        scopes: [...AUTH_SCOPES],
         allowPublicClientPrelogin: true,
+        /**
+         * RFC 7591 registration, for SIGNED-IN callers only.
+         *
+         * Off by default upstream, which left `/oauth2/register` mounted and
+         * answering 403 to everyone, and `registration_endpoint` absent from
+         * discovery — so no spec-following client would ever have tried.
+         *
+         * `allowUnauthenticatedClientRegistration` is deliberately NOT set
+         * beside it, and the omission is the security decision in this file.
+         * With it, anyone may mint a client, and `client_name` — which the
+         * caller supplies — is the only thing `_auth/consent.tsx` shows a user
+         * before they grant scopes. That is consent phishing with the server's
+         * own screen. The upstream guards bound what such a client could then
+         * do (public only, no secret, `client_credentials` refused, PKCE
+         * mandatory, `skip_consent` rejected outright) but none of them bound
+         * what it can CLAIM TO BE, which is the part a user acts on.
+         *
+         * MCP wants the flag and it should eventually be on: until then an MCP
+         * client takes a `client_id` registered here once, by hand. Turning it
+         * on is a one-line change AFTER the consent screen distinguishes a
+         * self-registered client from a trusted one.
+         *
+         * Registration is rate limited 5/60s per IP by the plugin itself, so
+         * nothing below adds a rule for it.
+         */
+        allowDynamicClientRegistration: true,
+        /**
+         * The plugin cannot see the host's routing table, so it warns at every
+         * boot that `/.well-known/oauth-authorization-server/api/auth` may not
+         * be reachable. It now is — `servedByAuth` forwards it — and
+         * `integ/oauth-provider.integ.test.ts` asserts a 200 there through the
+         * real ingress. Silenced against that evidence and nothing weaker; a
+         * warning nobody can act on is one everybody learns to scroll past.
+         */
+        silenceWarnings: { oauthAuthServerConfig: true },
+        /**
+         * The advertised claims, RESTATED IN FULL rather than added to.
+         *
+         * The docs say claims here are "in addition to the internally supported
+         * claims". They are not: upstream reads
+         * `advertisedMetadata?.claims_supported ?? claims ?? []`, so naming
+         * `role` alone REPLACES the fourteen the plugin derives from `scopes`
+         * and discovery goes from advertising all of them to advertising one.
+         * Measured against a running server, not reasoned about — and the first
+         * version of this line shipped exactly that regression.
+         *
+         * So the derived set has to be repeated beside the custom one. Both are
+         * `OIDC_CLAIMS` / `CUSTOM_CLAIMS` above, next to the `scopes` that
+         * determine them, because the two lists move together.
+         */
+        advertisedMetadata: { claims_supported: [...OIDC_CLAIMS, ...CUSTOM_CLAIMS] },
         customUserInfoClaims: ({ user }) => ({
           role: (user as Record<string, unknown>).role ?? "user",
         }),
