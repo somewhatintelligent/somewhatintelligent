@@ -4,7 +4,7 @@ import { makeEffectAuth } from "lib.better-auth-effect";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { telemetry } from "@swi/infra/telemetry";
+import { serviceName, telemetry } from "@swi/infra/telemetry";
 
 import { ingress } from "../shared/ingress.ts";
 import { live } from "./capabilities.ts";
@@ -35,6 +35,7 @@ export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
        * Email Sending or every send is refused; see `email/Mail.ts`.
        */
       EMAIL: AuthEmail,
+      ...serviceName("auth"),
     },
   },
   Effect.gen(function* () {
@@ -70,7 +71,7 @@ export default class AuthWorker extends Cloudflare.Worker<AuthWorker>()(
      */
     return { ...methods, fetch: orDieLogged("http handler", auth.http) };
   }).pipe(
-    Effect.provide(Layer.mergeAll(live, telemetry("auth"))),
+    Effect.provide(Layer.mergeAll(live, telemetry())),
     /**
      * The outermost net. Layer construction happens inside `provide`, so a
      * capability that fails or hangs while being built is only visible from

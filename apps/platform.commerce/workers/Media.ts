@@ -27,7 +27,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { telemetry } from "@swi/infra/telemetry";
+import { serviceName, telemetry } from "@swi/infra/telemetry";
 import * as Stream from "effect/Stream";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
@@ -38,7 +38,7 @@ import { Database } from "../services/Database.ts";
 
 export default class MediaWorker extends Cloudflare.Worker<MediaWorker>()(
   "Media",
-  { main: import.meta.url },
+  { main: import.meta.url, env: serviceName("commerce-media") },
   Effect.gen(function* () {
     const resolved = yield* handles;
     const layer = readCapabilities(resolved);
@@ -90,7 +90,7 @@ export default class MediaWorker extends Cloudflare.Worker<MediaWorker>()(
       Layer.mergeAll(
         Cloudflare.D1.QueryDatabaseBinding,
         Cloudflare.R2.ReadWriteBucketBinding,
-        telemetry("commerce-media"),
+        telemetry(),
       ),
     ),
   ),

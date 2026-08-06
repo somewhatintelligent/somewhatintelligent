@@ -17,8 +17,8 @@ import type { MonitorProps } from "alchemy/Axiom";
 
 const TRACES = `['production-traces']`;
 
-/** Same normalisation the dashboards use — see the note in `dashboards.ts`. */
-const NORMALISE = `extend svc = trim(@"""", tostring(['service.name']))`;
+/** Compared literally — see the note on service naming in `dashboards.ts`. */
+const NORMALISE = `extend svc = tostring(['service.name'])`;
 
 const FAILED = `where ['status.code'] == 'ERROR' or toint(['attributes.http.response.status_code']) >= 500`;
 

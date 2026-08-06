@@ -20,7 +20,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { telemetry } from "@swi/infra/telemetry";
+import { serviceName, telemetry } from "@swi/infra/telemetry";
 
 import { Hostnames } from "../hostnames.ts";
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";
@@ -50,15 +50,24 @@ const settlementProps = Effect.gen(function* () {
   const { production, dev: local } = yield* Deployment;
   const { hooks } = yield* Hostnames;
 
+  const env = serviceName("commerce-settlement");
+
   return local
-    ? { main: import.meta.url }
+    ? { main: import.meta.url, env }
     : {
         main: import.meta.url,
         domain: hooks,
         workersDev: false,
+        env,
         ...(production ? { name: adoptName } : {}),
       };
-}) as unknown as { main: string; domain?: string; workersDev?: boolean; name?: string };
+}) as unknown as {
+  main: string;
+  domain?: string;
+  workersDev?: boolean;
+  name?: string;
+  env: { OTEL_SERVICE_NAME: string };
+};
 
 export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker>()(
   "Settlement",
@@ -84,7 +93,7 @@ export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker
         Cloudflare.Queues.WriteQueueBinding,
         Cloudflare.Queues.EventSourceLive,
         Cloudflare.Workers.CronEventSourceLive,
-        telemetry("commerce-settlement"),
+        telemetry(),
       ),
     ),
   ),

@@ -18,36 +18,49 @@ import { Deployment, tierOfName, type Tier } from "./StandardizedStage.ts";
 
 const AT = { stack: "AxiomStack", stage: "production" } as const;
 
-export const Telemetry = (options?: { readonly serviceName?: string }) =>
+const Telemetry = () =>
   Axiom.Telemetry({
     token: Axiom.ApiToken.ref("Ingest", AT),
     traces: Axiom.Dataset.ref("Traces", AT),
     logs: Axiom.Dataset.ref("Logs", AT),
     metrics: Axiom.Dataset.ref("Metrics", AT),
-    serviceName: options?.serviceName,
   });
+
+/**
+ * Name the service. Goes in a Worker's `env`, never through the Layer.
+ *
+ * THE LAYER CANNOT CARRY A NAME CORRECTLY. `layerOtlp` binds `serviceName` with
+ * `rc.set`, which packs every value through `packEnvValue` — `JSON.stringify` —
+ * and nothing unpacks it symmetrically on the way back out. The name therefore
+ * arrives at Axiom wearing literal double quotes (`"commerce"`), which is not a
+ * cosmetic difference: it is a different string, so it does not join, group or
+ * filter with anything written the honest way.
+ *
+ * A plain env var has no packing step, so there is nothing to get wrong.
+ * `defaultServiceName` reads this key first (`Telemetry.ts:112-120`), ahead of
+ * the physical worker name — which also means renaming a Worker no longer
+ * silently renames the service.
+ */
+export const serviceName = (name: string) => ({ OTEL_SERVICE_NAME: name });
 
 /**
  * Telemetry on the tiers that carry real traffic; an ephemeral stage exports
  * nothing, so a sandbox cannot reach the production datasets.
  *
+ * Destinations only — pair it with {@link serviceName} in the Worker's `env`.
+ *
  * The phases need different layers. At DEPLOY the stack is present and the
  * Axiom wrapper resolves its refs into bindings. At RUNTIME there is no stack,
- * and `layerOtlp` ignores its options there and reads the bindings back — so
- * the runtime half needs nothing but the service name.
- *
- * `serviceName` is always passed: unset, alchemy falls back to the physical
- * worker name (`Telemetry.ts:112-120`), so renaming a worker would silently
- * rename the service in Axiom. Stage rides along as `alchemy.stage`.
+ * and `layerOtlp` ignores its options there and reads the bindings back.
  */
-export const telemetry = (serviceName: string) => {
+export const telemetry = () => {
   const forTier = Match.type<Tier>().pipe(
-    Match.whenOr("production", "staging", () => Telemetry({ serviceName })),
+    Match.whenOr("production", "staging", () => Telemetry()),
     Match.orElse(() => Layer.empty),
   );
   return Layer.unwrap(
     Effect.map(Effect.serviceOption(Alchemy.Stack), (stack) =>
-      Option.isNone(stack) ? layerOtlp({ serviceName }) : forTier(tierOfName(stack.value.stage)),
+      Option.isNone(stack) ? layerOtlp({}) : forTier(tierOfName(stack.value.stage)),
     ),
   );
 };

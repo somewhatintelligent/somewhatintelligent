@@ -6,22 +6,19 @@
  * `status.code`, `duration` in NANOSECONDS) are what Axiom's OTel mapping
  * actually produces, not what the OTel spec suggests it might.
  *
- * WHY EVERY QUERY NORMALISES `service.name`. Two code paths set it and they
- * disagree: alchemy's Layer packs the value through `packEnvValue`, so those
- * Workers report a service name with literal double quotes around it
- * (`"commerce"`), while the env-var path used by the Vite-hosted Workers
- * reports it bare (`auth-app`). Trimming quotes is a no-op on an already-bare
- * name, so these queries stay correct once that is unified.
+ * `service.name` is compared literally, with no unquoting step. It briefly
+ * needed one: names set through alchemy's Layer were packed with
+ * `packEnvValue` and arrived wearing double quotes. That is fixed at the source
+ * — every Worker now names itself with a plain env var — so these queries say
+ * what they mean. Spans ingested before the fix carry the quoted name and will
+ * not match; that is a few hours of test traffic and it ages out.
  */
 import type { Chart, LayoutCell } from "alchemy/Axiom";
 
 const TRACES = `['production-traces']`;
 
-/** Bare `svc`, whichever of the two encodings the Worker happens to use. */
-const NORMALISE = `extend svc = trim(@"""", tostring(['service.name']))`;
-
 const scoped = (services: readonly string[]) =>
-  `${TRACES}\n| ${NORMALISE}\n| where svc in (${services.map((s) => `'${s}'`).join(", ")})`;
+  `${TRACES}\n| extend svc = tostring(['service.name'])\n| where svc in (${services.map((s) => `'${s}'`).join(", ")})`;
 
 /**
  * An entry point, not an internal step. Every request produces one `server`
