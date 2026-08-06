@@ -10,7 +10,6 @@ import * as Config from "effect/Config";
 import { Path } from "effect/Path";
 import { PRODUCTION_ZONE } from "platform.names";
 import { Deployment } from "@swi/infra/StandardizedStage";
-import { telemetry } from "@swi/infra/axiom.stack";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
 
 const ARTIFACT_ZONE = "somewhatintelligent.dev";
@@ -104,5 +103,5 @@ export default Alchemy.Stack(
           previews: "p--<token>.<artifactZone>, from the shell",
           artifacts: `https://<slug>.${artifactSuffix}`,
         };
-  }).pipe(Effect.provide(telemetry("mezedes")), Alchemy.AdoptPolicy.adopt(true)),
+  }).pipe(Alchemy.AdoptPolicy.adopt(true)),
 );

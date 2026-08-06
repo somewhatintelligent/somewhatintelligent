@@ -69,6 +69,15 @@ export type Tier = "production" | "staging" | "ephemeral";
 export const tierOf = (stage: StandardizedStage): Tier =>
   stage === "production" ? "production" : stage === "staging" ? "staging" : "ephemeral";
 
+/**
+ * Tier of a raw stage name, for the paths where the stack is only optionally
+ * present — a worker's layers build once at deploy and again per event, and the
+ * second time there is no stack to decode against. An unrecognised name is
+ * ephemeral, which is the safe answer everywhere it is asked.
+ */
+export const tierOfName = (stage: string): Tier =>
+  isStandardizedStage(stage) ? tierOf(stage) : "ephemeral";
+
 export const StageTier: Effect.Effect<Tier, never, Alchemy.Stack> = Effect.gen(function* () {
   return tierOf(yield* StandardizedStage);
 });

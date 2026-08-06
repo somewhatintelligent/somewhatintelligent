@@ -6,7 +6,6 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import { PRODUCTION_ZONE } from "platform.names";
 import { Deployment } from "@swi/infra/StandardizedStage";
-import { telemetry } from "@swi/infra/axiom.stack";
 
 import CommerceWorker from "platform.commerce/workers/Commerce";
 import MediaWorker from "platform.commerce/workers/Media";
@@ -97,7 +96,7 @@ export class Site extends Astro<Site>()(
 export type SiteEnv = Cloudflare.InferEnv<Site>;
 
 export const SiteModule = Effect.gen(function* () {
-  const site = yield* Site.pipe(Effect.provide(telemetry("storefront")));
+  const site = yield* Site;
 
   return { url: site.url.as<string>(), workerName: site.workerName };
 });

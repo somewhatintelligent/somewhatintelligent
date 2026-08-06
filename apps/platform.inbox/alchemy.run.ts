@@ -5,7 +5,6 @@ import * as Effect from "effect/Effect";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
 import { Deployment } from "@swi/infra/StandardizedStage";
-import { telemetry } from "@swi/infra/axiom.stack";
 
 import { Path } from "effect/Path";
 
@@ -72,5 +71,5 @@ export default Alchemy.Stack(
     const access = yield* InboxAccess;
     const site = yield* Inbox;
     return { access, site };
-  }).pipe(Effect.provide(telemetry("inbox")), Alchemy.AdoptPolicy.adopt(true)),
+  }).pipe(Alchemy.AdoptPolicy.adopt(true)),
 );

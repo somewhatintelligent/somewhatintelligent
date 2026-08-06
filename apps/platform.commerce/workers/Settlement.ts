@@ -20,6 +20,8 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
+import { telemetry } from "@swi/infra/telemetry";
+
 import { Hostnames } from "../hostnames.ts";
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";
 import { environmentFor } from "../services/StripeConfig.ts";
@@ -82,6 +84,7 @@ export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker
         Cloudflare.Queues.WriteQueueBinding,
         Cloudflare.Queues.EventSourceLive,
         Cloudflare.Workers.CronEventSourceLive,
+        telemetry("commerce-settlement"),
       ),
     ),
   ),

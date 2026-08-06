@@ -53,19 +53,17 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
 /** The console worker's runtime env, derived from the bindings above. */
 export type OperatorEnv = Cloudflare.Workers.InferEnv<Operator>;
 
-import { telemetry } from "@swi/infra/axiom.stack";
-
 // retained as this deploys with site.. probably all to be rehomed later
 export const CommerceModule = Effect.gen(function* () {
   yield* CommerceSchema;
   const database = yield* CommerceDatabase;
   yield* MediaBucket;
 
-  yield* CommerceWorker.pipe(Effect.provide(telemetry("commerce")));
+  yield* CommerceWorker;
 
-  const settlement = yield* SettlementWorker.pipe(Effect.provide(telemetry("commerce-settlement")));
-  const media = yield* MediaWorker.pipe(Effect.provide(telemetry("commerce-media")));
-  const operator = yield* Operator.pipe(Effect.provide(telemetry("commerce-operator")));
+  const settlement = yield* SettlementWorker;
+  const media = yield* MediaWorker;
+  const operator = yield* Operator;
   const { operator: operatorHost, hooks: hooksHost } = yield* Hostnames;
 
   return {

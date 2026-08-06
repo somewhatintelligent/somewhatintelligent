@@ -17,6 +17,7 @@
     "@better-auth/passkey": "^1.6.25",
     "@react-email/components": "^1.0.1",
     "@react-email/render": "^1.0.0",
+    "@swi/infra": "workspace:*",
     "@tanstack/react-devtools": "^0.10.9",
     "@tanstack/react-router": "^1.167.4",
     "@tanstack/react-router-devtools": "^1.167.0",

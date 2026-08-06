@@ -25,6 +25,8 @@ import { StageTier } from "@swi/infra/StandardizedStage";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
+import { telemetry } from "@swi/infra/telemetry";
+
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";
 import { environmentFor } from "../services/StripeConfig.ts";
 import { commerceSurface } from "./CommerceSurface.ts";
@@ -52,7 +54,11 @@ export default class CommerceWorker extends Cloudflare.Worker<CommerceWorker>()(
     return yield* commerceSurface(provider);
   }).pipe(
     Effect.provide(
-      Layer.mergeAll(Cloudflare.D1.QueryDatabaseBinding, Cloudflare.R2.ReadWriteBucketBinding),
+      Layer.mergeAll(
+        Cloudflare.D1.QueryDatabaseBinding,
+        Cloudflare.R2.ReadWriteBucketBinding,
+        telemetry("commerce"),
+      ),
     ),
   ),
 ) {}

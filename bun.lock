@@ -54,6 +54,7 @@
         "@better-auth/passkey": "^1.6.25",
         "@react-email/components": "^1.0.1",
         "@react-email/render": "^1.0.0",
+        "@swi/infra": "workspace:*",
         "@tanstack/react-devtools": "^0.10.9",
         "@tanstack/react-router": "^1.167.4",
         "@tanstack/react-router-devtools": "^1.167.0",
@@ -181,6 +182,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@astrojs/cloudflare": "^14.1.7",
+        "@swi/infra": "workspace:*",
         "alchemy": "catalog:",
         "astro": "^7",
         "effect": "catalog:",
@@ -202,6 +204,7 @@
       "dependencies": {
         "alchemy": "catalog:",
         "effect": "catalog:",
+        "platform.names": "workspace:*",
       },
       "devDependencies": {
         "typescript": "catalog:",
