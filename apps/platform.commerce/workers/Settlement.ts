@@ -15,8 +15,7 @@
  *
  * The surface itself is in `SettlementSurface.ts`, shared by both entries.
  */
-import * as Alchemy from "alchemy";
-import { StageTier } from "@swi/infra/StandardizedStage";
+import { Deployment, StageTier } from "@swi/infra/StandardizedStage";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -44,50 +43,23 @@ import { settlementSurface } from "./SettlementSurface.ts";
  * `Could not infer Cloudflare Zone for hostname "undefined"` after half the
  * stack has already been created. Measured, on a prod deploy.
  */
+const adoptName = "platformcommerce-settlement-prod-2xmvx22azgjhhcti" as const;
 const settlementProps = Effect.gen(function* () {
-  const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+  const { production, dev: local } = yield* Deployment;
   const { hooks } = yield* Hostnames;
+
   return local
     ? { main: import.meta.url }
-    : { main: import.meta.url, domain: hooks, workersDev: false };
-}) as unknown as { main: string; domain?: string; workersDev?: boolean };
+    : {
+        main: import.meta.url,
+        domain: hooks,
+        workersDev: false,
+        ...(production ? { name: adoptName } : {}),
+      };
+}) as unknown as { main: string; domain?: string; workersDev?: boolean; name?: string };
 
 export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker>()(
   "Settlement",
-  /**
-   * THE ONE WRITE PATH THIS PACKAGE DEPLOYS BEHIND A PUBLIC ADDRESS, and the
-   * reasoning differs from Commerce's rather than contradicting it.
-   *
-   * Commerce keeps no address because it has no authentication of its own — the
-   * binding IS its authorization. This worker's `fetch` has authentication built
-   * in: an HMAC over the raw body, keyed by a secret only Stripe and this
-   * deployment hold. Every other path 404s, and the RPC methods are still
-   * reachable only over a binding.
-   *
-   * It needs an address because a provider cannot call a service binding. The
-   * alternative — proxying raw bodies through another Worker — would move
-   * nothing except the number of hops a signature has to survive intact.
-   *
-   * A DECLARED HOSTNAME, AND `workersDev: false`. This used to answer on
-   * workers.dev, and that address has one disqualifying property: it is derived
-   * from the deploy, so it cannot be known until one has happened. A provider's
-   * endpoint is registered once by hand and then quoted in a dashboard for
-   * years — which made the first deploy a bootstrap loop (the URL needs the
-   * deploy, the deploy needs the signing secret, the secret needs the URL
-   * registered) and every later rename a silent stop to settlement. `hooks.` is
-   * a constant anyone can read off `hostnames.ts` before deploying anything.
-   *
-   * A CUSTOM DOMAIN rather than a zone route: alchemy creates the proxied DNS
-   * record itself, where a route would need one declared beside it — Workers
-   * only run on proxied hostnames — and Cloudflare permits one route per
-   * pattern per zone with no ownership marker, so a route also has to be
-   * adopted rather than created.
-   *
-   * The hostname is claimed by a REAL DEPLOY ONLY. `alchemy dev` serves on a
-   * local port and would otherwise still reconcile the custom domain,
-   * repointing the live `hooks.` record at whatever the dev session happens to
-   * be — which is a live store's payments quietly arriving on a laptop.
-   */
   settlementProps,
   Effect.gen(function* () {
     /**

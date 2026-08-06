@@ -45,19 +45,21 @@ export default CloudflareStack.make(
   }).pipe(Alchemy.AdoptPolicy.adopt(true)),
 );
 
-export const InternalAccessApplication = (name: string, domain: string) =>
+export const InternalAccessApplication = (id: string, domain: string, name?: string) =>
   Effect.gen(function* () {
     const {
       cloudflareIdp: { identityProviderId },
       internalPolicy: { policyId },
     } = yield* CloudflareStack.stage["production"]!;
 
-    return yield* Cloudflare.Access.Application(name, {
+    return yield* Cloudflare.Access.Application(id, {
+      ...(name === undefined ? {} : { name }),
       domain,
       type: "self_hosted",
       allowedIdps: [identityProviderId.as<string>()],
       policies: [policyId.as<string>()],
       autoRedirectToIdentity: true,
       oauthConfiguration: { enabled: true, dynamicClientRegistration: { enabled: true } },
+      adopt: true,
     });
   });

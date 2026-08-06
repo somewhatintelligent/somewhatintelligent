@@ -15,12 +15,12 @@ import { Site } from "./fixture/infra/site.ts";
 
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),
-  state: Cloudflare.state(),
+  state: Alchemy.localState(),
 });
 
 const Stack = Alchemy.Stack(
   "AstroAlchemyFixture",
-  { providers: Cloudflare.providers(), state: Cloudflare.state() },
+  { providers: Cloudflare.providers(), state: Alchemy.localState() },
   Effect.gen(function* () {
     yield* ApiWorker;
     const site = yield* Site;

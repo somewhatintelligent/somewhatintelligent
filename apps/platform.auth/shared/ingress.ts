@@ -37,9 +37,12 @@ export interface Ingress {
   readonly cookieDomain: string | null;
 }
 
+/** The name the live worker already carries, frozen from when the stage was `prod`. */
+export const PRODUCTION_WORKER_NAME = "si-identity-prod";
+
 export const ingress = (stage: string, local: boolean): Ingress => {
-  const name = `si-identity-${workerSafeStage(stage)}`;
   const production = stage === PRODUCTION_STAGE;
+  const name = production ? PRODUCTION_WORKER_NAME : `si-identity-${workerSafeStage(stage)}`;
   const hostname = production ? `${AUTH_SUBDOMAIN}.${PRODUCTION_ZONE}` : null;
   const origin = local
     ? `http://localhost:${DEV_PORT}`

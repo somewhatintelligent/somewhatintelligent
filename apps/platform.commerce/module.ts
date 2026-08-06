@@ -13,7 +13,7 @@ import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
-import { StageTier } from "@swi/infra/StandardizedStage";
+import { Deployment, StageTier } from "@swi/infra/StandardizedStage";
 
 /**
  * Operator console.
@@ -21,8 +21,7 @@ import { StageTier } from "@swi/infra/StandardizedStage";
 export class Operator extends Cloudflare.Website.Vite<Operator>()(
   "CommerceOperator",
   Effect.gen(function* () {
-    const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
-    const { stage } = yield* Alchemy.Stack;
+    const { production, stage, dev: local } = yield* Deployment;
     const { operator } = yield* Hostnames;
     const access = yield* InternalAccessApplication("OperatorAccess", operator);
 
@@ -31,7 +30,7 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
     } = yield* CloudflareStack.stage["production"]!;
 
     return {
-      name: `si-commerce-operator-${workerSafeStage(stage)}`,
+      name: `si-commerce-operator-${production ? "prod" : workerSafeStage(stage)}`,
       rootDir: PACKAGE_DIR,
       main: "./app/worker.ts",
       compatibility: { flags: ["nodejs_compat"] },
@@ -48,11 +47,13 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
       },
     };
-  }).pipe(Effect.orDie),
+  }).pipe(Alchemy.AdoptPolicy.adopt(true), Effect.orDie),
 ) {}
 
 /** The console worker's runtime env, derived from the bindings above. */
 export type OperatorEnv = Cloudflare.Workers.InferEnv<Operator>;
+
+import { telemetry } from "@swi/infra/axiom.stack";
 
 // retained as this deploys with site.. probably all to be rehomed later
 export const CommerceModule = Effect.gen(function* () {
@@ -60,11 +61,11 @@ export const CommerceModule = Effect.gen(function* () {
   const database = yield* CommerceDatabase;
   yield* MediaBucket;
 
-  yield* CommerceWorker;
+  yield* CommerceWorker.pipe(Effect.provide(telemetry("commerce")));
 
-  const settlement = yield* SettlementWorker;
-  const media = yield* MediaWorker;
-  const operator = yield* Operator;
+  const settlement = yield* SettlementWorker.pipe(Effect.provide(telemetry("commerce-settlement")));
+  const media = yield* MediaWorker.pipe(Effect.provide(telemetry("commerce-media")));
+  const operator = yield* Operator.pipe(Effect.provide(telemetry("commerce-operator")));
   const { operator: operatorHost, hooks: hooksHost } = yield* Hostnames;
 
   return {

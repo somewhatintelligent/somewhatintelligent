@@ -24,7 +24,10 @@ export default Alchemy.Stack(
     // `Operator` reaches CloudflareStack itself for the policy and the IdP.
     const commerce = yield* CommerceModule.pipe(Alchemy.AdoptPolicy.adopt(true));
 
-    const site = yield* SiteModule.pipe(Effect.provideService(AuthRouting, auth));
+    const site = yield* SiteModule.pipe(
+      Effect.provideService(AuthRouting, auth),
+      Alchemy.AdoptPolicy.adopt(true),
+    );
 
     if (stripeArmed && commerce.paymentsEnvironment === "dev") {
       yield* StripeDev.forwarder(commerce.webhookUrl);

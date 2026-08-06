@@ -4,7 +4,9 @@ import type * as Output from "alchemy/Output";
 import { Astro } from "lib.astro-alchemy";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import { PRODUCTION_STAGE, PRODUCTION_ZONE } from "platform.names";
+import { PRODUCTION_ZONE } from "platform.names";
+import { Deployment } from "@swi/infra/StandardizedStage";
+import { telemetry } from "@swi/infra/axiom.stack";
 
 import CommerceWorker from "platform.commerce/workers/Commerce";
 import MediaWorker from "platform.commerce/workers/Media";
@@ -41,8 +43,7 @@ export class Site extends Astro<Site>()(
   "Site",
   Effect.gen(function* () {
     const auth = yield* AuthRouting;
-    const local = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
-    const { stage } = yield* Alchemy.Stack;
+    const { production, dev: local } = yield* Deployment;
     /**
      * THE APEX, AND ONLY ON PRODUCTION. Every other stage stays on workers.dev:
      * there is one apex, a second stage claiming it would take the live
@@ -58,9 +59,10 @@ export class Site extends Astro<Site>()(
      * one is detached, this plans a change Cloudflare refuses outright — the
      * same failure `hostnames.ts` records for `desk.`.
      */
-    const claimsApex = !local && stage === PRODUCTION_STAGE;
+    const claimsApex = !local && production;
 
     return {
+      ...(production ? { name: "platformcommerce-site-production-rgrpfsan2olmqfri" } : {}),
       cwd: import.meta.dirname,
       ...(claimsApex ? { domain: PRODUCTION_ZONE } : {}),
       /**
@@ -95,7 +97,7 @@ export class Site extends Astro<Site>()(
 export type SiteEnv = Cloudflare.InferEnv<Site>;
 
 export const SiteModule = Effect.gen(function* () {
-  const site = yield* Site;
+  const site = yield* Site.pipe(Effect.provide(telemetry("storefront")));
 
   return { url: site.url.as<string>(), workerName: site.workerName };
 });

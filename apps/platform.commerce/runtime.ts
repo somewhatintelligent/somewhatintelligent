@@ -18,7 +18,8 @@ import * as Drizzle from "alchemy/Drizzle";
 import { Stack } from "alchemy/Stack";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { PRODUCTION_STAGE, workerSafeStage } from "platform.names";
+import { workerSafeStage } from "platform.names";
+import { Deployment } from "@swi/infra/StandardizedStage";
 
 import { migrationsDir, schemaPath } from "./paths.ts";
 import { Audit } from "./services/Audit.ts";
@@ -57,19 +58,20 @@ export const CommerceSchema = Drizzle.Schema(
  * of them leaves an orphan per stage that nothing will ever clean up.
  */
 export const CommerceDatabase = Effect.gen(function* () {
-  const { stage } = yield* Stack;
+  const { production } = yield* Deployment;
   const schema = yield* CommerceSchema;
   return yield* Cloudflare.D1.Database("CommerceDatabase", {
+    ...(production ? { name: "PlatformCommerce-CommerceDatabase-prod-i5fsgepswzpvwqu7" } : {}),
     migrationsDir: schema.out,
     migrationsTable: "drizzle_migrations",
-  }).pipe(Alchemy.RemovalPolicy.retain(stage === PRODUCTION_STAGE));
+  }).pipe(Alchemy.RemovalPolicy.retain(production));
 });
 
-/** Stage-derived so two stages never share a bucket. */
+/** Stage-derived so two stages never share a bucket. Retained on production: the images are re-uploadable, not regenerable. */
 export const MediaBucket = Cloudflare.R2.Bucket(
   "CommerceMedia",
   Stack.useSync(({ stage }) => ({ name: `si-commerce-media-${workerSafeStage(stage)}` })),
-);
+).pipe(Alchemy.RemovalPolicy.retain(Effect.map(Deployment, (d) => d.production)));
 
 /**
  * Resolve every handle from the bindings.

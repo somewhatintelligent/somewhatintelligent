@@ -3,7 +3,9 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
 
-import { CloudflareStack } from "@swi/infra/cloudflare.stack";
+import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
+import { Deployment } from "@swi/infra/StandardizedStage";
+import { telemetry } from "@swi/infra/axiom.stack";
 
 import { Path } from "effect/Path";
 
@@ -11,25 +13,13 @@ import type { EmailAgent } from "./workers/agent/index.ts";
 import type { MailboxDO } from "./workers/durableObject/index.ts";
 import type { EmailMCP } from "./workers/mcp/index.ts";
 
-const InboxAccess = Cloudflare.Access.Application(
+const MAIL_HOST = "mail.somewhatintelligent.ca";
+
+/** Pinned to what the app is already called, so `production` adopts the live one instead of minting a second. */
+const InboxAccess = InternalAccessApplication(
   "InboxAccess",
-  Effect.gen(function* () {
-    const {
-      cloudflareIdp: { identityProviderId },
-      internalPolicy: { policyId },
-    } = yield* CloudflareStack.stage["production"]!;
-    return {
-      type: "self_hosted" as const,
-      domain: "mail.somewhatintelligent.ca",
-      allowedIdps: [identityProviderId.as<string>()],
-      autoRedirectToIdentity: true,
-      policies: [policyId.as<string>()],
-      oauthConfiguration: {
-        enabled: true,
-        dynamicClientRegistration: { enabled: true },
-      },
-    };
-  }),
+  MAIL_HOST,
+  "AgenticInbox-InboxAccess-dev-stoli-qamzqweyw7kcrmor",
 );
 
 class Inbox extends Cloudflare.Website.Vite<Inbox>()(
@@ -45,18 +35,20 @@ class Inbox extends Cloudflare.Website.Vite<Inbox>()(
       rootDir: import.meta.dirname,
       main: path.join(".", "workers", "app.ts"),
       compatibility: { date: "2025-11-28", flags: ["nodejs_compat"] },
-      domain: "mail.somewhatintelligent.ca",
+      domain: MAIL_HOST,
       workersDev: false,
       observability: { enabled: true },
       env: {
-        DOMAINS: "mail.somewhatintelligent.ca",
+        DOMAINS: MAIL_HOST,
         EMAIL_ADDRESSES: [],
         POLICY_AUD: aud.as<string>(),
         // `authDomain` is bare (`acme.cloudflareaccess.com`); the scheme is
         // what `getAccessUrls` parses and what Access puts in `iss`.
         TEAM_DOMAIN: Output.interpolate`https://${authDomain}`.as<string>(),
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
-        BUCKET: Cloudflare.R2.Bucket("Bucket", { name: "agentic-inbox-si" }),
+        BUCKET: Cloudflare.R2.Bucket("Bucket", { name: "agentic-inbox-si" }).pipe(
+          Alchemy.RemovalPolicy.retain(true),
+        ),
         AI: Cloudflare.AI.Gateway("Ai", { id: "agentic-inbox-si" }),
         EMAIL: Cloudflare.Email.SendEmail("Email"),
         MAILBOX: Cloudflare.DurableObject<MailboxDO>("MailboxDO"),
@@ -76,8 +68,9 @@ export default Alchemy.Stack(
     state: Cloudflare.state(),
   },
   Effect.gen(function* () {
+    yield* Deployment;
     const access = yield* InboxAccess;
     const site = yield* Inbox;
     return { access, site };
-  }).pipe(Alchemy.AdoptPolicy.adopt(true)),
+  }).pipe(Effect.provide(telemetry("inbox")), Alchemy.AdoptPolicy.adopt(true)),
 );

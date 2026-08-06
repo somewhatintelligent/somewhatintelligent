@@ -5,8 +5,10 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Axiom from "alchemy/Axiom";
 
 import { Effect } from "effect";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 
-import { guardStage } from "./StandardizedStage.ts";
+import { Deployment, guardStage, type Tier } from "./StandardizedStage.ts";
 
 const metrics = Axiom.Dataset("Metrics", {
   name: "production-metrics",
@@ -51,3 +53,20 @@ export const Telemetry = (options?: { readonly serviceName?: string }) =>
     metrics: Axiom.Dataset.ref("Metrics", AT),
     serviceName: options?.serviceName,
   });
+
+/**
+ * Telemetry on the tiers that carry real traffic. An ephemeral stage exports
+ * nothing, so a sandbox cannot pollute the production datasets.
+ *
+ * `serviceName` is always passed: unset, alchemy falls back to the physical
+ * worker name (`Telemetry.ts:112-120`), which would rename the service in Axiom
+ * whenever a worker is renamed. Stage is already a separate `alchemy.stage`
+ * attribute, so it does not belong in the name.
+ */
+export const telemetry = (serviceName: string) => {
+  const forTier = Match.type<Tier>().pipe(
+    Match.whenOr("production", "staging", () => Telemetry({ serviceName })),
+    Match.orElse(() => Layer.empty),
+  );
+  return Layer.unwrap(Effect.map(Deployment, ({ tier }) => forTier(tier)));
+};

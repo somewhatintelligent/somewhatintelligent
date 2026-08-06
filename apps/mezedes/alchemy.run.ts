@@ -8,29 +8,39 @@ import type { Env } from "./src/server/env.ts";
 import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import { Path } from "effect/Path";
-import { PRODUCTION_STAGE, PRODUCTION_ZONE } from "platform.names";
+import { PRODUCTION_ZONE } from "platform.names";
+import { Deployment } from "@swi/infra/StandardizedStage";
+import { telemetry } from "@swi/infra/axiom.stack";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
 
 const ARTIFACT_ZONE = "somewhatintelligent.dev";
 const COMPATIBILITY_DATE = "2026-07-01";
 const DEV_PORT = 8787;
 
+/** What production already runs, frozen from when the stage was `prod`. Pinned so `production` adopts rather than creates. */
+const PRODUCTION = {
+  worker: "mezedes-mezedes-prod-peuffagbooojfvyf",
+  blobs: "mezedes-blobs-prod-zo7v2eqbkz5uc2lp",
+  access: "Mezedes-MezedesAccess-prod-u4tujiyz2oidprqf",
+} as const;
+
 const Hostnames = Effect.gen(function* () {
-  const stage = yield* Alchemy.Stage;
+  const { production, suffix, host } = yield* Deployment;
   const zone = yield* Config.string("MEZEDES_ZONE").pipe(Config.withDefault(PRODUCTION_ZONE));
   const artifactZone = yield* Config.string("MEZEDES_ARTIFACT_ZONE").pipe(
     Config.withDefault(ARTIFACT_ZONE),
   );
-  const prod = stage === PRODUCTION_STAGE;
-  const suffix = prod ? "" : `-${stage}`;
   return {
-    apex: `mezedes${suffix}.${zone}`,
-    artifactSuffix: prod ? artifactZone : `a${suffix}.${zone}`,
-    named: prod,
+    apex: host("mezedes", zone),
+    artifactSuffix: production ? artifactZone : `a${suffix}.${zone}`,
+    named: production,
   };
 }).pipe(Effect.orDie);
 
-const Blobs = Cloudflare.R2.Bucket("Blobs");
+const Blobs = Cloudflare.R2.Bucket(
+  "Blobs",
+  Effect.map(Deployment, (d) => (d.production ? { name: PRODUCTION.blobs } : {})),
+).pipe(Alchemy.RemovalPolicy.retain(Effect.map(Deployment, (d) => d.production)));
 
 const OwnerObject = Cloudflare.DurableObject<OwnerClass>("Owner", { className: "Owner" });
 
@@ -40,9 +50,13 @@ export default Alchemy.Stack(
   { providers: Cloudflare.providers(), state: Cloudflare.state() },
   Effect.gen(function* () {
     const path = yield* Path;
-    const dev = yield* Effect.orDie(Alchemy.ALCHEMY_DEV);
+    const { dev } = yield* Deployment;
     const { apex, artifactSuffix, named } = yield* Hostnames;
-    const access = yield* InternalAccessApplication("MezedesAccess", apex);
+    const access = yield* InternalAccessApplication(
+      "MezedesAccess",
+      apex,
+      named ? PRODUCTION.access : undefined,
+    );
     const origin = `https://${apex}`;
     const {
       organization: { authDomain },
@@ -55,6 +69,7 @@ export default Alchemy.Stack(
       dev: { port: DEV_PORT, strictPort: true },
       ...(named
         ? {
+            name: PRODUCTION.worker,
             domain: apex,
             routes: [{ pattern: `*.${artifactSuffix}/*`, zoneName: artifactSuffix }],
           }
@@ -89,5 +104,5 @@ export default Alchemy.Stack(
           previews: "p--<token>.<artifactZone>, from the shell",
           artifacts: `https://<slug>.${artifactSuffix}`,
         };
-  }),
+  }).pipe(Effect.provide(telemetry("mezedes")), Alchemy.AdoptPolicy.adopt(true)),
 );

@@ -17,13 +17,13 @@ const devPath = (rel: string) => fileURLToPath(new URL(`./fixture/${rel}`, impor
 
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),
-  state: Cloudflare.state(),
+  state: Alchemy.localState(),
   dev: true,
 });
 
 const Stack = Alchemy.Stack(
   "AstroAlchemyFixtureDev",
-  { providers: Cloudflare.providers(), state: Cloudflare.state() },
+  { providers: Cloudflare.providers(), state: Alchemy.localState() },
   Effect.gen(function* () {
     const site = yield* Site;
     return { url: site.url.as<string>() };

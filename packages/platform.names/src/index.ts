@@ -14,7 +14,7 @@
  */
 
 /** The stage that owns the real data and the real hostnames. */
-export const PRODUCTION_STAGE = "prod";
+export const PRODUCTION_STAGE = "production";
 
 /** The zone every public somewhatintelligent hostname sits under. */
 export const PRODUCTION_ZONE = "somewhatintelligent.ca";

@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "alchemy": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "platform.names": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:"
