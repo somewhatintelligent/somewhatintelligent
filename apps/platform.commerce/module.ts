@@ -14,6 +14,7 @@ import SettlementWorker from "./workers/Settlement.ts";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
 import { Deployment, StageTier } from "@swi/infra/StandardizedStage";
+import { telemetryEnv } from "@swi/infra/telemetry";
 
 /**
  * Operator console.
@@ -45,6 +46,12 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
         OPERATOR_AUTH: local ? "none" : "access",
         PAYMENTS_ENVIRONMENT: environmentFor(yield* StageTier) satisfies StripeEnvironment,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
+        /**
+         * A `Website.Vite` has no impl Effect for a telemetry Layer to bind
+         * onto, so the exporter arrives as env and `observe()` in
+         * `app/worker.ts` is what reads it. Empty off production and staging.
+         */
+        ...(yield* telemetryEnv("commerce-operator")),
       },
     };
   }).pipe(Alchemy.AdoptPolicy.adopt(true), Effect.orDie),

@@ -16,6 +16,8 @@
  */
 import startEntry from "@tanstack/react-start/server-entry";
 import { toRpcAsync } from "alchemy/Cloudflare/Bridge";
+import { observe } from "@swi/infra/observe";
+import { within } from "@swi/infra/tss";
 
 import type CommerceWorker from "../workers/Commerce.ts";
 import type { OperatorActor } from "../domain/Contracts.ts";
@@ -92,36 +94,43 @@ const serveMedia = async (env: OperatorEnv, mediaId: string): Promise<Response> 
   });
 };
 
+const handler = async (request: Request, env: OperatorEnv): Promise<Response> => {
+  const resolved = await resolveOperator(request, env);
+  if (!resolved.ok) {
+    /**
+     * A misconfiguration is a 500 and a rejection is a 403, and the split is
+     * not cosmetic: a 403 reads as "you are not staff" and sends someone to
+     * fix their Access membership when the DEPLOY is what is broken.
+     */
+    const status = resolved.error === "misconfigured" ? 500 : 403;
+    if (resolved.error === "misconfigured") {
+      console.error("commerce.operator.misconfigured", resolved.message);
+    }
+    return new Response(resolved.message ?? resolved.error, { status });
+  }
+
+  const { pathname } = new URL(request.url);
+  if (request.method === "GET" && pathname.startsWith(MEDIA_PREFIX)) {
+    const mediaId = pathname.slice(MEDIA_PREFIX.length);
+    // One segment, so a nested path cannot be smuggled into the id.
+    if (mediaId !== "" && !mediaId.includes("/")) return serveMedia(env, mediaId);
+  }
+
+  return startEntry.fetch(request, {
+    context: {
+      requestId: crypto.randomUUID(),
+      actor: resolved.value,
+      paymentsEnvironment: env.PAYMENTS_ENVIRONMENT,
+      version: env.CF_VERSION_METADATA,
+    },
+  });
+};
+
+/**
+ * `within` is what connects the two halves: it parks the request's span where
+ * `app/start.ts`'s middleware can find it, so a server function's span nests
+ * under the request rather than starting a trace of its own.
+ */
 export default {
-  async fetch(request: Request, env: OperatorEnv): Promise<Response> {
-    const resolved = await resolveOperator(request, env);
-    if (!resolved.ok) {
-      /**
-       * A misconfiguration is a 500 and a rejection is a 403, and the split is
-       * not cosmetic: a 403 reads as "you are not staff" and sends someone to
-       * fix their Access membership when the DEPLOY is what is broken.
-       */
-      const status = resolved.error === "misconfigured" ? 500 : 403;
-      if (resolved.error === "misconfigured") {
-        console.error("commerce.operator.misconfigured", resolved.message);
-      }
-      return new Response(resolved.message ?? resolved.error, { status });
-    }
-
-    const { pathname } = new URL(request.url);
-    if (request.method === "GET" && pathname.startsWith(MEDIA_PREFIX)) {
-      const mediaId = pathname.slice(MEDIA_PREFIX.length);
-      // One segment, so a nested path cannot be smuggled into the id.
-      if (mediaId !== "" && !mediaId.includes("/")) return serveMedia(env, mediaId);
-    }
-
-    return startEntry.fetch(request, {
-      context: {
-        requestId: crypto.randomUUID(),
-        actor: resolved.value,
-        paymentsEnvironment: env.PAYMENTS_ENVIRONMENT,
-        version: env.CF_VERSION_METADATA,
-      },
-    });
-  },
+  fetch: observe(handler, { within }),
 } satisfies ExportedHandler<OperatorEnv>;

@@ -14,6 +14,7 @@ import { DEV_PORT, ingress } from "./shared/ingress.ts";
 import { authDefines } from "./shared/surfaces.ts";
 
 import { AuthSchema } from "./api/schema.ts";
+import { telemetryEnv } from "@swi/infra/telemetry";
 
 import type { AuthFeatures } from "lib.better-auth-manifest";
 
@@ -41,6 +42,12 @@ class Identity extends Cloudflare.Website.Vite<Identity>()(
         AVATARS: yield* AvatarBucket,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
         ...authDefines(yield* authFeatures),
+        /**
+         * A `Website.Vite` has no impl Effect for a telemetry Layer to bind
+         * onto, so the exporter arrives as env and `observe()` in
+         * `app/worker.ts` is what reads it. Empty off production and staging.
+         */
+        ...(yield* telemetryEnv("auth-app")),
       },
       dev: { port: DEV_PORT, strictPort: true },
       ...(hostname === null ? {} : { domain: hostname }),

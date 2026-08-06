@@ -1,0 +1,224 @@
+/**
+ * One dashboard per app, built from the trace schema rather than guessed at.
+ *
+ * Every panel below was written against a real query run on `production-traces`
+ * — the field names here (`attributes.http.response.status_code`,
+ * `status.code`, `duration` in NANOSECONDS) are what Axiom's OTel mapping
+ * actually produces, not what the OTel spec suggests it might.
+ *
+ * WHY EVERY QUERY NORMALISES `service.name`. Two code paths set it and they
+ * disagree: alchemy's Layer packs the value through `packEnvValue`, so those
+ * Workers report a service name with literal double quotes around it
+ * (`"commerce"`), while the env-var path used by the Vite-hosted Workers
+ * reports it bare (`auth-app`). Trimming quotes is a no-op on an already-bare
+ * name, so these queries stay correct once that is unified.
+ */
+import type { Chart, LayoutCell } from "alchemy/Axiom";
+
+const TRACES = `['production-traces']`;
+
+/** Bare `svc`, whichever of the two encodings the Worker happens to use. */
+const NORMALISE = `extend svc = trim(@"""", tostring(['service.name']))`;
+
+const scoped = (services: readonly string[]) =>
+  `${TRACES}\n| ${NORMALISE}\n| where svc in (${services.map((s) => `'${s}'`).join(", ")})`;
+
+/**
+ * An entry point, not an internal step. Every request produces one `server`
+ * span and any number of `internal` ones, so rate and error panels that forget
+ * this count the same request several times and read high by a factor nobody
+ * can explain later.
+ */
+const ENTRY = `where kind == 'server'`;
+
+/** Nanoseconds is the stored unit; every latency panel reports milliseconds. */
+const MS = `1000000`;
+
+export interface AppDashboard {
+  /** Logical id — the alchemy state key, so it must never change casually. */
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly services: readonly string[];
+  /** Panels specific to what this app is FOR, rather than how fast it is. */
+  readonly business: readonly Chart[];
+}
+
+const statistic = (id: string, name: string, apl: string): Chart => ({
+  id,
+  name,
+  type: "Statistic",
+  query: { apl },
+});
+
+const timeSeries = (id: string, name: string, apl: string): Chart => ({
+  id,
+  name,
+  type: "TimeSeries",
+  query: { apl },
+});
+
+const table = (id: string, name: string, apl: string): Chart => ({
+  id,
+  name,
+  type: "Table",
+  query: { apl },
+});
+
+/**
+ * Pack charts left-to-right on Axiom's 12-column grid, wrapping when a row is
+ * full. Hand-written `x`/`y` for six panels per dashboard is how a layout ends
+ * up with two charts silently stacked on the same cell.
+ */
+const layout = (cells: readonly (readonly [Chart, number, number])[]): LayoutCell[] => {
+  const out: LayoutCell[] = [];
+  let x = 0;
+  let y = 0;
+  let rowHeight = 0;
+  for (const [chart, w, h] of cells) {
+    if (x + w > 12) {
+      x = 0;
+      y += rowHeight;
+      rowHeight = 0;
+    }
+    out.push({ i: chart.id, x, y, w, h });
+    x += w;
+    rowHeight = Math.max(rowHeight, h);
+  }
+  return out;
+};
+
+/**
+ * The panels every app gets: throughput, failure, latency, and where the time
+ * goes. Business panels are appended per app, because "is it healthy" and "is
+ * it doing anything useful" are different questions and only the first one
+ * generalises.
+ */
+const technical = (app: AppDashboard): Chart[] => {
+  const base = scoped(app.services);
+  return [
+    statistic("requests", "Requests", `${base}\n| ${ENTRY}\n| summarize count()`),
+    statistic(
+      "error-rate",
+      "Error rate %",
+      `${base}\n| ${ENTRY}\n| summarize errors = countif(['status.code'] == 'ERROR' or toint(['attributes.http.response.status_code']) >= 500), total = count()\n| extend pct = round(todouble(errors) * 100 / todouble(total), 2)\n| project pct`,
+    ),
+    statistic(
+      "p95",
+      "p95 latency (ms)",
+      `${base}\n| ${ENTRY}\n| summarize p95 = round(percentile(duration, 95) / ${MS}, 1)`,
+    ),
+    timeSeries(
+      "rate-by-route",
+      "Requests by route",
+      `${base}\n| ${ENTRY}\n| summarize count() by bin_auto(_time), tostring(['attributes.http.route'])`,
+    ),
+    timeSeries(
+      "latency-percentiles",
+      "Latency p50 / p95 / p99 (ms)",
+      `${base}\n| ${ENTRY}\n| summarize p50 = percentile(duration, 50) / ${MS}, p95 = percentile(duration, 95) / ${MS}, p99 = percentile(duration, 99) / ${MS} by bin_auto(_time)`,
+    ),
+    timeSeries(
+      "status-classes",
+      "Responses by status class",
+      `${base}\n| ${ENTRY}\n| extend code = toint(['attributes.http.response.status_code'])\n| extend class = case(code < 300, '2xx', code < 400, '3xx', code < 500, '4xx', '5xx')\n| summarize count() by bin_auto(_time), class`,
+    ),
+    table(
+      "slowest",
+      "Slowest operations",
+      `${base}\n| summarize calls = count(), p95_ms = round(percentile(duration, 95) / ${MS}, 1), max_ms = round(max(duration) / ${MS}, 1) by svc, name\n| order by p95_ms desc\n| limit 20`,
+    ),
+    table(
+      "errors",
+      "Recent errors",
+      `${base}\n| where ['status.code'] == 'ERROR' or toint(['attributes.http.response.status_code']) >= 500\n| project _time, svc, name, ['attributes.http.route'], ['attributes.http.response.status_code'], ['status.code'], trace_id\n| order by _time desc\n| limit 50`,
+    ),
+  ];
+};
+
+/**
+ * Build the full Axiom dashboard document for one app.
+ *
+ * `owner: ''` is required, not stylistic — Axiom rejects a per-user owner when
+ * the caller authenticates with an API token, and rewrites this to the
+ * org-shared value. Relative windows must use the `qr-now-*` form; a plain
+ * `now-24h` is refused outright.
+ */
+export const dashboardDocument = (app: AppDashboard) => {
+  const charts = [...technical(app), ...app.business];
+  const sized = charts.map((chart): readonly [Chart, number, number] =>
+    chart.type === "Statistic" ? [chart, 4, 3] : [chart, 6, 6],
+  );
+  return {
+    name: app.title,
+    owner: "",
+    description: app.description,
+    charts,
+    layout: layout(sized),
+    refreshTime: 60 as const,
+    schemaVersion: 2 as const,
+    timeWindowStart: "qr-now-24h",
+    timeWindowEnd: "qr-now",
+  };
+};
+
+/**
+ * Server functions ARE the console's business operations — creating a product,
+ * refunding an order — so `serverFn <name>` is the business panel, and it
+ * exists only because the tracing middleware runs inside TanStack Start where
+ * `serverFnMeta` is available. From the Worker boundary these are all one
+ * indistinguishable POST.
+ */
+const operatorServerFunctions = (services: readonly string[]): Chart[] => [
+  timeSeries(
+    "server-fns",
+    "Console operations",
+    `${scoped(services)}\n| where name startswith 'serverFn '\n| summarize count() by bin_auto(_time), name`,
+  ),
+  table(
+    "server-fn-latency",
+    "Console operations — latency",
+    `${scoped(services)}\n| where name startswith 'serverFn '\n| summarize calls = count(), p95_ms = round(percentile(duration, 95) / ${MS}, 1) by name\n| order by calls desc\n| limit 20`,
+  ),
+];
+
+export const APPS: readonly AppDashboard[] = [
+  {
+    id: "AuthDashboard",
+    title: "Auth",
+    description: "Identity: the better-auth API worker and the account UI in front of it.",
+    services: ["auth", "auth-app"],
+    business: [
+      timeSeries(
+        "auth-operations",
+        "Auth operations",
+        `${scoped(["auth", "auth-app"])}\n| where tostring(['attributes.url.path']) startswith '/api/auth/'\n| summarize count() by bin_auto(_time), tostring(['attributes.url.path'])`,
+      ),
+      timeSeries(
+        "auth-rejections",
+        "Rejected auth attempts (4xx)",
+        `${scoped(["auth", "auth-app"])}\n| extend code = toint(['attributes.http.response.status_code'])\n| where code >= 400 and code < 500\n| summarize count() by bin_auto(_time), code`,
+      ),
+    ],
+  },
+  {
+    id: "CommerceDashboard",
+    title: "Commerce",
+    description:
+      "The order book and catalogue, the settlement webhook, media, and the operator console.",
+    services: ["commerce", "commerce-settlement", "commerce-media", "commerce-operator"],
+    business: [
+      timeSeries(
+        "catalogue-and-orders",
+        "Catalogue & order operations",
+        `${scoped(["commerce"])}\n| where name startswith 'Orders.' or name startswith 'Catalog.' or name startswith 'Storefront.'\n| summarize count() by bin_auto(_time), name`,
+      ),
+      timeSeries(
+        "settlement",
+        "Settlement activity",
+        `${scoped(["commerce-settlement"])}\n| summarize count() by bin_auto(_time), name`,
+      ),
+      ...operatorServerFunctions(["commerce-operator"]),
+    ],
+  },
+];
