@@ -218,6 +218,23 @@ export const APPS: readonly AppDashboard[] = [
         "Settlement activity",
         `${scoped(["commerce-settlement"])}\n| summarize count() by bin_auto(_time), name`,
       ),
+      /**
+       * DELIBERATELY ABSENT: a panel over
+       * `attributes.custom.commerce.settlement.outcome`.
+       *
+       * `Settlement.settle` now annotates its span with that outcome — the one
+       * field separating "we took payment and recorded it" from "we silently
+       * ignored a live event" — and it is queryable ad hoc today. But Axiom
+       * rejects a query naming a field it has never ingested, so the panel
+       * cannot be declared until the first payment settles in production. Add
+       * it then; the shape is:
+       *
+       *   | summarize count() by bin_auto(_time),
+       *       tostring(['attributes.custom.commerce.settlement.outcome'])
+       *
+       * The `SettlementFailure` monitor does not have this problem: it keys on
+       * `status.code`, which every span carries.
+       */
       ...operatorServerFunctions(["commerce-operator"]),
     ],
   },
