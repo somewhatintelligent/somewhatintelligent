@@ -2,6 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
+import { observe } from "@swi/infra/observe";
 import { routeAgentRequest } from "agents";
 import { Hono } from "hono";
 import { jwtVerify, createRemoteJWKSet } from "jose";
@@ -97,9 +98,17 @@ app.all("*", (c) => {
   });
 });
 
-// Export the Hono app as the default export with an email handler
+/**
+ * `observe` reads the `OTEL_EXPORTER_*` bindings back and flushes the request's
+ * spans through `waitUntil`. This is a plain `ExportedHandler`, so alchemy's
+ * runtime bridge never runs for it and nothing else would.
+ *
+ * Only `fetch` is wrapped. `email` is not a request — it has no URL, status or
+ * route, so the HTTP span this opens would be a shape that does not fit; the
+ * inbound-mail path is worth its own instrumentation rather than a borrowed one.
+ */
 export default {
-  fetch: app.fetch,
+  fetch: observe(app.fetch),
   async email(event: { raw: ReadableStream; rawSize: number }, env: Env, ctx: ExecutionContext) {
     try {
       await receiveEmail(event, env, ctx);

@@ -221,4 +221,38 @@ export const APPS: readonly AppDashboard[] = [
       ...operatorServerFunctions(["commerce-operator"]),
     ],
   },
+  /**
+   * Mezedes and the inbox sit behind Access, so their panels stay empty until a
+   * signed-in person actually uses them — the edge rejects everything else
+   * before the Worker runs. Their business panels are keyed on route rather
+   * than on span names: there is no traffic yet to learn the span names from,
+   * and a panel querying a name that turns out not to exist is worse than one
+   * that is merely coarse.
+   */
+  {
+    id: "MezedesDashboard",
+    title: "Mezedes",
+    description: "The artifact shell, its API, and the MCP surface.",
+    services: ["mezedes"],
+    business: [
+      timeSeries(
+        "mezedes-surfaces",
+        "Traffic by surface",
+        `${scoped(["mezedes"])}\n| ${ENTRY}\n| extend path = tostring(['attributes.url.path'])\n| extend surface = case(path startswith '/mcp', 'mcp', path startswith '/api/', 'api', 'shell')\n| summarize count() by bin_auto(_time), surface`,
+      ),
+    ],
+  },
+  {
+    id: "InboxDashboard",
+    title: "Inbox",
+    description: "Agentic mail: the HTTP surface. Inbound mail delivery is not traced yet.",
+    services: ["inbox"],
+    business: [
+      timeSeries(
+        "inbox-routes",
+        "Traffic by route",
+        `${scoped(["inbox"])}\n| ${ENTRY}\n| summarize count() by bin_auto(_time), tostring(['attributes.http.route'])`,
+      ),
+    ],
+  },
 ];

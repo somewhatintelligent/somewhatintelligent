@@ -33,10 +33,17 @@ interface Waitable {
   waitUntil(promise: Promise<unknown>): void;
 }
 
-export type FetchHandler<Env> = (
-  request: Request,
+/**
+ * Generic in all three parameters so wrapping is signature-transparent. The
+ * handlers this wraps do not agree on any of them — Hono's `env` and
+ * `executionCtx` are both optional, mezedes' takes a fourth argument its tests
+ * inject — and a fixed shape here would reject them on variance rather than on
+ * anything real.
+ */
+export type FetchHandler<Req = Request, Env = unknown, Ctx = Waitable> = (
+  request: Req,
   env: Env,
-  ctx: Waitable,
+  ctx: Ctx,
 ) => Response | Promise<Response>;
 
 export interface ObserveOptions {
@@ -131,10 +138,10 @@ const attributes = (request: Request, route: string | undefined) => {
  * but never the reply. `Effect.promise` treats a rejection as a defect, which
  * is why the exit is squashed back into a throw rather than surfaced.
  */
-export const observe = <Env>(
-  handler: FetchHandler<Env>,
+export const observe = <Req extends Request, Env, Ctx extends Waitable | undefined>(
+  handler: FetchHandler<Req, Env, Ctx>,
   options: ObserveOptions = {},
-): FetchHandler<Env> => {
+): FetchHandler<Req, Env, Ctx> => {
   return async (request, env, ctx) => {
     const scope = Scope.makeUnsafe();
     const route = (options.route ?? ((r) => templatePath(new URL(r.url).pathname)))(request);
@@ -179,11 +186,16 @@ export const observe = <Env>(
      * the root span ends, which the tracer does in a task scheduled once the
      * handler resolves. One macrotask separates the two, same as the bridge.
      */
-    ctx.waitUntil(
-      new Promise((resolve) => setTimeout(resolve, 0)).then(() =>
-        Effect.runPromise(Scope.close(scope, Exit.void)),
-      ),
+    const flush = new Promise((resolve) => setTimeout(resolve, 0)).then(() =>
+      Effect.runPromise(Scope.close(scope, Exit.void)),
     );
+    /**
+     * Without a `waitUntil` — Hono types its execution context as optional, and
+     * a direct call in a test has none — the flush is awaited inline instead.
+     * Slower, but the alternative is dropping the spans on the floor.
+     */
+    if (ctx === undefined) await flush;
+    else ctx.waitUntil(flush);
 
     if (Exit.isSuccess(exit)) return exit.value;
     throw Cause.squash(exit.cause);

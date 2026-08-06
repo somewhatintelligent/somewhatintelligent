@@ -1,3 +1,4 @@
+import { observe } from "@swi/infra/observe";
 import { authorize, ownerKey, type AuthResult } from "./auth.ts";
 import { serveArtifact } from "./serve.ts";
 import { handleApi } from "./api.ts";
@@ -60,7 +61,13 @@ export const handle = async (
   return env.ASSETS.fetch(request);
 };
 
-export default { fetch: handle };
+/**
+ * `observe` is what reads the `OTEL_EXPORTER_*` bindings back and flushes the
+ * request's spans through `waitUntil`. This Worker is a plain
+ * `ExportedHandler`, so alchemy's runtime bridge never runs for it and nothing
+ * else would.
+ */
+export default { fetch: observe(handle) };
 
 /** The denial describes OUR configuration, never the caller's token. */
 const refused = (denial: string, detail: string, request: Request): Response => {

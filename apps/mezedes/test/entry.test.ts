@@ -233,7 +233,24 @@ describe("the gate", () => {
 });
 
 describe("the Worker module surface", () => {
-  test("the default export is the fetch handler", () => {
-    expect(worker.fetch).toBe(handle);
+  /**
+   * `handle` is no longer the export itself — `observe` wraps it to open the
+   * request's span and flush it. Identity was only ever standing in for "the
+   * default export routes like `handle` does", so assert that instead: the
+   * wrapper is transparent, and a test that pins identity would forbid ever
+   * wrapping it again.
+   */
+  test("the default export routes through the fetch handler", async () => {
+    expect(typeof worker.fetch).toBe("function");
+
+    const shell = assets();
+    const env = environment("none", shell);
+    const url = "https://mezedes.test/";
+
+    const direct = await handle(new Request(url), env, ctx);
+    const exported = await worker.fetch(new Request(url), env, ctx);
+
+    expect(exported.status).toBe(direct.status);
+    expect(await exported.text()).toBe(await direct.text());
   });
 });

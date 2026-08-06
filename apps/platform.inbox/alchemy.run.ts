@@ -1,3 +1,4 @@
+import { telemetryEnv } from "@swi/infra/telemetry";
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Output from "alchemy/Output";
@@ -53,6 +54,11 @@ class Inbox extends Cloudflare.Website.Vite<Inbox>()(
         MAILBOX: Cloudflare.DurableObject<MailboxDO>("MailboxDO"),
         EMAIL_AGENT: Cloudflare.DurableObject<EmailAgent>("EmailAgent"),
         EMAIL_MCP: Cloudflare.DurableObject<EmailMCP>("EmailMCP"),
+        /**
+         * The exporter as env, read at runtime by `observe()` in
+         * `workers/app.ts`. Empty off production and staging.
+         */
+        ...(yield* telemetryEnv("inbox")),
       },
     };
   }).pipe(Effect.orDie),

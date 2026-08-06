@@ -1,3 +1,4 @@
+import { telemetryEnv } from "@swi/infra/telemetry";
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
@@ -88,6 +89,11 @@ export default Alchemy.Stack(
         TEAM_DOMAIN: Output.interpolate`https://${authDomain}`.as<string>(),
         ARTIFACT_SUFFIX: artifactSuffix,
         SHELL_ORIGIN: origin,
+        /**
+         * The exporter as env, read at runtime by `observe()` in
+         * `src/server/entry.ts`. Empty off production and staging.
+         */
+        ...(yield* telemetryEnv("mezedes")),
       },
     });
     return dev
