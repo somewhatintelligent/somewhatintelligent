@@ -3,6 +3,7 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Drizzle from "alchemy/Drizzle";
 import * as Output from "alchemy/Output";
+import { state } from "@swi/infra/state";
 import { Effect, Layer } from "effect";
 
 import { AvatarBucket } from "./api/avatars.ts";
@@ -62,7 +63,7 @@ export class Auth extends Alchemy.Stack<Auth, AuthRouting>()("SomewhatIntelligen
 
 export default Auth.make(
   {
-    state: Cloudflare.state(),
+    state: state(),
     providers: Layer.mergeAll(Cloudflare.providers(), Drizzle.providers()),
   },
   Effect.gen(function* () {

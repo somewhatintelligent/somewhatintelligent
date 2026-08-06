@@ -6,6 +6,7 @@ import { Database, EmailTemplates, Mail } from "lib.better-auth-effect";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
 import { AuthDatabase } from "./database.ts";
@@ -65,19 +66,25 @@ export const live = Layer.mergeAll(
        * declares none and signs with the stand-in — workerd rejects a
        * `secrets_store_secret` binding outright — but still yields `AuthSecret`
        * so the shared, account-level secret stays in the graph rather than
-       * being deleted as an orphan.
+       * being deleted as an orphan. Yielded before the phase split for that
+       * reason: whether the secret EXISTS is `secret.ts`'s answer, and every
+       * branch below only decides what to do with the one it is handed.
        */
+      const declared = yield* AuthSecret;
+
       if (!globalThis.__ALCHEMY_RUNTIME__) {
-        if (yield* Effect.orDie(ALCHEMY_DEV)) return yield* Effect.as(AuthSecret, UNSIGNED);
-        yield* Cloudflare.SecretsStore.ReadSecret(AuthSecret);
+        // `None` is a sandbox, which declared no secret to bind — see `secret.ts`.
+        if (Option.isNone(declared)) return UNSIGNED;
+        if (yield* Effect.orDie(ALCHEMY_DEV)) return UNSIGNED;
+        yield* Cloudflare.SecretsStore.ReadSecret(declared.value);
         return UNSIGNED;
       }
 
-      const secret = yield* AuthSecret;
+      if (Option.isNone(declared)) return UNSIGNED;
       const env = yield* Cloudflare.Workers.WorkerEnvironment;
-      if (env[secret.LogicalId] === undefined) return UNSIGNED;
+      if (env[declared.value.LogicalId] === undefined) return UNSIGNED;
 
-      const read = yield* Cloudflare.SecretsStore.ReadSecret(AuthSecret);
+      const read = yield* Cloudflare.SecretsStore.ReadSecret(declared.value);
       return { secret: Redacted.value(yield* uncoloured(Effect.orDie(read))) };
     }),
   ),

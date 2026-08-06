@@ -8,6 +8,7 @@ import { CommerceModule } from "platform.commerce/module";
 import * as StripeDev from "platform.commerce/infrastructure/StripeDev";
 import { AuthRouting, SiteModule } from "platform.site/module";
 
+import { state } from "@swi/infra/state";
 import { Auth } from "platform.auth/alchemy.run";
 
 const stripeArmed = await Effect.runPromise(StripeDev.armIfDev());
@@ -16,7 +17,7 @@ export default Alchemy.Stack(
   "PlatformCommerce",
   {
     providers: Layer.mergeAll(Cloudflare.providers(), Drizzle.providers()),
-    state: Cloudflare.state(),
+    state: state(),
   },
   Effect.gen(function* () {
     const auth = yield* Auth;

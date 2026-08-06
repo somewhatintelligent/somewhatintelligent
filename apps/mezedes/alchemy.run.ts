@@ -4,6 +4,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 
 import { InternalAccessApplication, CloudflareStack } from "@swi/infra/cloudflare.stack";
+import { state } from "@swi/infra/state";
 
 import type { Env } from "./src/server/env.ts";
 import * as Output from "alchemy/Output";
@@ -47,7 +48,7 @@ const OwnerObject = Cloudflare.DurableObject<OwnerClass>("Owner", { className: "
 export type { Env };
 export default Alchemy.Stack(
   "Mezedes",
-  { providers: Cloudflare.providers(), state: Cloudflare.state() },
+  { providers: Cloudflare.providers(), state: state() },
   Effect.gen(function* () {
     const path = yield* Path;
     const { dev } = yield* Deployment;
