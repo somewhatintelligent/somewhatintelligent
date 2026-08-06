@@ -1,0 +1,92 @@
+diff --git a/dist/node/internal/Port.mjs b/dist/node/internal/Port.mjs
+index 7efe0b0ec581fdc27691de48b5d14f689d0769e3..60c930b2efc3aa3c4b84ede0aefb612fc8315c0c 100644
+--- a/dist/node/internal/Port.mjs
++++ b/dist/node/internal/Port.mjs
+@@ -3,8 +3,12 @@ import * as Effect from "effect/Effect";
+ import * as Cache from "effect/Cache";
+ import * as Semaphore from "effect/Semaphore";
+ import * as NodeNet from "node:net";
++import * as NodeOs from "node:os";
+ //#region src/internal/Port.ts
+ const MAX_PORT = 65535;
++const HAS_IPV6 = Object.values(NodeOs.networkInterfaces()).flat().some((address) => address?.family === "IPv6");
++/** PATCH: an unreachable host is no evidence about the port — see src/internal/Port.ts. */
++const unprobeable = (error, host) => error.code === "EAFNOSUPPORT" || (host !== undefined && NodeNet.isIPv6(host) && !HAS_IPV6);
+ const HOSTS = /* @__PURE__ */ new Set([
+ 	"0.0.0.0",
+ 	"::",
+@@ -49,8 +53,8 @@ const make = (options) => Effect.gen(function* () {
+ 	});
+ 	const bind = (port, host) => Effect.callback((resume) => {
+ 		const server = NodeNet.createServer();
+-		server.once("error", () => {
+-			server.close(() => resume(Effect.fail(addressInUseError(port))));
++		server.once("error", (error) => {
++			server.close(() => resume(unprobeable(error, host) ? Effect.succeed(port) : Effect.fail(addressInUseError(port))));
+ 		});
+ 		server.listen({
+ 			port,
+diff --git a/src/internal/Port.ts b/src/internal/Port.ts
+index a8642298b7997759fff7b726917ccafa4f9b6eba..2ac594bb3f118ef6a8aa0c4c6e43f29647785670 100644
+--- a/src/internal/Port.ts
++++ b/src/internal/Port.ts
+@@ -2,6 +2,7 @@ import * as Cache from "effect/Cache";
+ import * as Effect from "effect/Effect";
+ import * as Semaphore from "effect/Semaphore";
+ import * as NodeNet from "node:net";
++import * as NodeOs from "node:os";
+ import { ConfigError, SystemError } from "../RuntimeError.shared.ts";
+ 
+ export const MAX_PORT = 65535;
+@@ -32,6 +33,34 @@ const HOSTS: Set<string> = new Set([
+   "0000:0000:0000:0000:0000:0000:0000:0001",
+ ]);
+ 
++const HAS_IPV6 = Object.values(NodeOs.networkInterfaces())
++  .flat()
++  .some((address) => address?.family === "IPv6");
++
++/**
++ * PATCH: did this bind fail because the HOST is unreachable, rather than
++ * because the PORT is taken?
++ *
++ * `bind` below answers every failure with `addressInUseError`, so on a machine
++ * with no IPv6 stack the `::` and `::1` probes — which cannot open a socket at
++ * all — mark EVERY port occupied. `find` then walks to 65535, and `check` (a
++ * `strictPort` dev server) fails with "already in use" against a port nothing
++ * is listening on. A container without IPv6, which is to say a CI runner or a
++ * coding agent's sandbox, cannot run `alchemy dev` at all.
++ *
++ * Read at the failure rather than by pruning `HOSTS` up front, so the answer
++ * comes from what the OS just said. TWO signals, because no single one is
++ * available everywhere: Node codes the failure `EAFNOSUPPORT`, while Bun — what
++ * the local provider host runs under — rejects with `Failed to listen at ::`
++ * and no `code` at all, leaving the interface list as the only way to
++ * recognise a family the machine cannot address.
++ *
++ * An unreachable host is no evidence about the port, so it neither fails the
++ * probe nor counts toward it. On a dual-stack host nothing here is ever true.
++ */
++const unprobeable = (error: NodeJS.ErrnoException, host: string | undefined) =>
++  error.code === "EAFNOSUPPORT" || (host !== undefined && NodeNet.isIPv6(host) && !HAS_IPV6);
++
+ interface PortsOptions {
+   /** Prevents redundant lookups and helps with race conditions; should only be disabled for testing. */
+   readonly cache: boolean;
+@@ -76,8 +105,14 @@ export const make = (options: PortsOptions) =>
+     const bind = (port: number, host?: string) =>
+       Effect.callback<number, ConfigError>((resume) => {
+         const server = NodeNet.createServer();
+-        server.once("error", () => {
+-          server.close(() => resume(Effect.fail(addressInUseError(port))));
++        server.once("error", (error: NodeJS.ErrnoException) => {
++          server.close(() =>
++            resume(
++              unprobeable(error, host)
++                ? Effect.succeed(port)
++                : Effect.fail(addressInUseError(port)),
++            ),
++          );
+         });
+         server.listen({ port, host, exclusive: true }, () => {
+           const { port } = server.address() as NodeNet.AddressInfo;

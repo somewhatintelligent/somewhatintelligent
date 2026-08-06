@@ -70,6 +70,7 @@
     "tailwindcss": "^4"
   },
   "patchedDependencies": {
-    "alchemy@2.0.0-beta.67": "patches/alchemy@2.0.0-beta.67.patch"
+    "alchemy@2.0.0-beta.67": "patches/alchemy@2.0.0-beta.67.patch",
+    "@distilled.cloud/cloudflare-runtime@0.15.0": "patches/@distilled.cloud%2Fcloudflare-runtime@0.15.0.patch"
   }
 }

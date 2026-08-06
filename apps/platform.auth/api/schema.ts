@@ -101,8 +101,20 @@ const layer = GenerateAuthSchema.make(
     return Effect.fn("Auth/GenerateAuthSchema")(function* (given: GenerateAuthSchemaInput) {
       /** Already absolute — see `../paths.ts`. */
       const target = given.out;
-      yield* Effect.promise(() => mkdir(dirname(target), { recursive: true }));
-      yield* Effect.promise(() => writeFile(target, rendered.code, "utf8"));
+
+      /**
+       * ONLY WHEN THE FILE IS NOT ALREADY THE ANSWER. `match` means the bytes
+       * on disk are the ones about to be written, so the write buys nothing but
+       * a new mtime — and `alchemy dev` runs under `bun --watch`, which sees
+       * that as a source change and restarts. On a stage with no recorded state
+       * that is a livelock rather than a slow start: the run is torn down
+       * before the action commits, so the next one is not a noop either, and
+       * the dev server never binds.
+       */
+      if (given.artifact !== "match") {
+        yield* Effect.promise(() => mkdir(dirname(target), { recursive: true }));
+        yield* Effect.promise(() => writeFile(target, rendered.code, "utf8"));
+      }
 
       if (rendered.dangling.length > 0) {
         yield* Effect.logWarning(
@@ -114,7 +126,8 @@ const layer = GenerateAuthSchema.make(
       yield* Effect.log(
         `wrote ${given.out}: ${rendered.tables.length} table(s), ` +
           `${rendered.relations.length} relation(s), ` +
-          `fingerprint ${given.fingerprint.slice(0, 12)}, artifact was ${given.artifact}`,
+          `fingerprint ${given.fingerprint.slice(0, 12)}, artifact was ${given.artifact}` +
+          (given.artifact === "match" ? " (left as-is)" : ""),
       );
 
       return {
