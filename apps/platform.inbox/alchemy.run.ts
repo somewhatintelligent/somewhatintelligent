@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
 import { Deployment } from "@swi/infra/StandardizedStage";
+import { state } from "@swi/infra/state";
 
 import { Path } from "effect/Path";
 
@@ -64,7 +65,7 @@ export default Alchemy.Stack(
   "AgenticInbox",
   {
     providers: Cloudflare.providers(),
-    state: Cloudflare.state(),
+    state: state(),
   },
   Effect.gen(function* () {
     yield* Deployment;

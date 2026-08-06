@@ -18,3 +18,12 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+## Running a stack locally
+
+`LOCAL_STATE=1` keeps alchemy's state in `.alchemy/state`, which is what lets a
+container without state-store credentials run a stack — see `infra/state.ts`.
+
+```sh
+LOCAL_STATE=1 CI=1 CLOUDFLARE_ACCOUNT_ID=<account> bunx alchemy dev apps/<app>/alchemy.run.ts --stage dev_<name>
+```
