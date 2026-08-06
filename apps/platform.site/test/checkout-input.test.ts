@@ -11,7 +11,7 @@ import { parseCheckout, parseOrderLookup } from "../src/core/checkout-input.ts";
 
 const good = {
   email: "Buyer@Example.com",
-  destination: "CA",
+  market: "CA",
   commandId: "01234567-89ab-cdef-0123-456789abcdef",
   items: [{ variantId: "v1", quantity: 2 }],
 };
@@ -35,8 +35,8 @@ describe("parseCheckout", () => {
 
   test("names the field that failed", () => {
     expect(parseCheckout({ ...good, email: "x" })).toMatchObject({ error: "invalid_email" });
-    expect(parseCheckout({ ...good, destination: "MX" })).toMatchObject({
-      error: "invalid_destination",
+    expect(parseCheckout({ ...good, market: "MX" })).toMatchObject({
+      error: "invalid_market",
     });
     expect(parseCheckout({ ...good, commandId: "short" })).toMatchObject({
       error: "invalid_command_id",
@@ -49,9 +49,11 @@ describe("parseCheckout", () => {
     expect(parseCheckout({ ...good, email })).toMatchObject({ error: "invalid_email" });
   });
 
-  test("only the two destinations that have a shipping rate", () => {
-    expect(parseCheckout({ ...good, destination: "US" }).ok).toBe(true);
-    expect(parseCheckout({ ...good, destination: "ca" }).ok).toBe(false);
+  test("only the two markets the shop actually sells in", () => {
+    expect(parseCheckout({ ...good, market: "US" }).ok).toBe(true);
+    // Exact match, not a case-insensitive one — the market is a constant the
+    // catalogue is priced in, not free text the buyer types.
+    expect(parseCheckout({ ...good, market: "ca" }).ok).toBe(false);
   });
 
   test("a cart above the line cap is refused here rather than 500ing in D1", () => {

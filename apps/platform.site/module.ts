@@ -1,7 +1,6 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import type * as Output from "alchemy/Output";
-import { Astro } from "lib.astro-alchemy";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import { PRODUCTION_ZONE } from "platform.names";
@@ -34,11 +33,11 @@ export class AuthRouting extends Context.Service<
  * recover the shape `InferEnv` needs, and no stack-name string that no import
  * graph can check.
  *
- * THE BARE CLASS, NOT A YIELDED VALUE. `lib.astro-alchemy`'s own fixture binds
- * `API: ApiWorker` this way and is the shape its tests prove; the deploy path
- * resolves a class-form declaration itself.
+ * THE BARE CLASS, NOT A YIELDED VALUE. The deploy path resolves a class-form
+ * declaration itself, so the binding carries the Worker's type without this
+ * module having to yield it first.
  */
-export class Site extends Astro<Site>()(
+export class Site extends Cloudflare.Website.Astro<Site>()(
   "Site",
   Effect.gen(function* () {
     const auth = yield* AuthRouting;
@@ -62,7 +61,21 @@ export class Site extends Astro<Site>()(
 
     return {
       ...(production ? { name: "platformcommerce-site-production-rgrpfsan2olmqfri" } : {}),
-      cwd: import.meta.dirname,
+      rootDir: import.meta.dirname,
+      /**
+       * Astro's session API is backed by KV, and the resource provisions a
+       * namespace for it unless told otherwise. THIS SITE KEEPS NO SESSION —
+       * `src/pages/cart/index.astro` says why, at length — so accepting the
+       * default would stand up a namespace in every stage that nothing ever
+       * reads.
+       */
+      sessionKVBindingName: false,
+      /**
+       * Pinned, not inherited. The retired resource forced this date and the
+       * Worker has only ever run under it; alchemy's own default is earlier,
+       * so leaving it off would quietly move the runtime backwards.
+       */
+      compatibility: { date: "2026-04-15" },
       ...(claimsApex ? { domain: PRODUCTION_ZONE } : {}),
       /**
        * Left ON even when the apex is claimed. The storefront is the one
@@ -71,7 +84,6 @@ export class Site extends Astro<Site>()(
        * `SiteModule` still has a URL to publish on every stage.
        */
       workersDev: true,
-      adapter: { imageService: "passthrough" },
       env: {
         AUTH_ORIGIN: auth.origin.as<string>(),
         /**

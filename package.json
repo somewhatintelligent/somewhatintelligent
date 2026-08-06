@@ -45,10 +45,10 @@
   "catalog": {
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.7",
     "vite-plus": "0.2.7",
-    "alchemy": "2.0.0-beta.67",
-    "effect": "4.0.0-beta.101",
-    "@effect/platform-bun": "4.0.0-beta.101",
-    "@effect/platform-node": "4.0.0-beta.101",
+    "alchemy": "2.0.0-beta.70",
+    "effect": "4.0.0-beta.102",
+    "@effect/platform-bun": "4.0.0-beta.102",
+    "@effect/platform-node": "4.0.0-beta.102",
     "@effect/tsgo": "0.26.7",
     "typescript": "7.0.2",
     "oxlint": "1.76.0",
@@ -70,7 +70,6 @@
     "tailwindcss": "^4"
   },
   "patchedDependencies": {
-    "alchemy@2.0.0-beta.67": "patches/alchemy@2.0.0-beta.67.patch",
-    "@distilled.cloud/cloudflare-runtime@0.15.0": "patches/@distilled.cloud%2Fcloudflare-runtime@0.15.0.patch"
+    "@distilled.cloud/cloudflare-runtime@0.16.1": "patches/@distilled.cloud%2Fcloudflare-runtime@0.16.1.patch"
   }
 }

@@ -13,7 +13,7 @@
  * what they mean. Spans ingested before the fix carry the quoted name and will
  * not match; that is a few hours of test traffic and it ages out.
  */
-import type { Chart, LayoutCell } from "alchemy/Axiom";
+import type { Chart, DashboardProps, LayoutCell } from "alchemy/Axiom";
 
 const TRACES = `['production-traces']`;
 
@@ -140,8 +140,11 @@ const technical = (app: AppDashboard): Chart[] => {
  * the caller authenticates with an API token, and rewrites this to the
  * org-shared value. Relative windows must use the `qr-now-*` form; a plain
  * `now-24h` is refused outright.
+ *
+ * The return type is pinned to what `Axiom.Dashboard` accepts so a drift in
+ * either direction is a compile error here rather than a rejected write.
  */
-export const dashboardDocument = (app: AppDashboard) => {
+export const dashboardDocument = (app: AppDashboard): DashboardProps["dashboard"] => {
   const charts = [...technical(app), ...app.business];
   const sized = charts.map((chart): readonly [Chart, number, number] =>
     chart.type === "Statistic" ? [chart, 4, 3] : [chart, 6, 6],
@@ -150,7 +153,17 @@ export const dashboardDocument = (app: AppDashboard) => {
     name: app.title,
     owner: "",
     description: app.description,
-    charts,
+    /**
+     * The one cast, and only because alchemy beta 68 stopped narrowing
+     * `DashboardProps` to its own {@link Chart} / {@link LayoutCell} — those
+     * declare their nested arrays `readonly` (`SmartFilterChart.filters`),
+     * while the generated Axiom schema types them mutable, and `readonly T[]`
+     * does not flow into `T[]`. A compile-time variance difference only: the
+     * JSON these produce is byte-identical, and nothing downstream mutates
+     * them. Authoring stays on alchemy's union, which is the narrower and
+     * better-documented of the two.
+     */
+    charts: charts as DashboardProps["dashboard"]["charts"],
     layout: layout(sized),
     refreshTime: 60 as const,
     schemaVersion: 2 as const,
