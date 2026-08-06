@@ -23,7 +23,7 @@
  * Astro site's Worker sets no `nodejs_compat` flag, and a static import there
  * would fail at module load. Both Start apps set it.
  */
-import { createMiddleware } from "@tanstack/react-start";
+import { createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -96,6 +96,36 @@ export const span = async <A>(
  * aggregate. Server functions name themselves, which is the whole reason to be
  * in here rather than at the Worker boundary.
  */
+/**
+ * The CSRF protection Start installs by itself — put back.
+ *
+ * `createStartHandler.ts` reads
+ * `hasStartInstance ? startOptions.requestMiddleware : [defaultCsrfMiddleware]`,
+ * so defining a `start.ts` AT ALL replaces the default rather than adding to
+ * it. Both apps defined one that returned `{}`, which read as "no options" and
+ * silently meant "no CSRF" — and the warning about it is behind
+ * `NODE_ENV !== 'production'`, so production never said a word.
+ *
+ * The filter is the same one Start's own default uses, so this restores
+ * exactly what was lost and no more: server-function calls are checked, page
+ * requests are not.
+ *
+ * WHAT IT ACTUALLY ENFORCES, in order — `Sec-Fetch-Site` must be `same-origin`
+ * if present; failing that `Origin` must equal the request origin; failing that
+ * `Referer` must be same-origin; and a request carrying none of the three is
+ * REFUSED, because `allowRequestsWithoutOriginCheck` defaults to false. Every
+ * browser sends the first header on a same-origin `fetch`, which is what a
+ * server function is, so ordinary use is unaffected. A caller that sends none
+ * of them — curl, a script — now gets a 403 on server functions.
+ *
+ * It cannot reach the identity API. `app/worker.ts` answers `/api/auth/*` from
+ * the AUTH binding and returns BEFORE `startEntry.fetch`, so better-auth's
+ * bearer, API-key and passkey clients never pass through here at all.
+ */
+export const csrfMiddleware = createCsrfMiddleware({
+  filter: (ctx) => ctx.handlerType === "serverFn",
+});
+
 export const tracingMiddleware = createMiddleware().server(
   ({ next, request, pathname, handlerType, serverFnMeta }) =>
     span(

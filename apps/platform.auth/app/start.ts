@@ -1,5 +1,5 @@
 import { createStart } from "@tanstack/react-start";
-import { tracingMiddleware } from "@swi/infra/tss";
+import { csrfMiddleware, tracingMiddleware } from "@swi/infra/tss";
 
 /**
  * The Start instance. It carries no request middleware that touches identity:
@@ -11,6 +11,11 @@ import { tracingMiddleware } from "@swi/infra/tss";
  * about the request — method, route, which server function — and never touches
  * the session or the data a server function was called with.
  */
+/**
+ * Tracing wraps CSRF, not the other way round: a refused request is exactly the
+ * one worth seeing, and this order is what puts the rejected server function's
+ * name on a span instead of leaving a bare 403 with nothing attached to it.
+ */
 export const startInstance = createStart(() => ({
-  requestMiddleware: [tracingMiddleware],
+  requestMiddleware: [tracingMiddleware, csrfMiddleware],
 }));
