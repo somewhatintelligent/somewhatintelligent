@@ -44,6 +44,3 @@ export const SHIPPING_RATE_MINOR_UNITS = 0;
 
 /** `/refunds`: "Say something within 30 days of delivery". */
 export const RETURN_WINDOW_DAYS = 30;
-
-/** The markets shipped to at all. `/shipping`: "We ship to Canada and the United States." */
-export const SHIPPING_COUNTRIES: readonly MarketCode[] = ["CA", "US"];

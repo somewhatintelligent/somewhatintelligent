@@ -11,7 +11,7 @@ import type { APIRoute } from "astro";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
 import { productMarkdown } from "../../core/page-markdown.ts";
 import { getStorefrontProduct } from "../../lib/commerce.ts";
-import { markdownResponse } from "../../lib/markdown-response.ts";
+import { markdownResponse } from "../../lib/text-response.ts";
 
 export const prerender = false;
 

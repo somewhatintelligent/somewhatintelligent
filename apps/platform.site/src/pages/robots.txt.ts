@@ -16,7 +16,10 @@
  */
 import type { APIRoute } from "astro";
 
+import { brand } from "platform.design/logo";
+
 import { absoluteUrl, isProductionHost } from "../core/site.ts";
+import { CACHE_HOURLY, textResponse } from "../lib/text-response.ts";
 
 export const prerender = false;
 
@@ -85,42 +88,37 @@ const group = (agents: readonly string[]): string =>
     ...DISALLOW.map((path) => `Disallow: ${path}`),
   ].join("\n");
 
+/**
+ * Both groups are CONSTANT — only the `Sitemap:` line varies with the request —
+ * so they are built once at module scope rather than on every hit of the path
+ * crawlers hammer hardest.
+ */
+const PRODUCTION_PREAMBLE = [
+  `# ${brand.wordmarkFull} — objects, systems, texts`,
+  "#",
+  "# Content signals below follow the Cloudflare Content Signals Policy:",
+  "# https://contentsignals.org/",
+  "",
+  group(["*"]),
+  "",
+  "# Named so the choice is on the record rather than inherited. These",
+  "# groups do not merge with the one above — see the module comment.",
+  group(AI_AGENTS),
+  "",
+].join("\n");
+
+const STAGE_BODY = [
+  "# Not the published site. Every stage answers on a workers.dev host and",
+  "# must stay out of every index, or it competes with the real storefront.",
+  "User-agent: *",
+  "Disallow: /",
+  "",
+].join("\n");
+
 export const GET: APIRoute = ({ url }) => {
-  const origin = url.origin;
-
   const body = isProductionHost(url.hostname)
-    ? [
-        "# somewhatintelligent — objects, systems, texts",
-        "#",
-        "# Content signals below follow the Cloudflare Content Signals Policy:",
-        "# https://contentsignals.org/",
-        "",
-        group(["*"]),
-        "",
-        "# Named so the choice is on the record rather than inherited. These",
-        "# groups do not merge with the one above — see the module comment.",
-        group(AI_AGENTS),
-        "",
-        `Sitemap: ${absoluteUrl(origin, "/sitemap.xml")}`,
-        "",
-      ].join("\n")
-    : [
-        "# Not the published site. Every stage answers on a workers.dev host and",
-        "# must stay out of every index, or it competes with the real storefront.",
-        "User-agent: *",
-        "Disallow: /",
-        "",
-      ].join("\n");
+    ? `${PRODUCTION_PREAMBLE}Sitemap: ${absoluteUrl(url.origin, "/sitemap.xml")}\n`
+    : STAGE_BODY;
 
-  return new Response(body, {
-    headers: {
-      "content-type": "text/plain; charset=utf-8",
-      /**
-       * An hour. Long enough that a crawl storm does not re-render this, short
-       * enough that flipping a signal takes effect the same afternoon —
-       * robots.txt is the file you most want to be able to change quickly.
-       */
-      "cache-control": "public, max-age=3600",
-    },
-  });
+  return textResponse(body, { type: "text/plain", maxAge: CACHE_HOURLY });
 };

@@ -24,6 +24,10 @@
  *   `gtin` / `mpn`                — these objects have neither. A made-up
  *                                   identifier is worse than none.
  */
+import type { StorefrontProductDTO } from "platform.commerce/contracts";
+import { brand } from "platform.design/logo";
+import { SOCIAL_PROFILES, SUPPORT_EMAIL } from "platform.names";
+
 import type { MarketCode } from "./market.ts";
 import {
   HANDLING_DAYS,
@@ -38,23 +42,17 @@ export type JsonLdNode = Record<string, unknown>;
 /** Schema.org enumeration members are IRIs, not bare words. Google matches on the full URL. */
 const SCHEMA = "https://schema.org";
 
-export const BRAND_NAME = "somewhatintelligent";
-export const SUPPORT_EMAIL = "hello@somewhatintelligent.ca";
-
 /**
- * The profiles that are the same person as this site — the machine-readable
- * half of the `rel="me"` links `SiteFooter` already renders. Keep the two in
- * step: they are one claim made twice, and a claim made in only one of the two
- * places is the one an identity verifier disbelieves.
+ * THE WORDMARK, READ RATHER THAN RETYPED. It is the same string the cards draw
+ * and the header prints, and `platform.design/logo` is the file a reskin edits.
+ * A JSON-LD copy is the one nobody looks at, so it is the copy that would have
+ * outlived a rename.
  */
-export const SAME_AS: readonly string[] = [
-  "https://github.com/somewhatintelligent/somewhatintelligent",
-  "https://instagram.com/somewhatintelligent",
-];
+export const BRAND_NAME = brand.wordmarkFull;
 
 /** Stable `@id`s, so every page refers to one organization rather than describing many. */
-export const organizationId = (origin: string): string => `${origin}/#organization`;
-export const webSiteId = (origin: string): string => `${origin}/#website`;
+const organizationId = (origin: string): string => `${origin}/#organization`;
+const webSiteId = (origin: string): string => `${origin}/#website`;
 const productId = (origin: string, slug: string): string =>
   `${absoluteUrl(origin, `/shop/${slug}`)}#product`;
 
@@ -86,7 +84,12 @@ export const organization = (origin: string): JsonLdNode => ({
   },
   image: absoluteUrl(origin, "/og/opengraph-image.png"),
   email: SUPPORT_EMAIL,
-  sameAs: [...SAME_AS],
+  /**
+   * The same list `SiteFooter` renders as `rel="me"` links — one claim, made in
+   * two vocabularies, from one source. Made twice from two sources is how the
+   * JSON-LD ends up asserting a profile the footer no longer links.
+   */
+  sameAs: SOCIAL_PROFILES.map((profile) => profile.url),
 });
 
 /**
@@ -192,46 +195,53 @@ export const availabilityIri = (available: boolean): string =>
 
 interface OfferInput {
   readonly origin: string;
-  readonly slug: string;
+  readonly url: string;
   readonly priceCents: number;
   readonly currency: string;
-  readonly market: MarketCode;
+  /**
+   * The two policy nodes, built ONCE per page and shared by every variant's
+   * offer. They are the same five and six fields whatever size is being
+   * described, and rebuilding them per variant meant ~50 redundant objects on a
+   * five-size product. `JSON.stringify` expands the shared reference back out,
+   * so the wire form is unchanged — the duplication there is schema.org's, not
+   * ours to remove.
+   */
+  readonly shipping: JsonLdNode;
+  readonly returns: JsonLdNode;
   readonly available: boolean;
 }
 
 const offer = ({
   origin,
-  slug,
+  url,
   priceCents,
   currency,
-  market,
+  shipping,
+  returns,
   available,
 }: OfferInput): JsonLdNode => ({
   "@type": "Offer",
-  url: absoluteUrl(origin, `/shop/${slug}`),
+  url,
   price: majorUnits(priceCents),
   priceCurrency: isoCurrency(currency),
   availability: availabilityIri(available),
   itemCondition: `${SCHEMA}/NewCondition`,
   seller: { "@id": organizationId(origin) },
-  shippingDetails: shippingDetails(market, currency),
-  hasMerchantReturnPolicy: returnPolicy(market),
+  shippingDetails: shipping,
+  hasMerchantReturnPolicy: returns,
 });
 
-/** The subset of a storefront product this module reads. */
-export interface ProductInput {
-  readonly slug: string;
-  readonly title: string;
-  readonly priceCents: number;
-  readonly currency: string;
-  readonly version: string;
-  readonly media: readonly { readonly href: string; readonly alt: string }[];
-  readonly variants: readonly {
-    readonly id: string;
-    readonly size: string;
-    readonly available: boolean;
-  }[];
-}
+/**
+ * The subset of a storefront product this module reads, named against the wire
+ * contract rather than restated — `core/product-view.ts` makes the same trade,
+ * and `platform.commerce/domain/Contracts.ts` calls hand-written DTO twins the
+ * mistake it exists to fix. A type-only import is erased, so a pure module can
+ * name the shape without reaching the binding.
+ */
+export type ProductInput = Pick<
+  StorefrontProductDTO,
+  "slug" | "title" | "priceCents" | "currency" | "version" | "media" | "variants"
+>;
 
 /**
  * ONE OBJECT, IN EVERY SIZE IT IS PUBLISHED IN.
@@ -266,6 +276,12 @@ export const productNode = ({
   const url = absoluteUrl(origin, `/shop/${slug}`);
   const images = media.map((image) => absoluteUrl(origin, image.href));
 
+  /** Constant across every variant on this page — see `OfferInput`. */
+  const shipping = shippingDetails(market, currency);
+  const returns = returnPolicy(market);
+  const offerFor = (available: boolean) =>
+    offer({ origin, url, priceCents, currency, shipping, returns, available });
+
   const shared: JsonLdNode = {
     "@id": productId(origin, slug),
     name: title,
@@ -293,7 +309,7 @@ export const productNode = ({
       "@type": "Product",
       ...shared,
       sku: slug,
-      offers: offer({ origin, slug, priceCents, currency, market, available: false }),
+      offers: offerFor(false),
     };
   }
 
@@ -309,14 +325,7 @@ export const productNode = ({
       sku: variant.id,
       size: variant.size,
       ...(images[0] ? { image: images[0] } : {}),
-      offers: offer({
-        origin,
-        slug,
-        priceCents,
-        currency,
-        market,
-        available: variant.available,
-      }),
+      offers: offerFor(variant.available),
     })),
   };
 };

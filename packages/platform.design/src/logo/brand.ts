@@ -5,6 +5,7 @@
  * `ogColors` must stay literal hex rather than a CSS custom property: satori,
  * which renders the OG images, cannot resolve `var(--color-*)`.
  */
+import { neutralRamp } from "../tokens/brand.ts";
 
 /** Which surface the mark is drawn on, which is what picks its stroke. */
 export type LogoColorScheme =
@@ -16,14 +17,17 @@ export type LogoColorScheme =
   | "on-success";
 
 /**
- * The grounds a social card is drawn on, as literal hex for the same reason as
- * `ogColors` — satori resolves no custom property, so a card cannot read the
- * semantic palette and these values cannot be derived from it at render time.
+ * The ground a social card is drawn on.
  *
- * They MIRROR `darkPalette`/`lightPalette` in `../tokens/brand.ts` rather than
- * introducing new colour: `dark.bg` is the garment black the site renders on
- * and `light.bg` is proof paper. A reskin edits both files, and the contrast
- * audit covers the tokens these were taken from.
+ * TAKEN FROM `neutralRamp` RATHER THAN RETYPED. satori resolves no CSS custom
+ * property, so a card needs concrete hex — but "concrete at render time" and
+ * "typed out by hand" are different things, and the ramp is already exact hex
+ * in this same package. Importing it means a reskin that moves the ramp moves
+ * the cards, instead of leaving four values behind for someone to notice.
+ *
+ * (`ogColors` above predates this and still carries its own literals. It is
+ * left alone because `MARK_STROKE` is built from it and the two are read by
+ * client code; folding them in is a separate edit with a wider blast radius.)
  */
 export interface LogoOgSurface {
   /** Card ground. */
@@ -50,10 +54,17 @@ export interface LogoBrand {
     /** Stroke for light surfaces. */
     light: string;
   };
-  /** The two grounds `platform.og` cards are composed on. */
+  /**
+   * The ground `platform.og` cards are composed on.
+   *
+   * ONE, not a light/dark pair. Every card this brand publishes — the social
+   * card, the favicon, the home-screen tile — is drawn on the garment black the
+   * site itself renders on, and a solid dark tile reads on a light tab bar
+   * anyway. A second surface with no card drawing on it is a value that goes
+   * stale unobserved; add it back when something needs it.
+   */
   ogSurfaces: {
     dark: LogoOgSurface;
-    light: LogoOgSurface;
   };
 }
 
@@ -66,10 +77,13 @@ export const brand: LogoBrand = {
     light: "#080908",
   },
   ogSurfaces: {
-    /** `neutral.950` ground, `neutral.50` type — what every public page renders as. */
-    dark: { bg: "#080908", text: "#F7F7F3", muted: "#81817A", scheme: "primary" },
-    /** `neutral.50` ground, `neutral.950` type — the icon plate, which must read on a light tab bar. */
-    light: { bg: "#F7F7F3", text: "#080908", muted: "#60605A", scheme: "light" },
+    /** Garment black ground, proof-paper type — what every public page renders as. */
+    dark: {
+      bg: neutralRamp[950],
+      text: neutralRamp[50],
+      muted: neutralRamp[500],
+      scheme: "primary",
+    },
   },
 };
 

@@ -15,8 +15,8 @@ import type { APIRoute } from "astro";
 
 import { MARKET_COOKIE, parseMarket } from "../core/market.ts";
 import { shopMarkdown } from "../core/page-markdown.ts";
-import { listStorefront, type ProductCardDTO } from "../lib/commerce.ts";
-import { markdownResponse } from "../lib/markdown-response.ts";
+import { listStorefrontOrEmpty } from "../lib/commerce.ts";
+import { markdownResponse } from "../lib/text-response.ts";
 import { SHOP_DOCUMENT } from "../lib/shop-document.ts";
 
 export const prerender = false;
@@ -24,17 +24,9 @@ export const prerender = false;
 export const GET: APIRoute = async ({ cookies, url }) => {
   const market = parseMarket(cookies.get(MARKET_COOKIE)?.value);
 
-  let products: readonly ProductCardDTO[] = [];
-  let reachable = true;
-  try {
-    products = await listStorefront(market);
-  } catch (cause) {
-    reachable = false;
-    console.error("site.shop.md.list_failed", cause);
-  }
+  const { products, reachable } = await listStorefrontOrEmpty(market, "shop.md");
 
-  return markdownResponse(
-    shopMarkdown(url.origin, SHOP_DOCUMENT, products, reachable),
-    reachable ? 200 : 503,
-  );
+  return markdownResponse(shopMarkdown(url.origin, SHOP_DOCUMENT, products, reachable), {
+    status: reachable ? 200 : 503,
+  });
 };

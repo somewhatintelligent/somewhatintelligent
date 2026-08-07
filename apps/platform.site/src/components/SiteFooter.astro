@@ -18,11 +18,20 @@
 // No `target="_blank"`. Leaving for someone's GitHub or Instagram is a
 // deliberate act, and deciding on a visitor's behalf that they wanted a second
 // tab is the kind of help nobody asked for.
+//
+// THE HREFS COME FROM `platform.names`, and the marks stay here. The same two
+// URLs are published as `sameAs` in the storefront's JSON-LD, which is one
+// claim made in two vocabularies — made from two sources it becomes two claims,
+// and the machine-readable one is the copy nobody would notice going stale. An
+// SVG path is not a name, so it does not follow them into that package.
+import { SOCIAL_PROFILES } from "platform.names";
+
+const [github, instagram] = SOCIAL_PROFILES;
 ---
 
 <footer class="site-footer">
   <nav class="site-social" aria-label="somewhatintelligent elsewhere">
-    <a href="https://github.com/somewhatintelligent/somewhatintelligent" rel="me" aria-label="GitHub">
+    <a href={github.url} rel="me" aria-label={github.label}>
       {/* The official mark, filled — an outlined octocat is a smudge at 15px. */}
       <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
         <path
@@ -31,7 +40,7 @@
         ></path>
       </svg>
     </a>
-    <a href="https://instagram.com/somewhatintelligent" rel="me" aria-label="Instagram">
+    <a href={instagram.url} rel="me" aria-label={instagram.label}>
       {/*
         DRAWN, not the official path. The real glyph is one 2KB path that ships
         on every page of the site for a 15px mark; a rounded square, a circle

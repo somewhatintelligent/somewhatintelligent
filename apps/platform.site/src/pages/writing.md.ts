@@ -2,7 +2,7 @@
 import type { APIRoute } from "astro";
 
 import { placeholderMarkdown } from "../core/page-markdown.ts";
-import { markdownResponse } from "../lib/markdown-response.ts";
+import { CACHE_STATIC, markdownResponse } from "../lib/text-response.ts";
 import { WRITING_DOCUMENT } from "../lib/writing-document.ts";
 
 export const prerender = false;
@@ -22,4 +22,5 @@ export const GET: APIRoute = ({ url }) =>
       WRITING_DOCUMENT.seo.description,
       WRITING_DOCUMENT.emptyMessage,
     ),
+    { maxAge: CACHE_STATIC },
   );

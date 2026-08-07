@@ -37,6 +37,26 @@ export const TEAM_DOMAIN = "https://somewhatintelligent.cloudflareaccess.com";
  */
 export const CLOUDFLARE_IDP = "47a38340-afe7-4c13-8eda-38aca32858a3";
 
+/** Where a customer or a reader writes to. Derived, so it cannot outlive the zone. */
+export const SUPPORT_EMAIL = `hello@${PRODUCTION_ZONE}`;
+
+/**
+ * The profiles that are the same account as this one, and the whole of that
+ * claim in one place.
+ *
+ * It is made twice on the public site — as `rel="me"` links in the footer, and
+ * as `sameAs` in the storefront's JSON-LD — and a claim made in only one of the
+ * two is the one an identity verifier disbelieves. Both now read this.
+ *
+ * `label` is the accessible name the footer's anchor carries; the marks
+ * themselves stay in the footer, because an SVG path is not a name this
+ * package has any business holding.
+ */
+export const SOCIAL_PROFILES = [
+  { label: "GitHub", url: "https://github.com/somewhatintelligent/somewhatintelligent" },
+  { label: "Instagram", url: "https://instagram.com/somewhatintelligent" },
+] as const;
+
 /**
  * A stage name reduced to what a Cloudflare resource name accepts.
  *

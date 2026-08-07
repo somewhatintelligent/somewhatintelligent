@@ -16,17 +16,21 @@
  * it marks the links an agent may skip when it needs a shorter context, which
  * is the right home for four policy pages.
  */
+import { brand } from "platform.design/logo";
+
 import { formatPrice } from "../lib/format.ts";
 import { paragraphs } from "./markdown.ts";
+import type { ListedProduct } from "./page-markdown.ts";
+import { RETURN_WINDOW_DAYS, TRANSIT_DAYS } from "./policy.ts";
 import { absoluteUrl } from "./site.ts";
 
-export interface LlmsProduct {
-  readonly slug: string;
-  readonly title: string;
-  readonly priceCents: number;
-  readonly currency: string;
-  readonly descriptionMarkdown: string | null;
-}
+/**
+ * The same row `shopMarkdown` prints, because it is the same row — the two
+ * differ only in punctuation, and a second interface listing the same five
+ * fields was a shape a reader had to compare character by character to confirm
+ * was identical.
+ */
+export type LlmsProduct = ListedProduct;
 
 const link = (origin: string, path: string, name: string, note?: string): string =>
   `- [${name}](${absoluteUrl(origin, path)})${note ? `: ${note}` : ""}`;
@@ -42,7 +46,7 @@ export const llmsTxt = ({
   readonly reachable: boolean;
 }): string =>
   [
-    "# somewhatintelligent",
+    `# ${brand.wordmarkFull}`,
     "",
     "> Objects, systems, texts, and other side effects by Apostoli — a one-person",
     "> studio publishing versioned clothing, software and critical writing.",
@@ -86,13 +90,25 @@ export const llmsTxt = ({
      * HTML, NOT `.md`. These four have no markdown twin on purpose — their prose
      * lives in the page markup, and a second copy of a refund policy is a
      * liability rather than a convenience. See `core/page-markdown.ts`.
+     *
+     * The windows in the notes are INTERPOLATED rather than retyped, for the
+     * same reason one step further: `core/policy.ts` is already the
+     * machine-readable mirror of those two pages for the schema.org offer, and
+     * writing "CA 3–8" here as prose made it a THIRD copy — the one where a
+     * changed transit time would go unnoticed longest.
      */
-    link(origin, "/shipping", "Shipping", "free everywhere; CA 3–8 and US 5–12 business days"),
+    link(
+      origin,
+      "/shipping",
+      "Shipping",
+      `free everywhere; CA ${TRANSIT_DAYS.CA.minDays}–${TRANSIT_DAYS.CA.maxDays} and ` +
+        `US ${TRANSIT_DAYS.US.minDays}–${TRANSIT_DAYS.US.maxDays} business days`,
+    ),
     link(
       origin,
       "/refunds",
       "Refunds",
-      "30 days; exchange on sizing, refund or replace on defects",
+      `${RETURN_WINDOW_DAYS} days; exchange on sizing, refund or replace on defects`,
     ),
     link(origin, "/terms", "Terms"),
     link(origin, "/privacy", "Privacy"),

@@ -17,6 +17,7 @@ import type { APIRoute } from "astro";
 import { sitemapPaths, sitemapXml } from "../core/sitemap.ts";
 import { isProductionHost } from "../core/site.ts";
 import { listStorefront } from "../lib/commerce.ts";
+import { CACHE_HOURLY, textResponse } from "../lib/text-response.ts";
 
 export const prerender = false;
 
@@ -42,11 +43,8 @@ export const GET: APIRoute = async ({ url }) => {
     return new Response(null, { status: 503 });
   }
 
-  return new Response(sitemapXml(url.origin, sitemapPaths(slugs)), {
-    headers: {
-      "content-type": "application/xml; charset=utf-8",
-      /** An hour: long enough to absorb a crawl, short enough that a new object is findable the same day. */
-      "cache-control": "public, max-age=3600",
-    },
+  return textResponse(sitemapXml(url.origin, sitemapPaths(slugs)), {
+    type: "application/xml",
+    maxAge: CACHE_HOURLY,
   });
 };

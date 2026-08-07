@@ -24,6 +24,7 @@ import { availabilityLine, productView } from "../../core/product-view.ts";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
 import { absoluteUrl } from "../../core/site.ts";
 import {
+  BRAND_NAME,
   breadcrumbs,
   graph,
   isoCurrency,
@@ -92,7 +93,7 @@ const jsonLd = graph([
     ...(cover ? { image: absoluteUrl(origin, cover.href) } : {}),
   }),
   breadcrumbs(origin, [
-    { name: "somewhatintelligent", path: "/" },
+    { name: BRAND_NAME, path: "/" },
     { name: "Objects", path: "/shop" },
     { name: product.title },
   ]),

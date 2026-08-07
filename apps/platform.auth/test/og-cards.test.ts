@@ -1,40 +1,31 @@
 /**
  * THE COMMITTED CARDS ARE STILL WHAT THE DEFINITIONS RENDER.
  *
- * `public/og/*.png` is build output living in git, and `bun run og` is a step a
- * person has to remember. Nothing about a stale card looks wrong until it is in
- * someone's feed with the old wordmark on it, so this remembers instead.
- *
- * It is possible because satori and resvg are deterministic — the same property
- * the pipeline uses to avoid rewriting unchanged files.
+ * The assertion itself lives in `platform.og` — see `verifyOgCards` for why the
+ * pipeline commits its output and what that costs. What is here is the part
+ * that is this app's: which cards it publishes, and at what size the `<meta>`
+ * tags and `public/site.webmanifest` claim they are.
  *
  * THIS APP'S TAGS POINTED AT THESE FILES BEFORE ANY OF THEM EXISTED: the paths
  * came over with the port and the pipeline that produces them did not, so every
  * favicon and card request 404'd. A guard on the artwork is also a guard on that
  * not happening twice.
  */
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { describe, expect, test } from "vite-plus/test";
+import { resolve } from "node:path";
 
-import { discoverOgDefinitions, loadFonts, loadOgConfig, renderOg } from "platform.og";
+import { verifyOgCards } from "platform.og";
 
-const APP_ROOT = resolve(import.meta.dirname, "..");
-const OUT_DIR = resolve(APP_ROOT, "public/og");
-
-const definitions = await discoverOgDefinitions(APP_ROOT);
-const fonts = await loadFonts((await loadOgConfig(APP_ROOT)).fonts ?? [], APP_ROOT);
+const checks = await verifyOgCards(resolve(import.meta.dirname, ".."));
 
 describe("og cards", () => {
-  /** The sizes `app/routes/__root.tsx` and `public/site.webmanifest` declare. */
-  test("the declared sizes are the rendered ones", () => {
-    const sizes = Object.fromEntries(
-      definitions.map(({ definition }) => [
-        definition.name,
-        `${definition.size.width}x${definition.size.height}`,
-      ]),
-    );
-    expect(sizes).toEqual({
+  /**
+   * 1200×630 is not a preference: below 600×315 Facebook drops to the small
+   * card and below 200×200 it refuses the image. The icons answer to Google's
+   * "multiple of 48" favicon guidance and iOS's 180.
+   */
+  test("the published set, at the sizes the head and the manifest declare", () => {
+    expect(Object.fromEntries(checks.map((card) => [card.name, card.dimensions]))).toEqual({
       "apple-icon": "180x180",
       icon: "96x96",
       "icon-512": "512x512",
@@ -43,14 +34,9 @@ describe("og cards", () => {
     });
   });
 
-  for (const { definition } of definitions) {
-    test(`${definition.name}.png is current — run \`bun run og\` if this fails`, async () => {
-      const rendered = await renderOg(await definition.render(), {
-        size: definition.size,
-        fonts,
-      });
-      const committed = await readFile(resolve(OUT_DIR, `${definition.name}.png`));
-      expect(Buffer.from(rendered).equals(committed)).toBe(true);
+  for (const card of checks) {
+    test(`${card.name}.png is current — run \`bun run og\` if this fails`, () => {
+      expect(card.current).toBe(true);
     });
   }
 });

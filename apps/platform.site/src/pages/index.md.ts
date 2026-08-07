@@ -8,9 +8,10 @@
 import type { APIRoute } from "astro";
 
 import { homeMarkdown } from "../core/page-markdown.ts";
-import { markdownResponse } from "../lib/markdown-response.ts";
+import { CACHE_STATIC, markdownResponse } from "../lib/text-response.ts";
 import { HOME_DOCUMENT } from "../lib/home-document.ts";
 
 export const prerender = false;
 
-export const GET: APIRoute = ({ url }) => markdownResponse(homeMarkdown(url.origin, HOME_DOCUMENT));
+export const GET: APIRoute = ({ url }) =>
+  markdownResponse(homeMarkdown(url.origin, HOME_DOCUMENT), { maxAge: CACHE_STATIC });

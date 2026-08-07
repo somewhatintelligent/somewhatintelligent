@@ -20,6 +20,17 @@
  * Pure — the endpoint that serves these holds the commerce binding, and this
  * only takes what it returned.
  */
+/**
+ * The DTOs come FROM the contracts package rather than being restated here —
+ * the same trade `core/product-view.ts` makes, and for the same reason: a
+ * type-only import is erased, so a pure `core/` module can name the wire shape
+ * without reaching the binding-holding `lib/commerce.ts`. `Pick` says which
+ * fields this module reads without a hand-written twin to keep in step.
+ */
+import type { ProductCardDTO, StorefrontProductDTO } from "platform.commerce/contracts";
+
+import { brand } from "platform.design/logo";
+
 import { formatPrice } from "../lib/format.ts";
 import { paragraphs } from "./markdown.ts";
 import { absoluteUrl } from "./site.ts";
@@ -42,7 +53,7 @@ export interface HomeInput {
 
 export const homeMarkdown = (origin: string, doc: HomeInput): string =>
   [
-    ...header(origin, "/", "somewhatintelligent", doc.seo.description),
+    ...header(origin, "/", brand.wordmarkFull, doc.seo.description),
     `_${doc.tagline}_`,
     "",
     ...Object.values(doc.sections).flatMap(({ eyebrow, body }) => [`## ${eyebrow}`, "", body, ""]),
@@ -63,13 +74,11 @@ export const aboutMarkdown = (origin: string, doc: AboutInput): string =>
     ...(doc.lowerContent ? [doc.lowerContent, ""] : []),
   ].join("\n");
 
-export interface ListedProduct {
-  readonly slug: string;
-  readonly title: string;
-  readonly priceCents: number;
-  readonly currency: string;
-  readonly descriptionMarkdown: string | null;
-}
+/** One ledger row: the fields a listing line prints, and no more. */
+export type ListedProduct = Pick<
+  ProductCardDTO,
+  "slug" | "title" | "priceCents" | "currency" | "descriptionMarkdown"
+>;
 
 export const shopMarkdown = (
   origin: string,
@@ -98,21 +107,20 @@ export const shopMarkdown = (
     "",
   ].join("\n");
 
-export interface ProductInput {
-  readonly slug: string;
-  readonly title: string;
-  readonly version: string;
-  readonly priceCents: number;
-  readonly currency: string;
-  readonly descriptionMarkdown: string | null;
-  readonly detailsMarkdown: string | null;
-  readonly sizeGuide: { readonly alt: string; readonly notesMarkdown: string | null } | null;
-  readonly media: readonly { readonly href: string; readonly alt: string }[];
-  readonly variants: readonly {
-    readonly size: string;
-    readonly available: boolean;
-  }[];
-}
+/** Everything a twin prints about one object — which is most of the DTO. */
+export type ProductInput = Pick<
+  StorefrontProductDTO,
+  | "slug"
+  | "title"
+  | "version"
+  | "priceCents"
+  | "currency"
+  | "descriptionMarkdown"
+  | "detailsMarkdown"
+  | "sizeGuide"
+  | "media"
+  | "variants"
+>;
 
 /**
  * ONE OBJECT, AS FACTS. Price, release, what is in stock in which size, what

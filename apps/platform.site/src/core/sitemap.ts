@@ -32,6 +32,43 @@ export const STATIC_PATHS: readonly string[] = [
   "/privacy",
 ];
 
+/**
+ * The routes that exist and are deliberately NOT in the sitemap. Kept as data,
+ * not as a comment, because `test/crawl-surfaces.test.ts` walks `src/pages/` and
+ * fails when a route appears in neither list — a new page silently missing from
+ * the sitemap is invisible by construction otherwise, and the checklist in
+ * `docs/metadata-and-crawl-surfaces.md` was documentation standing in for a
+ * mechanism.
+ *
+ * It cannot be derived instead: alchemy's `Cloudflare.Website.Astro` does not
+ * read an `astro.config`, so `@astrojs/sitemap` and the `astro:build:done` route
+ * list are both unreachable here — and an allowlist is the safer default anyway
+ * for a document whose failure mode is publishing a `noindex` URL.
+ */
+export const NOT_INDEXED: readonly string[] = [
+  /** One person's transaction, `noindex` in the markup. */
+  "/cart",
+  "/orders/[number]",
+  /** Not a page. */
+  "/404",
+  /** Machine surfaces: POST endpoints, an image stream, and the crawl files themselves. */
+  "/api/checkout",
+  "/api/order",
+  "/media/[id]",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/llms.txt",
+  /** The markdown twins. Advertised per-page via `rel="alternate"`, and in `llms.txt`. */
+  "/index.md",
+  "/about.md",
+  "/shop.md",
+  "/writing.md",
+  "/software.md",
+  "/shop/[slug].md",
+  /** The dynamic product route — its members come from the catalogue, not this list. */
+  "/shop/[slug]",
+];
+
 /** The five characters XML cannot carry raw. A slug is not trusted to lack them. */
 export const escapeXml = (value: string): string =>
   value
@@ -49,16 +86,11 @@ export const escapeXml = (value: string): string =>
  * both Canada and the United States is one URL, not two — the market changes
  * the prices a page renders, never its address.
  */
-export const sitemapPaths = (slugs: readonly string[]): readonly string[] => {
-  const seen = new Set<string>();
-  const productPaths: string[] = [];
-  for (const slug of slugs) {
-    if (seen.has(slug)) continue;
-    seen.add(slug);
-    productPaths.push(`/shop/${slug}`);
-  }
-  return [...STATIC_PATHS, ...productPaths];
-};
+export const sitemapPaths = (slugs: readonly string[]): readonly string[] => [
+  ...STATIC_PATHS,
+  /** `Set` preserves insertion order, so the catalogue's ordering survives. */
+  ...new Set(slugs).values().map((slug) => `/shop/${slug}`),
+];
 
 export const sitemapXml = (origin: string, paths: readonly string[]): string =>
   [

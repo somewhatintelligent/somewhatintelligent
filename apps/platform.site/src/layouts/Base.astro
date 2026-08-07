@@ -1,10 +1,21 @@
 ---
+import { brand } from "platform.design/logo";
+
 import "../styles.css";
 import PostHogLayout from "./PostHogLayout.astro";
 import { absoluteUrl, canonicalPath, markdownPath } from "../core/site.ts";
-import { serialize, type JsonLdNode } from "../core/structured-data.ts";
+import { BRAND_NAME, serialize, type JsonLdNode } from "../core/structured-data.ts";
 
-/** A social card. Root-relative `url` is fine — it is made absolute below. */
+/**
+ * A page's own social card. Root-relative `url` — it is made absolute below,
+ * and every card this site can name is served from its own origin.
+ *
+ * NO `width`/`height`. The only image whose dimensions are known is the
+ * generated card, and that is the default below rather than something a page
+ * passes; a page supplying its own is supplying an upload nothing has measured,
+ * and declaring dimensions we have not read is how a card gets letterboxed by a
+ * platform that believed them.
+ */
 export interface SocialImage {
   readonly url: string;
   /**
@@ -14,8 +25,6 @@ export interface SocialImage {
    * else to say for itself.
    */
   readonly alt: string;
-  readonly width?: number;
-  readonly height?: number;
 }
 
 interface Props {
@@ -65,16 +74,20 @@ const origin = Astro.url.origin;
 const path = canonicalPath(Astro.url.pathname);
 const canonical = absoluteUrl(origin, path);
 
-/** The studio card, and the dimensions `og/opengraph.og.tsx` actually renders. */
-const DEFAULT_CARD: SocialImage = {
+/**
+ * The studio card, drawn by `og/opengraph.og.tsx` — which is also the only card
+ * whose dimensions are known here, hence the two tags emitted with it and not
+ * with a page's own image.
+ */
+const STUDIO_CARD = {
   url: "/og/opengraph-image.png",
-  alt: "somewhatintelligent — objects, systems, texts",
+  alt: `${BRAND_NAME} — objects, systems, texts`,
   width: 1200,
   height: 630,
-};
+} as const;
 
-const card = image ?? DEFAULT_CARD;
-const cardUrl = card.url.startsWith("http") ? card.url : absoluteUrl(origin, card.url);
+const card: SocialImage = image ?? STUDIO_CARD;
+const cardUrl = absoluteUrl(origin, card.url);
 
 /**
  * X reads `twitter:image` and falls back to `og:image` — so the separate
@@ -106,19 +119,28 @@ const robots = noindex
     <meta name="robots" content={robots} />
 
     {/* The ground the card and the page share — it is what a browser paints
-        behind the document before the stylesheet lands. */}
-    <meta name="theme-color" content="#080908" />
+        behind the document before the stylesheet lands, so it reads from the
+        same brand surface the cards are composed on. */}
+    <meta name="theme-color" content={brand.ogSurfaces.dark.bg} />
 
     <meta property="og:type" content={ogType} />
-    <meta property="og:site_name" content="somewhatintelligent" />
+    <meta property="og:site_name" content={BRAND_NAME} />
     <meta property="og:locale" content="en_CA" />
     <meta property="og:url" content={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={cardUrl} />
     <meta property="og:image:alt" content={card.alt} />
-    {card.width && <meta property="og:image:width" content={String(card.width)} />}
-    {card.height && <meta property="og:image:height" content={String(card.height)} />}
+    {
+      /* Only for the studio card, whose size is known because we render it. A
+         page's own image is an upload nothing here has measured. */
+      !image && (
+        <>
+          <meta property="og:image:width" content={String(STUDIO_CARD.width)} />
+          <meta property="og:image:height" content={String(STUDIO_CARD.height)} />
+        </>
+      )
+    }
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />

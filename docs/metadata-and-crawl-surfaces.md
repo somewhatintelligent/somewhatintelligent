@@ -23,8 +23,13 @@ cd apps/platform.site && bun run og    # or apps/platform.auth
 short timeout and no cookies; a static file the CDN already holds is the
 cheapest correct answer. The cost of committing build output is drift, so both
 consumers carry a test (`test/og-cards.test.ts`) that re-renders every
-definition and compares bytes — satori and resvg are deterministic, so a stale
-PNG is a test failure rather than a surprise in someone's feed.
+definition and compares bytes (`verifyOgCards`, which lives in the package so
+the two apps share the assertion) — satori and resvg are deterministic, so a
+stale PNG is a test failure rather than a surprise in someone's feed.
+
+That determinism also lets the CLI skip rewriting unchanged files, and dedupe
+renders: `twitter.og.tsx` spreads `opengraph`'s render function, so the two
+names share one raster instead of producing byte-identical PNGs twice.
 
 **It cannot run in a Worker.** `@resvg/resvg-js` is a native napi binding.
 Request-time generation on Cloudflare needs `@resvg/resvg-wasm` (or `workers-og`
@@ -40,15 +45,24 @@ Two satori constraints that are not negotiable:
 
 ### Where the brand lives
 
-| File                                              | What                                              |
-| ------------------------------------------------- | ------------------------------------------------- |
-| `packages/platform.design/src/logo/brand.ts`      | wordmark, mark geometry, `ogColors`, `ogSurfaces` |
-| `packages/platform.design/src/logo/og-lockup.tsx` | the lockup both apps compose cards from           |
-| `apps/*/og.config.ts`                             | the font files satori is handed                   |
-| `apps/*/og/*.og.tsx`                              | one definition per output PNG                     |
+| File                                              | What                                               |
+| ------------------------------------------------- | -------------------------------------------------- |
+| `packages/platform.design/src/logo/brand.ts`      | wordmark, mark geometry, `ogColors`, `ogSurfaces`  |
+| `packages/platform.design/src/logo/og-lockup.tsx` | the lockup both apps compose cards from            |
+| `packages/platform.design/src/og/icons.tsx`       | the favicon / tile / manifest plates, shared       |
+| `packages/platform.design/src/og/fonts.ts`        | the font files satori is handed                    |
+| `packages/platform.names`                         | support address and the social profiles (`sameAs`) |
+| `apps/*/og/opengraph.og.tsx`                      | the one card that carries a per-app product name   |
 
-A reskin edits the first two and reruns `bun run og` in each app. If a rebrand
-diff touches an `og/*.og.tsx`, that is a bug.
+A reskin edits `platform.design` and reruns `bun run og` in each app. Everything
+else is a re-export: an app's `og/icon.og.tsx` is one line, and its
+`og.config.ts` names no font files of its own. If a rebrand diff touches
+anything under `apps/*/og/` other than `opengraph.og.tsx`, that is a bug.
+
+**Only the weights a card draws with are loaded.** `OgLockup` sets Barlow
+Condensed 700 and Iosevka 400; the icon plates have no text node at all.
+Iosevka ships ~10 MB _per weight_, so carrying spares is not free — add one to
+`src/og/fonts.ts` when a card actually needs it.
 
 ### What each app emits
 
@@ -202,6 +216,24 @@ unblock them.
 - [ ] `<Base title description>` — both, always.
 - [ ] `jsonLd={pageGraph({ ... })}` unless the page is one person's transaction.
 - [ ] `noindex` if it is.
-- [ ] Add the path to `STATIC_PATHS` in `src/core/sitemap.ts` if it is indexable.
+- [ ] Add the path to `STATIC_PATHS` in `src/core/sitemap.ts` if it is
+      indexable, or to `NOT_INDEXED` if it is not. **A test walks `src/pages/`
+      and fails if it is in neither**, so this is enforced rather than trusted.
 - [ ] A `.md` twin plus `markdownAlternate` if its content is data rather than
       markup — and a link in `src/core/llms.ts` either way.
+
+---
+
+## 5. A note on the cache headers
+
+`Cache-Control` on a Worker response does **not** put anything in Cloudflare's
+edge cache — that needs a Cache Rule on the zone or an explicit `caches.default`
+put. The values in `src/lib/text-response.ts` bind the crawler's own cache and
+any third-party proxy, and nothing else: the Worker still boots and the live
+surfaces still hit the commerce binding per request. Worth having; not origin
+protection.
+
+Failures are `no-store`. A 5xx is uncacheable by default, but an explicit
+`max-age` makes it cacheable — which would pin "the catalogue could not be read"
+for exactly as long as a healthy document, in the intermediaries the 503 exists
+to send back.

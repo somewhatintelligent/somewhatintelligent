@@ -14,3 +14,4 @@ export {
   type SatoriFont,
 } from "./fonts.ts";
 export { renderOg, type RenderOptions } from "./render.ts";
+export { verifyOgCards, type OgCardCheck } from "./verify.ts";

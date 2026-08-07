@@ -6,6 +6,8 @@
   "exports": {
     "./logo": "./src/logo/index.ts",
     "./logo/og": "./src/logo/og-lockup.tsx",
+    "./og/fonts": "./src/og/fonts.ts",
+    "./og/icons": "./src/og/icons.tsx",
     "./tokens": "./src/tokens/index.ts",
     "./tokens/*": "./src/tokens/*.ts",
     "./generated/*": "./generated/*",

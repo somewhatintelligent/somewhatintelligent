@@ -17,9 +17,15 @@ export type DiscoveredOg = {
  * should be about the images rather than about the order the filesystem
  * happened to hand them back in.
  */
+/**
+ * Where a consumer's definitions live. Exported so the CLI's `--glob` default
+ * and this one cannot drift into disagreeing about what a definition is.
+ */
+export const DEFAULT_OG_GLOB = "og/**/*.og.{tsx,ts}";
+
 export async function discoverOgDefinitions(
   cwd: string,
-  pattern = "og/**/*.og.{tsx,ts}",
+  pattern = DEFAULT_OG_GLOB,
 ): Promise<DiscoveredOg[]> {
   const files = await glob(pattern, { cwd, absolute: true });
   files.sort();

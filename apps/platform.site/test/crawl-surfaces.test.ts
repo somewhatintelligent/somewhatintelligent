@@ -7,11 +7,19 @@
  * break a page, and none of them surface anywhere a person is looking.
  */
 import { describe, expect, test } from "bun:test";
+import { readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { StorefrontProductDTO } from "platform.commerce/contracts";
 
 import { llmsTxt } from "../src/core/llms.ts";
 import { productMarkdown, shopMarkdown } from "../src/core/page-markdown.ts";
-import { escapeXml, sitemapPaths, sitemapXml, STATIC_PATHS } from "../src/core/sitemap.ts";
+import {
+  escapeXml,
+  NOT_INDEXED,
+  sitemapPaths,
+  sitemapXml,
+  STATIC_PATHS,
+} from "../src/core/sitemap.ts";
 import { canonicalPath, markdownPath } from "../src/core/site.ts";
 
 const ORIGIN = "https://somewhatintelligent.ca";
@@ -31,6 +39,48 @@ const product = (overrides: Partial<StorefrontProductDTO> = {}): StorefrontProdu
     { id: "v-m", size: "M", available: false },
   ],
   ...overrides,
+});
+
+/**
+ * EVERY ROUTE IS ACCOUNTED FOR, one way or the other.
+ *
+ * `STATIC_PATHS` is hand-maintained — see `core/sitemap.ts` for why it cannot
+ * be derived from Astro here — so the risk is not that it lists something wrong
+ * but that a new page never gets added and is silently never crawled. Walking
+ * `src/pages/` turns that from an invisible omission into a failing test with
+ * the missing path in the message.
+ */
+describe("route inventory", () => {
+  const PAGES = resolve(import.meta.dirname, "../src/pages");
+
+  /** `src/pages/shop/index.astro` -> `/shop`; `src/pages/shop/[slug].md.ts` -> `/shop/[slug].md`. */
+  const routeOf = (file: string): string => {
+    const withoutRoot = file.slice(PAGES.length).replace(/\\/g, "/");
+    const withoutExt = withoutRoot.replace(/\.(astro|ts)$/, "");
+    const withoutIndex = withoutExt.replace(/\/index$/, "");
+    return withoutIndex === "" ? "/" : withoutIndex;
+  };
+
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return /\.(astro|ts)$/.test(entry.name) ? [full] : [];
+    });
+
+  test("no route is missing from both the sitemap and the not-indexed list", () => {
+    const known = new Set([...STATIC_PATHS, ...NOT_INDEXED]);
+    const unaccounted = walk(PAGES)
+      .map(routeOf)
+      .filter((route) => !known.has(route));
+    expect(unaccounted).toEqual([]);
+  });
+
+  /** The other direction: a path listed here that no file serves is a 404 in the sitemap. */
+  test("no listed path has lost its route file", () => {
+    const actual = new Set(walk(PAGES).map(routeOf));
+    expect([...STATIC_PATHS, ...NOT_INDEXED].filter((path) => !actual.has(path))).toEqual([]);
+  });
 });
 
 describe("sitemap", () => {

@@ -17,7 +17,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { discoverOgDefinitions, loadOgConfig } from "./discover.ts";
+import type { OgDefinition } from "./define.ts";
+import { DEFAULT_OG_GLOB, discoverOgDefinitions, loadOgConfig } from "./discover.ts";
 import { loadFonts } from "./fonts.ts";
 import { renderOg } from "./render.ts";
 
@@ -39,7 +40,7 @@ async function build(args: string[]): Promise<void> {
 
   const cwd = resolve(values.cwd ?? process.cwd());
   const outDir = resolve(cwd, values.out ?? "public/og");
-  const pattern = values.glob ?? "og/**/*.og.{tsx,ts}";
+  const pattern = values.glob ?? DEFAULT_OG_GLOB;
 
   const entries = await discoverOgDefinitions(cwd, pattern);
   if (entries.length === 0) {
@@ -55,20 +56,41 @@ async function build(args: string[]): Promise<void> {
   const started = performance.now();
   let written = 0;
 
+  /**
+   * ONE RASTER PER ARTWORK, NOT PER NAME.
+   *
+   * `twitter.og.tsx` is `{ ...opengraph, name: "twitter-image" }` — the same
+   * element function under a second filename, because `twitter:image` is a
+   * separate tag and should survive `og:image` changing. Rendering it a second
+   * time produced a byte-identical 1200×630 PNG, which was roughly half the
+   * raster cost of every build and every drift test.
+   *
+   * Keyed on the `render` FUNCTION IDENTITY and the size, which is exactly the
+   * spread-from-another-definition case and nothing looser. Two definitions
+   * that merely happen to draw the same thing still render twice — this dedupes
+   * a shared artwork, not a coincidence.
+   */
+  const rasters = new Map<OgDefinition["render"], { dimensions: string; png: Uint8Array }>();
+
   for (const { file, definition } of entries) {
-    const element = await definition.render();
-    let png: Uint8Array;
-    try {
-      png = await renderOg(element, { size: definition.size, fonts });
-    } catch (cause) {
-      // The file, not the stack frame inside yoga. Which definition failed is
-      // the one thing the thrown error never says.
-      console.error(`  ✗ ${file}`);
-      throw cause;
+    const dimensions = `${definition.size.width}×${definition.size.height}`;
+
+    const cached = rasters.get(definition.render);
+    let png = cached?.dimensions === dimensions ? cached.png : undefined;
+
+    if (!png) {
+      try {
+        png = await renderOg(await definition.render(), { size: definition.size, fonts });
+      } catch (cause) {
+        // The file, not the stack frame inside yoga. Which definition failed is
+        // the one thing the thrown error never says.
+        console.error(`  ✗ ${file}`);
+        throw cause;
+      }
+      rasters.set(definition.render, { dimensions, png });
     }
 
     const dest = resolve(outDir, `${definition.name}.png`);
-    const dimensions = `${definition.size.width}×${definition.size.height}`;
 
     /**
      * IDENTICAL BYTES ARE NOT REWRITTEN. satori and resvg are deterministic, so
@@ -94,8 +116,8 @@ async function build(args: string[]): Promise<void> {
 
 async function unchanged(dest: string, next: Uint8Array): Promise<boolean> {
   try {
-    const current = await readFile(dest);
-    return current.length === next.length && current.every((byte, i) => byte === next[i]);
+    /** Native memcmp, rather than a JS callback per byte across ~90 KB of PNG. */
+    return (await readFile(dest)).equals(Buffer.from(next));
   } catch {
     // No file yet — every byte is a change.
     return false;

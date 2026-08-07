@@ -57,6 +57,36 @@ export const getStorefrontProduct = (
 ): Promise<StorefrontProductDTO | null> => commerce().getStorefrontProduct(slug, market);
 
 /**
+ * THE CATALOGUE READ, WITH THE RULE THAT AN EMPTY SHOP AND AN UNREACHABLE ONE
+ * ARE DIFFERENT ANSWERS APPLIED ONCE.
+ *
+ * Four surfaces now render the ledger — `/shop`, `/shop.md`, `/llms.txt`, and
+ * the sitemap — and each had its own `let products = []` / `let reachable =
+ * true` / try / `console.error` block. That is one rule written four times, and
+ * the rule is the interesting part: swallowing the failure into an empty list
+ * tells a shopper the shop is empty when it is broken, which is the version
+ * nobody reports.
+ *
+ * WHAT THE CALLER STILL DECIDES is the status, because that genuinely differs:
+ * a page sets `Astro.response.status`, a text endpoint returns one, and the
+ * sitemap refuses to serve a short document at all.
+ *
+ * `tag` names the caller in the log line — the one thing that was worth keeping
+ * per-site about the four copies.
+ */
+export const listStorefrontOrEmpty = async (
+  market: "CA" | "US",
+  tag: string,
+): Promise<{ products: readonly ProductCardDTO[]; reachable: boolean }> => {
+  try {
+    return { products: await listStorefront(market), reachable: true };
+  } catch (cause) {
+    console.error(`site.${tag}.list_failed`, cause);
+    return { products: [], reachable: false };
+  }
+};
+
+/**
  * BUY A CART. The one write this site can reach, and the only one it ever will.
  *
  * `customerCall` mints the envelope a guest gets: the subject is derived from
