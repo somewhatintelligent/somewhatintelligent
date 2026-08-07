@@ -8,14 +8,16 @@
  * backticks to the shopper.
  *
  * WHY NOT ASTRO'S OWN PIPELINE, since it has one and this is an Astro site.
- * Astro 7 renders Markdown with `@astrojs/markdown-satteri`, whose engine
- * (`satteri`) is a native NAPI module with per-platform binaries. In workerd it
- * resolves its `browser` entry, which re-exports `@bruits/satteri-wasm32-wasi`
- * — a package declaring `cpu: ["wasm32"]`, which Bun refuses to install at all
- * ("Invalid CPU architecture: 'wasm32'"). So the first-class path is closed
- * here for a packaging reason, not a Workers one: Workers run WebAssembly
- * fine. If that package ever becomes installable, this file is the only thing
- * that has to change.
+ * Astro's Markdown support is a BUILD-TIME content pipeline: it compiles `.md`
+ * files and content-collection entries that the repository ships. These strings
+ * are neither. They arrive from the database per request, written by an
+ * operator long after the build, so there is nothing for that pipeline to have
+ * compiled. Runtime prose needs a runtime renderer — this is a question of when
+ * the text exists, not of what Workers can run.
+ *
+ * PROSE COMMITTED TO THE REPO — the writing pages — is the other case, and it
+ * belongs in a content collection rendered by Astro. Do not reach for this
+ * module there.
  *
  * `marked` is pure JavaScript with no dependencies, so it runs in the Worker
  * without a binary, a shim or a compatibility flag.
