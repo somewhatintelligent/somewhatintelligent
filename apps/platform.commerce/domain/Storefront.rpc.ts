@@ -59,6 +59,21 @@ const Market = Schema.Literals(["CA", "US"]);
 export const ProductCard = Schema.Struct({
   slug: Schema.String,
   title: Schema.String,
+  /**
+   * THE SAME PROSE THE PRODUCT PAGE SHOWS, because the ledger is a page a
+   * shopper reads rather than an index they scan past. The listing carried a
+   * title, a price and a version and nothing an operator had written; the row
+   * said `Release 1.0.0` where a sentence belonged.
+   *
+   * RAW MARKDOWN, split by the consumer. Splitting it here would mean the
+   * contract deciding presentation for every client, and the site already owns
+   * one safe splitter — `core/markdown.ts`, which returns TEXT and is the
+   * reason no operator string on this site reaches `set:html`.
+   *
+   * `null` is a real answer: an operator who wrote no description gets a row
+   * with no body, not a row with an empty one.
+   */
+  descriptionMarkdown: Schema.NullOr(Schema.String),
   /** Minor units of `currency` — the price in the market that was asked for. */
   priceCents: Schema.Number,
   currency: Schema.String,

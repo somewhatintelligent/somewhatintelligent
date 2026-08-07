@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 900" role="img">
+  <title>Shirt front print v7 (light) — I THINK / WE SHOULD JUST BE / FRIENDS</title>
+  <desc>Light version with black ink. Vertically stretched heavy sans-serif headline with natural per-line widths and a small inline ISO C++ footnote.</desc>
+
+  <g fill="#000000">
+    <g font-family="'Helvetica Neue', 'Arial Black', Impact, Helvetica, Arial, sans-serif" font-weight="900" letter-spacing="-5" text-anchor="middle" stroke="#000000" stroke-width="5" paint-order="stroke fill" transform="scale(0.85 1.8)">
+      <text x="659" y="152" font-size="180">I THINK WE</text>
+      <text x="659" y="292" font-size="180">SHOULD BE</text>
+      <text x="659" y="432" font-size="180">FRIENDS<tspan font-size="60" dy="-90">*</tspan></text>
+    </g>
+
+    <g font-family="Georgia, 'Times New Roman', serif" text-anchor="middle">
+      <text x="560" y="815" font-style="italic" font-size="20">*as defined by ISO/IEC 14882 <tspan font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-style="normal" font-size="17">&#160;&#183;&#160; [class.friend] &#160;&#183;&#160; [temp.friend]</tspan></text>
+    </g>
+  </g>
+</svg>

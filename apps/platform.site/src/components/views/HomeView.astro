@@ -18,10 +18,20 @@ interface Props {
 
 const { document: doc } = Astro.props;
 
+/**
+ * THE ORDER IS THE TAGLINE'S ORDER — "objects, texts, systems, & side effects".
+ * The grid read objects / systems / texts / about, so the sentence directly
+ * above it named the four in one sequence and the cards under it in another.
+ *
+ * It lives here rather than in `home-document.ts` because it is a fact about
+ * this composition, not about the copy: the document is a bag of four named
+ * sections and this decides where they sit. Reordering is an edit to a layout,
+ * not a republish.
+ */
 const records = [
   { s: doc.sections.objects, href: "/shop/", id: "objects" },
-  { s: doc.sections.systems, href: "/software/", id: "systems" },
   { s: doc.sections.texts, href: "/writing/", id: "texts" },
+  { s: doc.sections.systems, href: "/software/", id: "systems" },
   { s: doc.sections.about, href: "/about/", id: "apostoli" },
 ];
 ---

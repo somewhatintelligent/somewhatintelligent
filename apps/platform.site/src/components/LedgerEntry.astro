@@ -1,0 +1,566 @@
+---
+// ONE ROW OF THE OBJECT LEDGER, collapsed or expanded, with both states shipped
+// server-side and `data-expanded` swapping between them.
+//
+// NOT A `<details>`, and the difference is the whole point. A disclosure asks
+// to be clicked and answers with a panel; this expands on POINTER ENTER and on
+// FOCUS, so moving down the ledger reads each object in turn without a single
+// click. The bar itself is a link, so the click a shopper does make goes to the
+// object rather than to a toggle.
+//
+// EXACTLY ONE ROW IS EXPANDED per container, and the first one starts that way:
+// a ledger of closed titles is a table of contents, and this page is a shop.
+//
+// THE NO-JS STATE IS THE STATIC ONE. Every row renders both halves and every
+// `href` is a plain working link, so a page whose script never arrives is a
+// ledger with its first row open and the rest legible as rows — not a page of
+// dead controls.
+//
+// COARSE POINTERS HAVE NO HOVER, so the first tap expands and a second tap on
+// an already-expanded row follows the link. Without that, a phone would either
+// navigate before showing anything or never expand at all.
+import { paragraphs } from "../core/markdown.ts";
+
+interface Props {
+  index: number;
+  slug: string;
+  title: string;
+  /** Shown on the right of the bar in both states — what a shopper scans for. */
+  priceLabel: string;
+  version: string;
+  descriptionMarkdown: string | null;
+  coverHref: string | null;
+  startExpanded?: boolean;
+}
+
+const {
+  index,
+  slug,
+  title,
+  priceLabel,
+  version,
+  descriptionMarkdown,
+  coverHref,
+  startExpanded = false,
+} = Astro.props;
+
+const num = String(index).padStart(2, "0");
+
+/**
+ * The operator's prose, split by the one safe splitter — see `core/markdown.ts`,
+ * which returns TEXT so nothing here can reach `set:html`.
+ *
+ * The FIRST paragraph doubles as the collapsed one-liner. It is the same string
+ * in both places rather than a separate "excerpt" field an operator would have
+ * to write twice and keep in step.
+ */
+const body = paragraphs(descriptionMarkdown);
+const purpose = body[0] ?? null;
+const href = `/shop/${slug}`;
+---
+
+<article class="ledger-entry" id={slug} data-expanded={startExpanded ? "true" : "false"}>
+  <a class="ledger-entry-bar" href={href}>
+    <span class="ledger-entry-num">{num}</span>
+    <span class="ledger-entry-headline">
+      <span class="ledger-entry-kicker">Object / {version}</span>
+      <h2 class="ledger-entry-title">{title}</h2>
+      {purpose && <span class="ledger-entry-purpose">{purpose}</span>}
+    </span>
+    <span class="ledger-entry-meta">
+      <span class="ledger-entry-price">{priceLabel}</span>
+    </span>
+    <span class="ledger-entry-arrow" aria-hidden="true">→</span>
+  </a>
+
+  {/*
+    THE AUTO-HEIGHT REVEAL. A height cannot be transitioned from `auto`, so the
+    wrapper is a grid whose single track goes `0fr` to `1fr` — both lengths the
+    engine can interpolate — and the panel inside is what gets measured. Nothing
+    scripts a height and nothing re-measures when the copy changes.
+  */}
+  <div class="ledger-entry-panel-wrap">
+    <div class="ledger-entry-panel">
+      <div class="ledger-entry-copy">
+        {body.map((paragraph) => (
+          <p class="ledger-entry-para">{paragraph}</p>
+        ))}
+        {/*
+          `tabindex="-1"` while collapsed, because a link inside a zero-height
+          box is still focusable and would otherwise send a keyboard visitor to
+          something they cannot see. The script restores it on expand — and
+          `focusin` expands the row, so tabbing into a ledger opens it.
+        */}
+        <a class="ledger-entry-cta" href={href} tabindex={startExpanded ? undefined : -1}>
+          View object <span aria-hidden="true">→</span>
+        </a>
+      </div>
+      {
+        coverHref ? (
+          <figure class="ledger-entry-image">
+            <img src={coverHref} alt={`${title} cover`} loading="lazy" />
+          </figure>
+        ) : (
+          <div class="object-placeholder-field ledger-entry-placeholder" aria-label="No cover image">
+            <span>Object / {slug}</span>
+            <strong>NO IMAGE</strong>
+          </div>
+        )
+      }
+    </div>
+  </div>
+</article>
+
+<script>
+  // WHY THIS IS NOT `pointerenter`, which is the obvious way to write it and is
+  // wrong here:
+  //
+  // Expanding a row RESIZES IT, which moves every row below it and — because
+  // the row that was open is shrinking at the same time — every row above it
+  // too. The browser re-runs hit testing when the layout moves under a
+  // STATIONARY cursor, so `pointerenter` fires on whichever row slid beneath
+  // the pointer, that row expands, the layout moves again, and the ledger
+  // oscillates. The pointer never moved; the page moved under it.
+  //
+  // `pointermove` fires ONLY on real pointer movement, so a layout shift under
+  // a still cursor produces no event and the loop cannot start. The trade is
+  // that we hit-test by hand against the bars, which is a few lines and is also
+  // what makes the expanded PANEL a dead zone — hovering the copy or the cover
+  // keeps its own row open instead of counting as a hover on something else.
+  //
+  // The lock is the second half. One real sweep of the mouse crosses several
+  // bars while they are still moving; without it a single gesture cascades
+  // through three rows. Holding the choice for the length of the transition
+  // means a sweep picks the row it landed on rather than the ones it passed
+  // over while they were in flight.
+  const SETTLE_MS = 380;
+  let lockedUntil = 0;
+
+  function closestEntry(el: EventTarget | null): HTMLElement | null {
+    return el instanceof Element ? el.closest<HTMLElement>(".ledger-entry") : null;
+  }
+
+  /**
+   * The row whose BAR contains this y, or null when the pointer is over an
+   * expanded panel or past the last row. Live rects rather than a cached map:
+   * they are only read on real movement, and a handful of them is cheaper than
+   * keeping a cache correct across resize, scroll and font loading.
+   */
+  function entryAt(container: Element, y: number): HTMLElement | null {
+    for (const bar of container.querySelectorAll<HTMLElement>(".ledger-entry-bar")) {
+      const rect = bar.getBoundingClientRect();
+      if (y >= rect.top && y < rect.bottom) return closestEntry(bar);
+    }
+    return null;
+  }
+
+  function setExpanded(entry: HTMLElement, expanded: boolean): void {
+    entry.dataset.expanded = expanded ? "true" : "false";
+    const cta = entry.querySelector<HTMLAnchorElement>(".ledger-entry-cta");
+    if (!cta) return;
+    if (expanded) cta.removeAttribute("tabindex");
+    else cta.setAttribute("tabindex", "-1");
+  }
+
+  function expand(entry: HTMLElement): void {
+    const container = entry.closest(".object-ledger");
+    if (!container || entry.dataset.expanded === "true") return;
+    const current = container.querySelector<HTMLElement>('.ledger-entry[data-expanded="true"]');
+    if (current && current !== entry) setExpanded(current, false);
+    setExpanded(entry, true);
+  }
+
+  document.addEventListener("pointermove", (event) => {
+    // Touch and pen get the tap behaviour below; only a mouse hovers.
+    if (event.pointerType !== "mouse") return;
+    const container =
+      event.target instanceof Element ? event.target.closest(".object-ledger") : null;
+    if (!container) return;
+    if (event.timeStamp < lockedUntil) return;
+
+    const entry = entryAt(container, event.clientY);
+    if (!entry || entry.dataset.expanded === "true") return;
+    expand(entry);
+    lockedUntil = event.timeStamp + SETTLE_MS;
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const entry = closestEntry(event.target);
+    if (entry) expand(entry);
+  });
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      const bar = event.target instanceof Element ? event.target.closest(".ledger-entry-bar") : null;
+      if (!bar) return;
+      const entry = closestEntry(bar);
+      if (!entry) return;
+      const coarse = window.matchMedia?.("(hover: none)").matches;
+      if (coarse && entry.dataset.expanded !== "true") {
+        event.preventDefault();
+        expand(entry);
+      }
+    },
+    true,
+  );
+</script>
+
+<style>
+  /*
+   * THE EXPANDED ROW TAKES WHAT IS LEFT, which is what makes this a ledger that
+   * fills its frame rather than a stack with a dead strip under it. The ledger
+   * is a flex column (`shop.css`); a collapsed row is exactly its bar, and the
+   * open one absorbs every pixel the bars do not use. Nothing is left over, so
+   * there is no half-height row-shaped gap at the bottom pretending to be data.
+   *
+   * `flex-grow` IS THE ANIMATION. It is a number, so it interpolates — and
+   * during a swap both rows hold a fraction of it and share the space, which
+   * reads as one row handing the space to another rather than two independent
+   * jumps. Transitioning the panel alone would have left the row's own height
+   * snapping underneath it.
+   */
+  .ledger-entry {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+  }
+
+  /*
+   * `flex-basis: 0`, NOT `auto`, and this is the whole difference between a
+   * ledger and a page that scrolls. With `auto` the row is measured from its
+   * content first — and the cover's `height: 100%` against a not-yet-definite
+   * parent resolves to the picture's own 4:3, so the row asked for 470px before
+   * growth was considered, overflowed the ledger, and pushed every other object
+   * off the bottom. From `0` the row has no opinion: its height is exactly the
+   * space the bars leave, and the cover fills whatever that turns out to be.
+   */
+  .ledger-entry[data-expanded="true"] {
+    flex: 1 1 0;
+  }
+
+  .ledger-entry:last-child {
+    border-bottom: 0;
+  }
+
+  .ledger-entry-bar {
+    display: grid;
+    min-height: 58px;
+    flex: none;
+    align-items: center;
+    grid-template-columns: 56px minmax(0, 1fr) auto 44px;
+    color: inherit;
+  }
+
+  /* The hover mark is on the COLLAPSED bar only — an expanded row is already
+     the one being read and does not need telling. */
+  .ledger-entry:not([data-expanded="true"]) .ledger-entry-bar:hover {
+    background: var(--color-foreground);
+    color: var(--color-background);
+  }
+
+  .ledger-entry:not([data-expanded="true"]) .ledger-entry-bar:hover .ledger-entry-purpose {
+    color: inherit;
+  }
+
+  .ledger-entry-num {
+    display: flex;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--color-border);
+    font-size: 13px;
+  }
+
+  .ledger-entry-headline {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: 18px 22px;
+  }
+
+  /*
+   * THE KICKER APPEARS AND THE PURPOSE LEAVES, which is the trade that keeps a
+   * row one thing at a time: collapsed it is a line of prose describing the
+   * object, expanded it is the object's own designation above a display title.
+   * `max-height` rather than `display`, so both ends of it can be animated.
+   */
+  .ledger-entry-kicker {
+    overflow: hidden;
+    max-height: 0;
+    margin-bottom: 0;
+    color: var(--color-primary);
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    opacity: 0;
+    text-transform: uppercase;
+  }
+
+  [data-expanded="true"] .ledger-entry-kicker {
+    max-height: 14px;
+    margin-bottom: 6px;
+    opacity: 1;
+  }
+
+  /*
+   * THE TITLE GROWS. This is the gesture the whole component exists for: a row
+   * is a registry line until it is the one you are looking at, and then it is a
+   * poster. Nothing else on the page announces which object is being read.
+   */
+  .ledger-entry-title {
+    overflow: hidden;
+    margin-top: 0;
+    font-family: var(--font-display);
+    font-size: clamp(14px, 1.3vw, 18px);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  [data-expanded="true"] .ledger-entry-title {
+    margin-top: 4px;
+    font-size: clamp(44px, 5.5vw, 88px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 0.84;
+    text-transform: none;
+  }
+
+  /* One line, clipped — the full prose is in the panel below. */
+  .ledger-entry-purpose {
+    overflow: hidden;
+    max-height: 16px;
+    margin-top: 4px;
+    color: var(--color-muted-foreground);
+    font-size: 11px;
+    letter-spacing: 0.01em;
+    opacity: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  [data-expanded="true"] .ledger-entry-purpose {
+    max-height: 0;
+    margin-top: 0;
+    opacity: 0;
+  }
+
+  .ledger-entry-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 0 18px;
+    text-transform: uppercase;
+  }
+
+  .ledger-entry-price {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .ledger-entry-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+  }
+
+  /*
+   * `0fr` IS STILL WHAT COLLAPSES IT, and that matters below 1024px where the
+   * ledger stops being a flex column and rows go back to sizing themselves —
+   * there the grid track is the only thing keeping a closed row closed.
+   *
+   * `flex: 1` on top of it is what lets the panel FILL an expanded row on
+   * desktop instead of merely fitting inside it, which is what gets the cover
+   * to full height.
+   */
+  .ledger-entry-panel-wrap {
+    display: grid;
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: 0fr;
+  }
+
+  [data-expanded="true"] .ledger-entry-panel-wrap {
+    grid-template-rows: 1fr;
+  }
+
+  .ledger-entry-panel {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) 38%;
+    overflow: hidden;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .ledger-entry-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 22px;
+    border-right: 1px solid var(--color-border);
+  }
+
+  .ledger-entry-para {
+    margin-bottom: 12px;
+    font-family: var(--font-editorial);
+    font-size: clamp(15px, 1.15vw, 19px);
+    line-height: 1.2;
+  }
+
+  .ledger-entry-cta {
+    display: flex;
+    min-width: 200px;
+    height: 46px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding: 0 18px;
+    background: var(--color-foreground);
+    color: var(--color-background);
+    font-size: 13px;
+    text-transform: uppercase;
+  }
+
+  /*
+   * FULL HEIGHT OF THE ROW, and the row is however much of the ledger is
+   * spare. It was bounded to a clamp for a while, which kept the other objects
+   * on screen but left a strip of nothing under the panel — the row growing to
+   * fit solves both at once, so the cover simply takes the panel.
+   */
+  .ledger-entry-image,
+  .ledger-entry-placeholder {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* No grade. The shop does not colour-correct photographs it did not take —
+     see `.object-image` in `styles.css`, where the same filter was removed. */
+  .ledger-entry-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /*
+   * MOTION IS OPT-IN. Every rule above is static, so a visitor who asked for
+   * less motion gets the same ledger with the same behaviour — rows still
+   * expand on hover, they simply arrive rather than travel.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .ledger-entry-kicker {
+      transition:
+        max-height 320ms ease,
+        margin-bottom 320ms ease,
+        opacity 200ms ease;
+    }
+
+    .ledger-entry-title {
+      transition:
+        font-size 340ms cubic-bezier(0.16, 1, 0.3, 1),
+        margin-top 340ms cubic-bezier(0.16, 1, 0.3, 1),
+        letter-spacing 340ms ease,
+        line-height 340ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .ledger-entry-purpose {
+      transition:
+        max-height 320ms ease,
+        margin-top 320ms ease,
+        opacity 180ms ease;
+    }
+
+    .ledger-entry-panel-wrap {
+      transition: grid-template-rows 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* The row's own height, on the same curve so the two read as one motion. */
+    .ledger-entry {
+      transition: flex-grow 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .ledger-entry-bar {
+      min-height: 54px;
+      grid-template-columns: 44px minmax(0, 1fr) auto 36px;
+    }
+
+    /*
+     * THE EXPANDED TITLE WRAPS DOWN HERE. `nowrap` plus an ellipsis is right
+     * for a registry line, where the point is one scannable row; it is wrong
+     * for the headline of the object being read, and at 390px it cut "I think
+     * we should be friends" down to "I think w…". A collapsed row still clips —
+     * only the open one is allowed the space to say its whole name.
+     */
+    [data-expanded="true"] .ledger-entry-title {
+      margin-top: 10px;
+      font-size: clamp(24px, 6.4vw, 68px);
+      line-height: 0.95;
+      text-overflow: clip;
+      white-space: normal;
+    }
+
+    /*
+     * STACKED, AND THE TWO SHARE THE ROW'S HEIGHT. The 62/38 side-by-side split
+     * only reads at desktop widths, but stacking them at their natural heights
+     * would make the row taller than the phone — the copy AND a 4:3 cover, one
+     * under the other, is most of a screen on its own.
+     *
+     * `auto` then `minmax(0, 1fr)`: the prose takes exactly what it needs and
+     * the cover takes what is left, however much that is. On a short screen the
+     * picture gets smaller rather than the object getting longer.
+     */
+    .ledger-entry-panel {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(130px, 1fr);
+    }
+
+    .ledger-entry-copy {
+      padding: 16px;
+      overflow: hidden;
+      border-right: 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    /*
+     * THE LEAD PARAGRAPH ONLY, and the object page carries the rest.
+     *
+     * Two tries preceded this. Letting the copy size the track squeezed the
+     * cover to a 90px stripe — the object reduced to a band by its own caption.
+     * Scrolling the copy inside a fixed half put the one control in the row
+     * below the fold of a box nobody thinks to scroll, and pinning the control
+     * on top of the prose cut a sentence in half.
+     *
+     * All three were attempts to fit a page of writing into a quarter of a
+     * phone. A ledger row is an index entry: the first paragraph says what the
+     * object is, `VIEW OBJECT` is right there, and the rest is one tap away
+     * rather than crushed in here.
+     */
+    .ledger-entry-para:nth-of-type(n + 2) {
+      display: none;
+    }
+
+    .ledger-entry-para {
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .ledger-entry-cta {
+      width: 100%;
+      min-width: 0;
+      height: 40px;
+      margin-top: 12px;
+    }
+  }
+</style>

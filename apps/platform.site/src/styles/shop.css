@@ -68,21 +68,44 @@
   transform: rotate(-4deg);
 }
 
+/*
+ * THE LEDGER SCROLLS AND ITS ROWS MEASURE THEMSELVES. It was a grid with
+ * `grid-auto-rows: minmax(0, 1fr)`, dividing the space equally between rows —
+ * right for a fixed table and wrong for an accordion, where an open row and a
+ * closed one want very different heights and `1fr` gives them the same one.
+ *
+ * A COLUMN, THEN, AND THE EMPTY PLATE STILL FILLS IT. Rows sizing to content is
+ * what an accordion needs and what leaves the empty state as a 130px strip with
+ * a black void beneath it, which is what `1fr` was quietly preventing. `flex`
+ * separates the two cases honestly: product rows measure themselves, and the
+ * placeholder — which is one row that IS the state of the page — grows.
+ *
+ * The overflow belongs to this element rather than the document, which is the
+ * site's pattern on every route; see `product.css`.
+ */
 .object-ledger {
-  display: grid;
+  display: flex;
   min-height: 0;
-  grid-auto-rows: minmax(0, 1fr);
+  flex-direction: column;
   margin: 0 24px;
+  overflow-y: auto;
   border-right: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   border-left: 1px solid var(--color-border);
 }
 
+/*
+ * THE EMPTY PLATE TAKES THE WHOLE LEDGER. "No objects yet" is not a row among
+ * others — it is the page saying it has nothing, and a shop with nothing in it
+ * should look deliberate rather than truncated.
+ */
+.object-entry-compact {
+  flex: 1;
+}
+
 .object-entry {
   position: relative;
-  display: grid;
   min-height: 0;
-  overflow: hidden;
   border-bottom: 1px solid var(--color-border);
   font-family: var(--font-mono);
 }
@@ -91,23 +114,25 @@
   border-bottom: 0;
 }
 
-/* Three columns without an operational rail — the empty plate has nothing to
-   put in one. */
-.object-entry-compact {
-  grid-template-columns: 56px 28.6% minmax(0, 1fr);
-}
-
-.object-entry-current {
-  grid-template-columns: 56px 28.6% minmax(0, 1fr) 24%;
-}
-
 .object-number {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 21px;
   border-right: 1px solid var(--color-border);
   font-size: 15px;
+}
+
+/* Three columns without an operational rail — the empty plate has nothing to
+   put in one, and it is not a disclosure: there is nothing to disclose. */
+.object-entry-compact {
+  display: grid;
+  grid-template-columns: 56px 28.6% minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.object-entry-compact .object-number {
+  align-items: flex-start;
+  padding-top: 21px;
 }
 
 .object-meta {
@@ -120,18 +145,25 @@
   text-transform: uppercase;
 }
 
-.object-meta h2 {
-  font-family: var(--font-mono);
-  font-size: clamp(22px, 2vw, 32px);
-  font-weight: 400;
-  line-height: 1;
-  letter-spacing: 0.03em;
+/*
+ * THE OPERATOR'S PROSE, IN THE VOICE THEY WROTE IT IN. `.object-meta` sets
+ * `text-transform: uppercase` for the ledger's field labels, and inheriting it
+ * here would shout a sentence that was typed in ordinary case — this is the one
+ * thing in a row that is writing rather than data, so it is set in the
+ * editorial face at a size meant for reading, not for scanning.
+ *
+ * The 11px uppercase this replaces was carrying `Release 1.0.0`, which is
+ * neither.
+ */
+.object-meta > p {
+  font-family: var(--font-editorial);
+  font-size: clamp(13px, 1vw, 16px);
+  line-height: 1.35;
+  text-transform: none;
 }
 
-.object-meta > p {
-  margin-top: 6px;
-  font-size: 11px;
-  line-height: 1.35;
+.object-meta > p + p {
+  margin-top: 9px;
 }
 
 .object-meta dl {
@@ -242,12 +274,28 @@
    restacks: the number keeps a full-height rail, the meta column takes the
    rest of the first band, and the image drops beneath it. */
 @media (max-width: 1023px) {
+  /*
+   * THE SHOP KEEPS ITS FOLD ON A PHONE. It used to go `display: block` and let
+   * the page scroll, which on a 390x844 screen meant the intro plate, one
+   * enormous cover and a lot of scrolling before a second object existed. A
+   * ledger whose whole argument is "here is everything, and this one is open"
+   * cannot make you scroll to learn there is more than one.
+   *
+   * So the grid survives down here, sized against the viewport rather than the
+   * document: header and footer are 56px and 44px of chrome, and the intro
+   * takes a share of what is left instead of a fixed 250px. The ledger takes
+   * the rest and distributes it exactly as it does on desktop — bars at their
+   * own height, the open row absorbing the remainder.
+   */
   .shop-main {
-    display: block;
+    display: grid;
+    height: calc(100dvh - 100px);
+    min-height: 480px;
+    grid-template-rows: minmax(118px, 21%) minmax(0, 1fr);
   }
 
   .objects-intro {
-    height: 250px;
+    min-height: 0;
   }
 
   .objects-intro h1 {
@@ -261,14 +309,22 @@
     font-size: 9px;
   }
 
+  /*
+   * OUT OF THE WORDMARK'S WAY. The plane fills the width down here, so a note
+   * set over its middle at 7vw sat on top of the letters and neither could be
+   * read. Smaller, tucked into the bottom-right corner where the `S` leaves a
+   * gap, and it reads as the aside it is.
+   */
   .objects-note {
-    right: 10%;
-    bottom: 26px;
-    font-size: clamp(21px, 7vw, 29px);
+    right: 5%;
+    bottom: 12px;
+    font-size: clamp(15px, 4.4vw, 21px);
+    line-height: 1.05;
+    text-align: right;
   }
 
+  /* Still a flex column — only the outer margins and side rules go. */
   .object-ledger {
-    display: block;
     margin: 0;
     border-right: 0;
     border-left: 0;
@@ -280,28 +336,18 @@
     grid-template-rows: 210px 310px;
   }
 
-  .object-entry-current {
-    min-height: 760px;
-    grid-template-columns: 44px repeat(2, minmax(0, 1fr));
-    grid-template-rows: 210px 290px 260px;
-  }
-
-  .object-number {
-    grid-row: 1 / -1;
+  .object-image {
+    height: 62vw;
+    min-height: 260px;
   }
 
   .object-meta {
-    grid-column: 2 / -1;
     padding: 20px;
-  }
-
-  .object-image {
-    grid-row: 2;
+    border-right: 0;
   }
 
   .object-placeholder-field {
-    grid-row: 2;
-    grid-column: 2 / -1;
+    min-height: 260px;
   }
 
   .object-placeholder-field strong {
@@ -309,7 +355,20 @@
   }
 
   .object-operational {
-    grid-row: 3;
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .object-entry-compact .object-number {
+    grid-row: 1 / -1;
+  }
+
+  .object-entry-compact .object-meta {
+    grid-column: 2 / -1;
+  }
+
+  .object-entry-compact .object-placeholder-field {
+    grid-row: 2;
     grid-column: 2 / -1;
   }
 }

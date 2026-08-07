@@ -34,7 +34,7 @@ export const ABOUT_DOCUMENT: AboutDocument = {
   eyebrow: "ABOUT",
   title: "APOSTOLI",
   statement:
-    "Why be curious? It is an act towards intimacy—a bid for connection—with one's own existence. It is an act of epistemic humility. No act is more profoundly intimate than the struggle to understand something outside oneself.\n\nThus, I am curious. I build systems because I like knowing how things work. I like being the one who decides how things work. I make art because I like having license to comment on how they already do. Should I be entrusted with such power? No less than anyone else should be entrusted to make such a judgement.",
+    "I build systems because I like knowing how things work. I like being the one who decides how things work. I make art because I like having license to comment on how they already do. Should I be entrusted with such power? No less than anyone else should be entrusted to make such a judgement.",
   primaryMediaId: null,
   secondaryMediaId: null,
   lowerContent: "Selected work — coming soon.",

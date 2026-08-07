@@ -51,6 +51,12 @@ export const listActiveProducts = Effect.fn("Storefront.listActiveProducts")(fun
         productId: product.id,
         slug: productRelease.slug,
         title: productRelease.title,
+        /**
+         * FROM THE RELEASE, like every other column here — never from the
+         * draft. A listing that showed unpublished prose beside a published
+         * price would be advertising something no product page will confirm.
+         */
+        descriptionMarkdown: productRelease.descriptionMarkdown,
         priceCents: releaseMarket.priceCents,
         version: productRelease.version,
         releaseId: productRelease.id,
@@ -116,6 +122,7 @@ export const listActiveProducts = Effect.fn("Storefront.listActiveProducts")(fun
     (row): ProductCardDTO => ({
       slug: row.slug,
       title: row.title,
+      descriptionMarkdown: row.descriptionMarkdown,
       priceCents: row.priceCents,
       currency: MARKETS[market].currency,
       version: row.version,

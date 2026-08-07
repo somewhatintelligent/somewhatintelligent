@@ -42,17 +42,17 @@ export const HOME_DOCUMENT: HomeDocument = {
   sections: {
     objects: {
       eyebrow: "OBJECTS",
-      body: "Hand made and algorithmically marketed. What better way to express your subversion than through consumption?",
+      body: "What better way to express your subversion than through consumption?",
       actionLabel: "Shop now",
     },
     systems: {
-      eyebrow: "SOFTWARE REGISTRY",
-      body: "Digital solutions to problems created by digital solutions to problems. People used to live in longhouses. Now you want an MCP gateway.",
+      eyebrow: "SYSTEMS",
+      body: "People used to live in longhouses. Now you want an MCP gateway.",
       actionLabel: "Explore systems",
     },
     texts: {
       eyebrow: "TEXTS",
-      body: "Critical writing on technology, intimacy, and power. Or a catalog of my arrogance. Interpretation is left as an exercise to the reader.",
+      body: "Critical writing. Or a catalog of my arrogance. Interpretation is left as an exercise to the reader.",
       actionLabel: "Read texts",
     },
     about: {

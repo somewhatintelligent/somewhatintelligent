@@ -11,6 +11,7 @@
 // plate does.
 import SiteFooter from "../SiteFooter.astro";
 import SiteHeader from "../SiteHeader.astro";
+import LedgerEntry from "../LedgerEntry.astro";
 import { formatPrice } from "../../lib/format.ts";
 import type { ProductCardDTO } from "../../lib/commerce.ts";
 import type { ShopDocument } from "../../lib/shop-document.ts";
@@ -27,6 +28,7 @@ interface Props {
 }
 
 const { document: doc, products, reachable = true } = Astro.props;
+
 
 /**
  * THE PLATE'S WORDS, decided here rather than branch-by-branch in the markup.
@@ -101,41 +103,24 @@ const plate = reachable
             </div>
           </article>
         ) : (
+          /*
+            THE FIRST ROW STARTS EXPANDED and the rest are registry lines until
+            a pointer or the keyboard reaches them — see `LedgerEntry.astro`,
+            which owns that behaviour and its markup in both states.
+
+            `id` lives on the entry, so `/shop#slug` still lands on the object.
+          */
           products.map((product, i) => (
-            <article class="object-entry object-entry-current" id={product.slug}>
-              <span class="object-number">{String(i + 1).padStart(2, "0")}</span>
-              <div class="object-meta">
-                <h2>{product.title}</h2>
-                <p>Release {product.version}</p>
-                <dl>
-                  <div>
-                    <dt>Price</dt>
-                    <dd>{formatPrice(product.priceCents, product.currency)}</dd>
-                  </div>
-                </dl>
-              </div>
-              {product.coverHref ? (
-                <figure class="object-image">
-                  <img src={product.coverHref} alt={`${product.title} cover`} />
-                </figure>
-              ) : (
-                <div class="object-placeholder-field" aria-label="No cover image">
-                  <span>Object / {product.slug}</span>
-                  <strong>NO IMAGE</strong>
-                </div>
-              )}
-              <div class="object-operational">
-                <dl>
-                  <div>
-                    <dt>Version</dt>
-                    <dd>{product.version}</dd>
-                  </div>
-                </dl>
-                <a href={`/shop/${product.slug}`}>
-                  View object <span aria-hidden="true">→</span>
-                </a>
-              </div>
-            </article>
+            <LedgerEntry
+              index={i + 1}
+              slug={product.slug}
+              title={product.title}
+              priceLabel={formatPrice(product.priceCents, product.currency)}
+              version={product.version}
+              descriptionMarkdown={product.descriptionMarkdown}
+              coverHref={product.coverHref}
+              startExpanded={i === 0}
+            />
           ))
         )
       }
