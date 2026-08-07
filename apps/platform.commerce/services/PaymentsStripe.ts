@@ -227,6 +227,34 @@ export const layer = Layer.effect(
              */
             customer_email: input.email,
             /**
+             * REQUIRED, not `auto` — and the difference is the whole point.
+             *
+             * `auto` is the default, and it collects only what the payment
+             * method itself demands: often a postal code, sometimes nothing at
+             * all. So the field that matters here — the card's own COUNTRY —
+             * is present or absent depending on which card was used, which
+             * makes it useless as a signal.
+             *
+             * That signal is what this buys. The shipping form is pinned to one
+             * market's countries (below), but nothing pins the card, and
+             * nothing should: a Canadian abroad and an American shipping to a
+             * friend in Toronto pay the same CAD session with the same
+             * legitimacy. What we lacked was any way to TELL THEM APART after
+             * the fact. A billing country on every charge is the difference
+             * between knowing how much of the Canadian market is actually
+             * Canadian and guessing at it.
+             *
+             * It also gives Radar a full address to check against the issuer,
+             * which is the ordinary reason to require one.
+             *
+             * COLLECTED, NOT RECORDED. This lands on the Stripe object and the
+             * buyer's receipt; no column here holds it, and `customer_order`
+             * still stores exactly one address — where the parcel goes. Putting
+             * the billing country in the books is a migration and a settlement
+             * change, deliberately not bundled in here.
+             */
+            billing_address_collection: "required",
+            /**
              * Pinned to the market the cart was priced for. The buyer picked
              * it on the storefront; letting the address form accept another
              * market's country here would ship a cart somewhere it was never
