@@ -42,8 +42,8 @@ if (!product) return new Response(null, { status: 404 });
 
 /**
  * EVERY DECISION THIS PAGE MAKES, made in one place and tested without a
- * renderer — whether there is a filmstrip, which panels exist, what the sizing
- * plate is. See `core/product-view.ts`; the markup below is the page's shape.
+ * renderer — whether there is a filmstrip, which panels exist, what each panel
+ * holds. See `core/product-view.ts`; the markup below is the page's shape.
  */
 const view = productView(product);
 const availability = availabilityLine(product.variants);
@@ -56,7 +56,7 @@ const seoDescription = view.description[0] ?? `${product.title} — object by so
 
     <main class="product-main">
       <section class="product-stage" aria-labelledby="product-title">
-        <ProductGallery media={view.media} sizingPlate={view.sizingPlate} />
+        <ProductGallery media={view.media} />
         <ProductSheet product={product} view={view} availability={availability} />
       </section>
     </main>
@@ -67,11 +67,15 @@ const seoDescription = view.description[0] ?? `${product.title} — object by so
 
 <script>
   /**
-   * THE THREE THINGS THIS PAGE DOES CLIENT-SIDE, and no more.
+   * THE TWO THINGS THIS PAGE DOES CLIENT-SIDE, and no more.
    *
    *   1  choose a size, and add it to the cart;
-   *   2  choose which photograph fills the gallery;
-   *   3  swap that photograph for the sizing plate while `Size & fit` is open.
+   *   2  choose which photograph fills the gallery.
+   *
+   * There was a third — swapping that photograph for the size chart while
+   * `Size & fit` was open. The chart is rendered inside the panel now, so the
+   * accordion needs no script at all beyond the sibling-closing fallback below,
+   * and the gallery answers to the filmstrip and nothing else.
    *
    * Scoped to this page's markup and bails when it is absent, so the handler is
    * a no-op on every other route. The cart stores only `{ variantId, quantity }`
@@ -125,72 +129,42 @@ const seoDescription = view.description[0] ?? `${product.title} — object by so
    */
   const shots = Array.from(document.querySelectorAll<HTMLElement>("[data-shot]"));
   const thumbs = Array.from(document.querySelectorAll<HTMLButtonElement>(".product-thumb"));
-  const sizingPlate = document.querySelector<HTMLElement>("[data-sizing-plate]");
-
-  const panels = Array.from(document.querySelectorAll<HTMLDetailsElement>(".product-panel"));
-  const sizePanel = panels.find((panel) => panel.dataset.panel === "size-fit");
 
   /**
-   * TWO INDEPENDENT FACTS DECIDE WHAT THE FIELD SHOWS, and each is kept where
-   * it already lives: WHICH SHOT is selected (`shown`) and WHETHER THE CHART
-   * has displaced it (`sizePanel.open`). `hidden` is the rendering of both
-   * together, never the storage of either — which is the trap the first version
-   * fell into, hiding every shot for the chart and then needing a variable to
-   * recover the selection the DOM could no longer answer for.
-   *
-   * One function reads both and applies them, so no handler has to know what
-   * another will do, and reloading or find-in-page-opening the panel converges
-   * on the same view as clicking it.
-   */
-  let shown = 0;
-
-  const render = () => {
-    const chart = sizePanel?.open === true && sizingPlate !== null;
-    if (sizingPlate) sizingPlate.hidden = !chart;
-    shots.forEach((shot, i) => {
-      shot.hidden = chart || i !== shown;
-    });
-  };
-
-  /**
-   * CHOOSING A PHOTOGRAPH TAKES THE FIELD BACK. Asked for a shot while the
-   * chart is up, the honest answer is to show it — so the panel closes. The
-   * alternative, recording the choice and applying it whenever the panel
-   * happens to close, is a control that visibly does nothing when pressed.
+   * ONE FACT DECIDES WHAT THE FIELD SHOWS: which thumbnail was pressed. It used
+   * to be two — the selected shot AND whether the chart had displaced it — and
+   * the reconciling function that read both is gone with the displacing.
    */
   thumbs.forEach((thumb, index) => {
     thumb.addEventListener("click", () => {
       for (const other of thumbs) {
         other.setAttribute("aria-pressed", other === thumb ? "true" : "false");
       }
-      shown = index;
-      if (sizePanel) sizePanel.open = false;
-      render();
+      shots.forEach((shot, i) => {
+        shot.hidden = i !== index;
+      });
     });
   });
 
   /**
-   * `Size & fit` TAKES THE GALLERY FIELD, because a measurement chart is
-   * unreadable at the width of a sheet column — the one thing mockup 03's
-   * miniature demonstrated.
+   * ONE PANEL OPEN AT A TIME, and this is the FALLBACK for engines without
+   * `<details name>` rather than the mechanism. Where the attribute is
+   * supported this never finds a second open panel, because the browser closed
+   * it first; running it either way means the behaviour does not depend on
+   * which of the two happened.
    *
    * Driven off `toggle`, which fires for every route into the open state: a
-   * click on the summary, `Enter` on it, a sibling `<details name>` closing this
-   * one, and find-in-page opening it. A click handler would miss three of those.
-   *
-   * The close-siblings pass is for engines without `<details name>`. Where the
-   * attribute is supported it never finds a second open panel, because the
-   * browser closed it first — running it either way means the behaviour does
-   * not depend on which of the two happened.
+   * click on the summary, `Enter` on it, a sibling closing this one, and
+   * find-in-page opening it. A click handler would miss three of those.
    */
+  const panels = Array.from(document.querySelectorAll<HTMLDetailsElement>(".product-panel"));
+
   for (const panel of panels) {
     panel.addEventListener("toggle", () => {
-      if (panel.open) {
-        for (const other of panels) {
-          if (other !== panel) other.open = false;
-        }
+      if (!panel.open) return;
+      for (const other of panels) {
+        if (other !== panel) other.open = false;
       }
-      render();
     });
   }
 </script>

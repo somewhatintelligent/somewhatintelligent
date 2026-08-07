@@ -123,12 +123,12 @@ describe("the accordions", () => {
     );
     expect(withPlate.panels.map((panel) => panel.id)).toEqual(["size-fit"]);
     /**
-     * Comments are optional beside a chart, so the panel exists either way —
-     * and its body is never empty, because a drawer that opens onto nothing is
-     * worse than one sentence saying where the chart went.
+     * THE CHART IS THE PANEL'S BODY, so comments being absent is not an empty
+     * drawer — it is a one-column guide. No stand-in sentence is invented to
+     * fill a body that already has the measurements in it.
      */
-    expect(withPlate.panels[0]?.paragraphs.length).toBeGreaterThan(0);
-    expect(withPlate.sizingPlate).toEqual({
+    expect(withPlate.panels[0]?.paragraphs).toEqual([]);
+    expect(withPlate.panels[0]?.chart).toEqual({
       href: "/media/plate",
       alt: "Pit-to-pit 50, 53, 56 cm.",
     });
@@ -152,8 +152,26 @@ describe("the accordions", () => {
     ]);
   });
 
-  test("no size guide means no sizing plate for the gallery to swap to", () => {
-    expect(productView(product()).sizingPlate).toBeNull();
+  /**
+   * THE CHART BELONGS TO THE PANEL THAT OPENS ONTO IT, and nothing else on the
+   * page may reach for it. It used to be a field of the view, which is how the
+   * GALLERY came to render it — opening `Size & fit` in the right-hand column
+   * took over the photograph in the left one.
+   */
+  test("only the size-fit panel carries a chart", () => {
+    const view = productView(
+      product({
+        detailsMarkdown: "240 GSM combed cotton.",
+        sizeGuide: { href: "/media/plate", alt: "Pit-to-pit 50, 53, 56 cm.", notesMarkdown: null },
+      }),
+    );
+    expect(view.panels.map((panel) => panel.chart?.href ?? null)).toEqual([null, "/media/plate"]);
+  });
+
+  test("no size guide means no panel and no chart", () => {
+    const view = productView(product({ detailsMarkdown: "240 GSM combed cotton." }));
+    expect(view.panels.map((panel) => panel.id)).toEqual(["details"]);
+    expect(view.panels.every((panel) => panel.chart === null)).toBe(true);
   });
 });
 

@@ -136,15 +136,13 @@
  * `[hidden]` needs `display: none !important` because `position: absolute`
  * would otherwise out-specify it.
  */
-.product-shot,
-.product-sizing-plate {
+.product-shot {
   position: absolute;
   inset: 0;
   margin: 0;
 }
 
-.product-shot[hidden],
-.product-sizing-plate[hidden] {
+.product-shot[hidden] {
   display: none !important;
 }
 
@@ -154,54 +152,6 @@
   filter: grayscale(0.32) contrast(1.05);
   object-fit: cover;
   object-position: 65% center;
-}
-
-/*
- * THE SIZING PLATE.
- *
- * THE CHART IS TINTED, NOT PLACED. Its alpha channel is the artwork, so the
- * mask below discards whatever colour it was exported in and paints the result
- * `currentColor` — which on this inverted stage is the light foreground. The
- * same file therefore renders light here and would render dark on a light
- * surface, with no inverted second copy to keep in step and no white slab
- * dropped into the middle of a dark page just to make black ink legible.
- *
- * WHAT THIS ASSUMES, stated plainly because it is the one assumption here:
- * the chart is MONOCHROME line art on real transparency. A full-colour image
- * masked this way flattens to a single-colour silhouette. The operator console
- * previews the chart exactly as this renders it, on both surfaces, so an upload
- * that will not survive the treatment is visible before it is published rather
- * than after.
- *
- * `contain`, so a wide chart and a tall one are both whole. `cover` would crop
- * measurements off the edge, which on this particular image is the one thing
- * that cannot be allowed to happen.
- */
-.product-sizing-plate {
-  display: flex;
-  padding: clamp(24px, 4vw, 64px);
-  align-items: center;
-  justify-content: center;
-}
-
-/*
- * THE FALLBACK IS THE OLD BEHAVIOUR, and it is the base rule rather than the
- * exception: an engine with no mask support paints the plate light and drops
- * the chart on it as an ordinary image. Dark ink on a light plate is legible
- * everywhere. Only the theming is lost, never the chart.
- */
-.product-sizing-art {
-  width: 100%;
-  height: 100%;
-  background: var(--color-inverse-foreground) var(--plate-art) center / contain no-repeat;
-}
-
-@supports ((mask: url("")) or (-webkit-mask: url(""))) {
-  .product-sizing-art {
-    background: currentColor;
-    -webkit-mask: var(--plate-art) center / contain no-repeat;
-    mask: var(--plate-art) center / contain no-repeat;
-  }
 }
 
 /* ── The purchase sheet ─────────────────────────────────────────────────── */
@@ -423,6 +373,94 @@
 }
 
 /*
+ * ── The size guide, inside the panel that opens onto it ──────────────────
+ *
+ * THE CHART AND THE FIT COMMENTS SIDE BY SIDE, ruled off from the prose above
+ * them — mockup 03. The chart used to take the gallery field on the left
+ * instead, on the argument that a measurement chart is unreadable at the width
+ * of a sheet column. It is smaller here, and it is where a shopper who opened
+ * this drawer is looking; a control in one column that quietly changes another
+ * is the worse trade.
+ *
+ * `has-notes` ADDS the second track rather than the base rule reserving one.
+ * Comments are optional beside a chart, so a one-column guide is a real state
+ * and not a degenerate two-column one — no divider with nothing behind it.
+ */
+.product-size-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 14px;
+  border: 1px solid var(--color-border);
+}
+
+.product-size-guide.has-notes {
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+}
+
+.product-size-notes {
+  padding: 12px 13px;
+  border-left: 1px solid var(--color-border);
+}
+
+/*
+ * THE CHART IS TINTED, NOT PLACED. Its alpha channel is the artwork, so the
+ * mask below discards whatever colour it was exported in and paints the result
+ * `currentColor` — the sheet's own ink. `--color-inverse` and
+ * `--color-inverse-foreground` are a contrasting pair BY CONSTRUCTION, so the
+ * one file reads correctly on this panel under either theme, with no inverted
+ * second copy to keep in step and no white slab dropped into a dark panel to
+ * make black ink legible.
+ *
+ * WHAT THIS ASSUMES, stated plainly because it is the one assumption here:
+ * the chart is MONOCHROME line art on real transparency. A full-colour image
+ * masked this way flattens to a single-colour silhouette. The operator console
+ * previews the chart exactly as this renders it, on both surfaces, so an upload
+ * that will not survive the treatment is visible before it is published rather
+ * than after.
+ *
+ * `contain`, so a wide chart and a tall one are both whole. `cover` would crop
+ * measurements off the edge, which on this particular image is the one thing
+ * that cannot be allowed to happen. `aspect-ratio` because the element is in
+ * flow here and a masked box has no intrinsic size of its own — without it the
+ * chart would be a zero-height nothing.
+ *
+ * THE FALLBACK IS THE BASE RULE rather than the exception: an engine without
+ * mask support drops the chart on a plate as an ordinary image.
+ *
+ * LITERAL WHITE, not `--color-inverse`. The token is near-black under the light
+ * theme, and this fallback exists precisely for the case where nothing tints
+ * the artwork — so the plate has to contrast with the chart's OWN ink, which
+ * for line art is dark. A themed plate here would render black on black half
+ * the time. Only the theming is lost, never the chart.
+ */
+.product-size-chart {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 10px;
+  background: #fff var(--chart-src) center / contain no-repeat;
+  background-origin: content-box;
+}
+
+/*
+ * The origin and clip as LONGHANDS. `mask` takes a `<geometry-box>`, but the
+ * legacy `-webkit-mask` shorthand does not parse one everywhere it is still
+ * needed, and a shorthand that fails to parse takes the mask with it — which
+ * would leave the element painted flat `currentColor`, a solid rectangle where
+ * the chart should be. Longhands degrade to an unpadded mask at worst.
+ */
+@supports ((mask: url("")) or (-webkit-mask: url(""))) {
+  .product-size-chart {
+    background: currentColor;
+    -webkit-mask: var(--chart-src) center / contain no-repeat;
+    mask: var(--chart-src) center / contain no-repeat;
+    -webkit-mask-origin: content-box;
+    mask-origin: content-box;
+    -webkit-mask-clip: content-box;
+    mask-clip: content-box;
+  }
+}
+
+/*
  * MOTION IS OPT-IN. The chevron and the panel body animate only where the
  * visitor has not asked for less of it; everything above is a static rule, so
  * removing motion removes motion rather than removing the affordance.
@@ -506,5 +544,20 @@
 
   .product-panels {
     margin-top: 24px;
+  }
+
+  /*
+   * THE GUIDE STACKS, chart above notes. Two columns inside a phone-width panel
+   * would leave the chart at about 140px — measurements printed too small to
+   * read, which is the one thing this panel exists to prevent. The divider moves
+   * with the split, since a `border-left` on a full-width cell is a stray mark.
+   */
+  .product-size-guide.has-notes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .product-size-notes {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
   }
 }

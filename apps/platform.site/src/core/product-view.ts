@@ -7,7 +7,7 @@
  *   one image      no filmstrip, and the single plate fills the whole gallery
  *                  field — not a strip of one, and never an empty second cell.
  *   no details     no `Product details` accordion. Not an empty one.
- *   no size guide  no `Size & fit` accordion, and no sizing plate to swap to.
+ *   no size guide  no `Size & fit` accordion, and no chart to put in one.
  *
  * Kept here rather than in the `.astro` frontmatter so they are testable
  * without a renderer, which is the same trade `core/cart.ts` makes. The
@@ -40,9 +40,26 @@ export interface ProductPanel {
   readonly id: "details" | "size-fit";
   readonly label: string;
   readonly paragraphs: readonly string[];
+  /**
+   * THE CHART LIVES ON THE PANEL THAT OPENS ONTO IT, which is the whole of the
+   * correction here — it used to be a field of the view that the GALLERY read,
+   * so opening `Size & fit` in the right-hand column took over the photograph
+   * in the left one. A panel owning its own body means the drawer is the only
+   * thing that has to know the chart exists.
+   *
+   * Null on `details`, and null is a real answer rather than an omission: the
+   * one panel that can carry a chart is the one that turns on having it.
+   */
+  readonly chart: SizeChart | null;
 }
 
-export interface SizingPlate {
+/**
+ * Named for what it IS rather than where it used to go. It was `SizingPlate`
+ * while the gallery rendered it, and `plate` is that field's word — `.product-
+ * plate` is the big image cell and `.product-shot` is what fills it. Nothing
+ * about a size chart is a plate any more.
+ */
+export interface SizeChart {
   readonly href: string;
   readonly alt: string;
 }
@@ -63,8 +80,6 @@ export interface ProductView {
   readonly media: readonly ProductPlate[];
   /** Zero, one or two. Only one may be open at a time — see `ProductPanels.astro`. */
   readonly panels: readonly ProductPanel[];
-  /** The chart the gallery swaps to while `Size & fit` is open. */
-  readonly sizingPlate: SizingPlate | null;
 }
 
 const pad = (index: number): string => String(index + 1).padStart(2, "0");
@@ -97,18 +112,24 @@ export const productView = (product: StorefrontProductDTO): ProductView => {
    */
   const panels: ProductPanel[] = [];
   if (details.length > 0) {
-    panels.push({ id: "details", label: "Product details", paragraphs: details });
+    panels.push({ id: "details", label: "Product details", paragraphs: details, chart: null });
   }
   if (product.sizeGuide) {
     /**
-     * The comments are OPTIONAL beside a chart that exists, so an empty body is
-     * reachable here and only here — and a drawer that opens onto nothing is
-     * worse than the sentence saying where the chart went. Resolved here rather
-     * than as a branch in the template, so the markup maps `paragraphs`
-     * unconditionally and no renderer has to know which panel it is holding.
+     * THE COMMENTS ARE OPTIONAL BESIDE THE CHART, and no longer need a sentence
+     * standing in for them. They once did: the chart was in the gallery, so a
+     * panel with no comments opened onto a genuinely empty drawer and "shown on
+     * the left" was the least bad thing to put there. The chart is IN the body
+     * now, so an operator who wrote no comments still gets a panel full of the
+     * measurements they uploaded — and the template lays out one column instead
+     * of two rather than printing prose nobody wrote.
      */
-    const body = fitComments.length > 0 ? fitComments : ["Measurements are shown on the left."];
-    panels.push({ id: "size-fit", label: "Size & fit", paragraphs: body });
+    panels.push({
+      id: "size-fit",
+      label: "Size & fit",
+      paragraphs: fitComments,
+      chart: { href: product.sizeGuide.href, alt: product.sizeGuide.alt },
+    });
   }
 
   return {
@@ -116,9 +137,6 @@ export const productView = (product: StorefrontProductDTO): ProductView => {
     description: paragraphs(product.descriptionMarkdown),
     media,
     panels,
-    sizingPlate: product.sizeGuide
-      ? { href: product.sizeGuide.href, alt: product.sizeGuide.alt }
-      : null,
   };
 };
 

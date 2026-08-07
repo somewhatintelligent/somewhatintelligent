@@ -1,6 +1,9 @@
 ---
-// THE GALLERY FIELD: a numbered filmstrip, one large plate, and the sizing
-// plate that takes its place while `Size & fit` is open.
+// THE GALLERY FIELD: a numbered filmstrip and one large plate. PHOTOGRAPHS ONLY
+// — the size chart used to be dealt in here as a plate that took the
+// photograph's place while `Size & fit` was open, which made a control in the
+// right-hand column change the left-hand one. The chart belongs to the drawer
+// that opens onto it and now lives there; see `ProductPanels.astro`.
 //
 // ORDER IS THE ENTIRE PRESENTATION MODEL. Index 0 is the listing cover and the
 // shot this page opens on; the strip prints `01`, `02`, `03` beside the rest in
@@ -11,20 +14,16 @@
 // the plate simply fills the whole field, which is what mockup 01 shows and
 // what a single photograph deserves.
 //
-// EVERY PLATE IS RENDERED AND ONE IS SHOWN. Swapping `src` would re-request the
+// EVERY SHOT IS RENDERED AND ONE IS SHOWN. Swapping `src` would re-request the
 // bytes on every click and flash white in between; `hidden` on eight small
-// elements costs nothing and makes the swap instant. It is also what lets
-// closing `Size & fit` restore the PREVIOUSLY SELECTED image rather than
-// resetting to the cover — the selection lives in the DOM, so nothing has to
-// remember it.
-import type { ProductPlate, SizingPlate } from "../core/product-view.ts";
+// elements costs nothing and makes the choice instant.
+import type { ProductPlate } from "../core/product-view.ts";
 
 interface Props {
   media: readonly ProductPlate[];
-  sizingPlate: SizingPlate | null;
 }
 
-const { media, sizingPlate } = Astro.props;
+const { media } = Astro.props;
 
 /** Derived, not passed: a consumer holding `media` can already see this. */
 const showFilmstrip = media.length > 1;
@@ -59,42 +58,6 @@ const showFilmstrip = media.length > 1;
           <img src={plate.href} alt={plate.alt} loading={index === 0 ? "eager" : "lazy"} />
         </figure>
       ))
-    }
-
-    {
-      /*
-        THE SIZING PLATE, hidden until `Size & fit` opens.
-
-        THE CHART IS DRAWN IN THE PAGE'S OWN INK, not in whatever colour it was
-        exported as. Its alpha channel is the artwork, so CSS masks it and
-        paints the result `currentColor` — a chart exported as black line art
-        renders light on this dark stage, and the same file would render dark on
-        a light one. One asset, no inverted second copy, and no white slab
-        dropped into the middle of an inverted page to make dark ink legible.
-
-        `role="img"` + `aria-label` rather than `<img alt>` because a masked
-        element is a background, and the alt text is the only thing a screen
-        reader gets instead of the measurements — see `SizeGuide.alt` in the
-        contract. `product.css` keeps a plain-image fallback for engines with no
-        mask support, so the chart is never invisible, only un-themed.
-
-        `contain`, so a tall chart and a wide one are both whole; `cover` would
-        crop measurements off the edge.
-      */
-      sizingPlate && (
-        <figure class="product-sizing-plate" data-sizing-plate hidden>
-          {/*
-            The href is server-minted — `mediaHref(<ULID>)` — so it carries no
-            characters that could escape the `url()`. It is not operator input.
-          */}
-          <div
-            class="product-sizing-art"
-            role="img"
-            aria-label={sizingPlate.alt}
-            style={`--plate-art: url("${sizingPlate.href}")`}
-          />
-        </figure>
-      )
     }
   </div>
 </div>

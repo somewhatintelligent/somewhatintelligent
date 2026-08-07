@@ -12,9 +12,15 @@
 // contains no entry for an absent field, so nothing here branches on emptiness
 // and no empty drawer can reach a page.
 //
-// The `Size & fit` body carries the FIT COMMENTS only. The chart itself is not
-// in here — it replaces the gallery image on the left when this opens, which is
-// the whole reason it earns the room to be read at.
+// THE `Size & fit` BODY CARRIES THE CHART AND THE FIT COMMENTS TOGETHER, side by
+// side, which is what mockup 03 shows. The chart used to displace the gallery
+// photograph instead — a drawer in the right-hand column silently taking over
+// the left-hand one, so the thing a shopper opened was not the thing that
+// changed. Everything the panel is about is now inside the panel.
+//
+// The chart is the body's CONTENT, not an illustration of it, so the notes
+// column only exists when an operator wrote notes. No divider with nothing
+// behind it.
 import type { ProductPanel } from "../core/product-view.ts";
 
 interface Props {
@@ -37,9 +43,46 @@ const { panels } = Astro.props;
             </svg>
           </summary>
           <div class="product-panel-body">
-            {panel.paragraphs.map((paragraph) => (
-              <p>{paragraph}</p>
-            ))}
+            {panel.chart ? (
+              <div class:list={["product-size-guide", { "has-notes": panel.paragraphs.length > 0 }]}>
+                {/*
+                  THE CHART IS DRAWN IN THE PAGE'S OWN INK rather than in
+                  whatever colour it was exported as: its alpha channel is the
+                  artwork, so `product.css` masks it and paints the result
+                  `currentColor`. One file therefore reads correctly on this
+                  sheet in either theme, with no inverted second copy to keep in
+                  step and no white slab dropped into a dark panel to make black
+                  ink legible.
+
+                  `role="img"` + `aria-label` rather than `<img alt>` because a
+                  masked element is a background, and the alt text is the only
+                  thing a screen reader gets instead of the measurements — see
+                  `SizeGuide.alt` in the contract. `product.css` keeps a
+                  plain-image fallback for engines without mask support, so the
+                  chart is never invisible, only un-themed.
+
+                  The href is server-minted — `mediaHref(<ULID>)` — so it
+                  carries no characters that could escape the `url()`. It is not
+                  operator input.
+                */}
+                <div
+                  class="product-size-chart"
+                  role="img"
+                  aria-label={panel.chart.alt}
+                  style={`--chart-src: url("${panel.chart.href}")`}
+                />
+
+                {panel.paragraphs.length > 0 && (
+                  <div class="product-size-notes">
+                    {panel.paragraphs.map((paragraph) => (
+                      <p>{paragraph}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              panel.paragraphs.map((paragraph) => <p>{paragraph}</p>)
+            )}
           </div>
         </details>
       ))}
