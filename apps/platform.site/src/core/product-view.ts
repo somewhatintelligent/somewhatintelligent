@@ -26,7 +26,7 @@
  * binding-holding module is a dependency waiting to stop being type-only.
  */
 import type { StorefrontProductDTO } from "platform.commerce/contracts";
-import { paragraphs } from "./markdown.ts";
+import { hasProse } from "./markdown.ts";
 
 export interface ProductPlate {
   readonly href: string;
@@ -39,7 +39,12 @@ export interface ProductPanel {
   /** Stable, so the `<details>`, its summary and its region can be wired together. */
   readonly id: "details" | "size-fit";
   readonly label: string;
-  readonly paragraphs: readonly string[];
+  /**
+   * RAW MARKDOWN, rendered by whoever draws it. Rendering here would make this
+   * module — the one place the page's branches are decided and tested without a
+   * renderer — depend on one.
+   */
+  readonly body: string | null;
   /**
    * THE CHART LIVES ON THE PANEL THAT OPENS ONTO IT, which is the whole of the
    * correction here — it used to be a field of the view that the GALLERY read,
@@ -67,8 +72,8 @@ export interface SizeChart {
 export interface ProductView {
   /** `OBJECT / field-tee / 1.2.0` — the honest handle, which is the URL plus what shipped. */
   readonly identifier: string;
-  /** Always rendered, directly under the title. Empty when the operator wrote none. */
-  readonly description: readonly string[];
+  /** Always rendered, directly under the title. `null` when the operator wrote none. */
+  readonly description: string | null;
   /**
    * ORDERED, and the order is the whole model: index 0 is the listing cover and
    * the shot the page opens on. `showFilmstrip` and `cover` were once fields
@@ -98,8 +103,8 @@ export const productView = (product: StorefrontProductDTO): ProductView => {
     }),
   );
 
-  const details = paragraphs(product.detailsMarkdown);
-  const fitComments = paragraphs(product.sizeGuide?.notesMarkdown);
+  const details = product.detailsMarkdown;
+  const fitComments = product.sizeGuide?.notesMarkdown ?? null;
 
   /**
    * BUILT BY PUSHING, so an absent field contributes no entry at all. A list
@@ -111,8 +116,8 @@ export const productView = (product: StorefrontProductDTO): ProductView => {
    * are optional beside a chart that exists.
    */
   const panels: ProductPanel[] = [];
-  if (details.length > 0) {
-    panels.push({ id: "details", label: "Product details", paragraphs: details, chart: null });
+  if (hasProse(details)) {
+    panels.push({ id: "details", label: "Product details", body: details, chart: null });
   }
   if (product.sizeGuide) {
     /**
@@ -127,14 +132,14 @@ export const productView = (product: StorefrontProductDTO): ProductView => {
     panels.push({
       id: "size-fit",
       label: "Size & fit",
-      paragraphs: fitComments,
+      body: hasProse(fitComments) ? fitComments : null,
       chart: { href: product.sizeGuide.href, alt: product.sizeGuide.alt },
     });
   }
 
   return {
     identifier: `Object / ${product.slug} / ${product.version}`,
-    description: paragraphs(product.descriptionMarkdown),
+    description: hasProse(product.descriptionMarkdown) ? product.descriptionMarkdown : null,
     media,
     panels,
   };

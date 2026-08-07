@@ -13,6 +13,7 @@
     "prepare": "vp config && effect-tsgo patch --oxlint",
     "ready": "vp check && vp run -r test && vp run -r build"
   },
+  "dependencies": {},
   "devDependencies": {
     "@dotenvx/dotenvx": "^2.19.2",
     "@effect/platform-bun": "catalog:",

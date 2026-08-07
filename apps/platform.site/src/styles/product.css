@@ -354,6 +354,40 @@
   margin-top: 10px;
 }
 
+/*
+ * OPERATOR MARKDOWN, now that these fields are rendered rather than printed.
+ * The prose is already set in mono, so a code span needs a GROUND rather than a
+ * different face — `rgb(128 128 128 / …)` reads on both the light sheet and the
+ * dark one without a token per theme.
+ */
+.product-description code,
+.product-panel-body code {
+  padding: 0 4px;
+  border-radius: 2px;
+  background: rgb(128 128 128 / 0.22);
+  font-size: 0.9em;
+}
+
+.product-description a,
+.product-panel-body a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.product-description ul,
+.product-panel-body ul,
+.product-description ol,
+.product-panel-body ol {
+  margin-top: 8px;
+  padding-left: 1.1em;
+}
+
+.product-description li,
+.product-panel-body li {
+  margin-top: 4px;
+  list-style: revert;
+}
+
 .product-price {
   margin-top: 18px;
   padding-bottom: 14px;

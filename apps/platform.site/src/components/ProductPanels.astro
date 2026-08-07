@@ -20,6 +20,7 @@
 //
 // The chart is the body's CONTENT rather than an illustration of it, which is
 // why it gets the width and the prose sits under it.
+import { renderMarkdown } from "../core/markdown.ts";
 import type { ProductPanel } from "../core/product-view.ts";
 
 interface Props {
@@ -103,14 +104,12 @@ const { panels } = Astro.props;
             )}
 
             {/*
-              Unconditional, and no branch on the chart. An operator who wrote
-              no comments has an empty array here, which maps to nothing — the
-              same shape the details panel has, so neither panel's body is a
-              special case of the other.
+              Unconditional, and no branch on the chart. `renderMarkdown`
+              returns null for a panel whose operator wrote no comments, and a
+              null `set:html` emits nothing — the same shape the details panel
+              has, so neither body is a special case of the other.
             */}
-            {panel.paragraphs.map((paragraph) => (
-              <p>{paragraph}</p>
-            ))}
+            <Fragment set:html={renderMarkdown(panel.body)} />
           </div>
         </details>
       ))}

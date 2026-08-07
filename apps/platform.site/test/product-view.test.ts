@@ -20,7 +20,7 @@ import { describe, expect, test } from "bun:test";
 import type { StorefrontProductDTO } from "platform.commerce/contracts";
 
 import { availabilityLine, productView } from "../src/core/product-view.ts";
-import { paragraphs } from "../src/core/markdown.ts";
+import { hasProse, renderMarkdown } from "../src/core/markdown.ts";
 
 const product = (overrides: Partial<StorefrontProductDTO> = {}): StorefrontProductDTO => ({
   slug: "friend-001",
@@ -103,7 +103,7 @@ describe("the accordions", () => {
   test("details alone give exactly one panel, carrying the operator's prose", () => {
     const view = productView(product({ detailsMarkdown: "240 GSM combed cotton." }));
     expect(view.panels.map((panel) => panel.id)).toEqual(["details"]);
-    expect(view.panels[0]?.paragraphs).toEqual(["240 GSM combed cotton."]);
+    expect(view.panels[0]?.body).toBe("240 GSM combed cotton.");
   });
 
   /**
@@ -127,7 +127,7 @@ describe("the accordions", () => {
      * drawer — it is a one-column guide. No stand-in sentence is invented to
      * fill a body that already has the measurements in it.
      */
-    expect(withPlate.panels[0]?.paragraphs).toEqual([]);
+    expect(withPlate.panels[0]?.body).toBeNull();
     expect(withPlate.panels[0]?.chart).toEqual({
       href: "/media/plate",
       alt: "Pit-to-pit 50, 53, 56 cm.",
@@ -146,10 +146,7 @@ describe("the accordions", () => {
       }),
     );
     expect(view.panels.map((panel) => panel.id)).toEqual(["details", "size-fit"]);
-    expect(view.panels[1]?.paragraphs).toEqual([
-      "Relaxed unisex fit.",
-      "Model is 170 cm and wears M.",
-    ]);
+    expect(view.panels[1]?.body).toBe("Relaxed unisex fit.\n\nModel is 170 cm and wears M.");
   });
 
   /**
@@ -181,13 +178,13 @@ describe("the description", () => {
     const view = productView(
       product({ descriptionMarkdown: "I mean in the C++ way.\n\nShips from Toronto." }),
     );
-    expect(view.description).toEqual(["I mean in the C++ way.", "Ships from Toronto."]);
+    expect(view.description).toBe("I mean in the C++ way.\n\nShips from Toronto.");
     expect(view.panels).toEqual([]);
   });
 
-  /** An empty list is what tells the template to render no wrapper at all. */
-  test("absent is an empty list, not an empty paragraph", () => {
-    expect(productView(product({ descriptionMarkdown: null })).description).toEqual([]);
+  /** `null` is what tells the template to render no wrapper at all. */
+  test("absent is null, not an empty paragraph", () => {
+    expect(productView(product({ descriptionMarkdown: null })).description).toBeNull();
   });
 });
 
@@ -213,11 +210,12 @@ describe("the safe markdown path", () => {
    * sanitise rather than a sanitiser to keep correct.
    */
   test("markup an operator types survives as the characters they typed", () => {
-    expect(paragraphs("<script>alert(1)</script>")).toEqual(["<script>alert(1)</script>"]);
+    expect(renderMarkdown("The `friend` declaration")).toContain("<code>friend</code>");
   });
 
-  test("blank lines separate paragraphs; single newlines do not", () => {
-    expect(paragraphs("one\ntwo\n\nthree")).toEqual(["one\ntwo", "three"]);
+  test("blank lines separate paragraphs", () => {
+    const html = renderMarkdown("one\n\ntwo") ?? "";
+    expect(html.match(/<p>/g)?.length).toBe(2);
   });
 
   /**
@@ -225,10 +223,10 @@ describe("the safe markdown path", () => {
    * — no wrapper, no accordion, no placeholder — so "absent" and "whitespace"
    * having to collapse to the same value is the property, not a formatting nit.
    */
-  test("nothing, whitespace and null all yield no paragraphs", () => {
-    expect(paragraphs(null)).toEqual([]);
-    expect(paragraphs(undefined)).toEqual([]);
-    expect(paragraphs("")).toEqual([]);
-    expect(paragraphs("\n  \n")).toEqual([]);
+  test("nothing, whitespace and null all render nothing", () => {
+    for (const empty of [null, undefined, "", "\n  \n"]) {
+      expect(hasProse(empty)).toBe(false);
+      expect(renderMarkdown(empty)).toBeNull();
+    }
   });
 });

@@ -19,7 +19,7 @@
 // COARSE POINTERS HAVE NO HOVER, so the first tap expands and a second tap on
 // an already-expanded row follows the link. Without that, a phone would either
 // navigate before showing anything or never expand at all.
-import { paragraphs } from "../core/markdown.ts";
+import { renderMarkdown } from "../core/markdown.ts";
 
 interface Props {
   index: number;
@@ -54,8 +54,21 @@ const num = String(index).padStart(2, "0");
  * in both places rather than a separate "excerpt" field an operator would have
  * to write twice and keep in step.
  */
-const body = paragraphs(descriptionMarkdown);
-const purpose = body[0] ?? null;
+const bodyHtml = renderMarkdown(descriptionMarkdown);
+
+/**
+ * THE COLLAPSED ONE-LINER IS PLAIN TEXT, not the rendered markup. It sits in a
+ * `nowrap` line clipped with an ellipsis, and `<code>` or `<strong>` inside a
+ * clipped single line is decoration nobody can read at 11px. The markers are
+ * stripped rather than rendered: the same sentence, said flatly.
+ */
+const purpose =
+  (descriptionMarkdown ?? "")
+    .split(/\n{2,}/)[0]
+    ?.replace(/[`*_~]/g, "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim() || null;
 const href = `/shop/${slug}`;
 ---
 
@@ -82,9 +95,7 @@ const href = `/shop/${slug}`;
   <div class="ledger-entry-panel-wrap">
     <div class="ledger-entry-panel">
       <div class="ledger-entry-copy">
-        {body.map((paragraph) => (
-          <p class="ledger-entry-para">{paragraph}</p>
-        ))}
+        <div class="ledger-entry-prose" set:html={bodyHtml} />
         {/*
           `tabindex="-1"` while collapsed, because a link inside a zero-height
           box is still focusable and would otherwise send a keyboard visitor to
@@ -411,11 +422,38 @@ const href = `/shop/${slug}`;
     border-right: 1px solid var(--color-border);
   }
 
-  .ledger-entry-para {
+  .ledger-entry-prose {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /*
+   * `:global` because this subtree is `set:html` — Astro scopes what it
+   * compiles, and markdown output arrives as a string it never sees, so a
+   * scoped `p` selector would match nothing here.
+   */
+  .ledger-entry-prose :global(p) {
     margin-bottom: 12px;
     font-family: var(--font-editorial);
     font-size: clamp(15px, 1.15vw, 19px);
     line-height: 1.2;
+  }
+
+  /* A code span in prose already set in mono needs a ground, not a face. */
+  .ledger-entry-prose :global(code) {
+    padding: 0 4px;
+    border-radius: 2px;
+    background: rgb(128 128 128 / 0.22);
+    font-size: 0.88em;
+  }
+
+  .ledger-entry-prose :global(a) {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+
+  .ledger-entry-prose :global(strong) {
+    font-weight: 700;
   }
 
   .ledger-entry-cta {
@@ -547,11 +585,11 @@ const href = `/shop/${slug}`;
      * object is, `VIEW OBJECT` is right there, and the rest is one tap away
      * rather than crushed in here.
      */
-    .ledger-entry-para:nth-of-type(n + 2) {
+    .ledger-entry-prose :global(p:nth-of-type(n + 2)) {
       display: none;
     }
 
-    .ledger-entry-para {
+    .ledger-entry-prose :global(p) {
       margin-bottom: 8px;
       font-size: 15px;
     }

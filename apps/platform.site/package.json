@@ -14,6 +14,7 @@
     "alchemy": "catalog:",
     "astro": "^7",
     "effect": "catalog:",
+    "marked": "^18.0.9",
     "platform.auth": "workspace:*",
     "platform.commerce": "workspace:*",
     "platform.design": "workspace:*",

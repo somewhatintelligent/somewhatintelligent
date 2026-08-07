@@ -12,6 +12,7 @@
 // The route decides nothing about this column and this column decides nothing
 // about the page's shape; `productView` decided both.
 import { formatPrice } from "../lib/format.ts";
+import { renderMarkdown } from "../core/markdown.ts";
 import ProductPanels from "./ProductPanels.astro";
 import ProductSizes from "./ProductSizes.astro";
 import type { ProductView } from "../core/product-view.ts";
@@ -25,6 +26,9 @@ interface Props {
 }
 
 const { product, view, availability } = Astro.props;
+
+/** Operator Markdown, rendered — see `core/markdown.ts`. */
+const descriptionHtml = renderMarkdown(view.description);
 ---
 
 <section
@@ -44,13 +48,7 @@ const { product, view, availability } = Astro.props;
       one piece of prose a shopper is guaranteed to read, so it is where an
       operator puts anything they need read, shipping and returns included.
     */
-    view.description.length > 0 && (
-      <div class="product-description">
-        {view.description.map((paragraph) => (
-          <p>{paragraph}</p>
-        ))}
-      </div>
-    )
+    descriptionHtml && <div class="product-description" set:html={descriptionHtml} />
   }
 
   <p class="product-price">{formatPrice(product.priceCents, product.currency)}</p>
