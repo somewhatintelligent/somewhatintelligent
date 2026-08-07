@@ -381,6 +381,30 @@ const viewmodel = {
 
 // ── Emit ───────────────────────────────────────────────────────────────────
 
+// The design system, not a copy of it: the generated token contract is
+// inlined verbatim so the artifact carries the same `--color-*` values every
+// other SI surface is written against. Retinting the brand and re-running
+// `platform.design`'s codegen restyles this viewer with no edit here.
+const designTokens = fs.readFileSync(
+  path.resolve(dir, "../../packages/platform.design/generated/css/tokens.css"),
+  "utf8",
+);
+
+/**
+ * Barlow Condensed Black — the display voice, and the only face small enough
+ * to embed (110 KB). Iosevka and Source Serif are ~1.5 MB each, so they stay
+ * as the font stacks `platform.design` already declares: present on a machine
+ * that has them, gracefully degraded elsewhere.
+ */
+const displayFont = fs
+  .readFileSync(
+    path.resolve(
+      dir,
+      "../../packages/platform.design/src/fonts/barlow-condensed/BarlowCondensed-Black.ttf",
+    ),
+  )
+  .toString("base64");
+
 const css = fs.readFileSync(path.join(dir, "viewer.css"), "utf8");
 const js = fs.readFileSync(path.join(dir, "viewer.js"), "utf8");
 
@@ -388,6 +412,14 @@ const html = `<meta charset="utf-8" />
 <title>somewhatintelligent — C4 topology</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
+${designTokens}
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("data:font/ttf;base64,${displayFont}") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
 ${css}
 </style>
 <div id="app"></div>

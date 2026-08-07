@@ -51,6 +51,26 @@ const wrap = (text, maxChars, maxLines) => {
 const basename = (p) => p.split("/").pop();
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+/** The brand mark: an asterisk, drawn at `currentColor` so it takes the theme. */
+const brandMark = () =>
+  svgEl(
+    "svg",
+    {
+      class: "mark",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "1.75",
+      "stroke-linecap": "round",
+      "aria-hidden": "true",
+    },
+    svgEl("path", { d: "M12 4v16" }),
+    svgEl("path", { d: "M4 12h16" }),
+    svgEl("path", { d: "M6.4 6.4l11.2 11.2" }),
+    svgEl("path", { d: "M17.6 6.4L6.4 17.6" }),
+    svgEl("circle", { cx: "12", cy: "12", r: "1.15", fill: "currentColor", stroke: "none" }),
+  );
+
 const nodeByKey = new Map(VM.nodes.map((n) => [n.key, n]));
 
 /**
@@ -727,6 +747,7 @@ function topbar(view) {
   return el(
     "header",
     { class: "topbar" },
+    brandMark(),
     el("h1", { text: "somewhatintelligent" }),
     crumbs,
     el("span", { class: "spacer" }),
@@ -794,8 +815,8 @@ function statStrip(graph, view) {
       el(
         "span",
         { class: "stat" },
-        el("b", { text: String(value) }),
-        document.createTextNode(label),
+        el("span", { class: "key", text: label }),
+        el("span", { class: "val", text: String(value) }),
       ),
     );
   }
@@ -803,23 +824,28 @@ function statStrip(graph, view) {
   const chips = chipsFor(issues);
   strip.append(el("span", { class: "spacer" }));
   if (chips.length === 0) {
-    strip.append(el("span", { class: "stat clear", text: "no issues in this view" }));
-  } else {
-    for (const chip of chips) {
-      strip.append(
-        el(
-          "button",
-          {
-            class: `chip ${chip.severity}`,
-            title: `Highlight ${chip.long}`,
-            onclick: () => highlightIssue(chip.kind),
-          },
-          el("b", { text: String(chip.n) }),
-          document.createTextNode(chip.long),
-        ),
-      );
-    }
+    strip.append(
+      el(
+        "span",
+        { class: "stat clear" },
+        el("span", { class: "key", text: "issues" }),
+        el("span", { class: "val", text: "none" }),
+      ),
+    );
+    return strip;
   }
+  const box = el("span", { class: "chips" });
+  for (const chip of chips) {
+    box.append(
+      el("button", {
+        class: `chip ${chip.severity}`,
+        title: `Highlight ${chip.long}`,
+        onclick: () => highlightIssue(chip.kind),
+        text: `${chip.n} ${chip.long}`,
+      }),
+    );
+  }
+  strip.append(box);
   return strip;
 }
 
@@ -1141,7 +1167,7 @@ function nodeEl(n) {
       y: n.y,
       width: n.w,
       height: n.h,
-      rx: n.role === "person" ? 20 : 8,
+      rx: n.role === "person" ? 999 : 3,
     }),
   );
   if (severity) g.append(svgEl("rect", { class: "sevbar", x: n.x, y: n.y, width: 4, height: n.h }));
@@ -1318,15 +1344,9 @@ const issueList = (counts) => {
   const chips = chipsFor(counts);
   if (!chips.length) return null;
   const box = el("div", { class: "issues" });
-  for (const chip of chips)
-    box.append(
-      el(
-        "span",
-        { class: `chip ${chip.severity}` },
-        el("b", { text: String(chip.n) }),
-        document.createTextNode(chip.long),
-      ),
-    );
+  for (const chip of chips) {
+    box.append(el("span", { class: `chip ${chip.severity}`, text: `${chip.n} ${chip.long}` }));
+  }
   return box;
 };
 

@@ -197,6 +197,40 @@ code closure, then:
   `platform.site/src/core/product-view.ts` → `platform.commerce/domain/Contracts.ts`
   (app-core reaching into platform-app; type-only, visible on the Storefront map).
 
+## The look is `platform.design`, not a palette I invented
+
+`generate.ts` inlines `packages/platform.design/generated/css/tokens.css`
+verbatim, so the viewer is written against the same `--color-*` contract every
+other SI surface uses. `viewer.css` contains **no colour literals** — retint
+`src/tokens/brand.ts`, re-run the design system's codegen, and this viewer
+follows. Barlow Condensed Black is embedded as a data URI (110 KB, the display
+voice); Iosevka and Source Serif are ~1.5 MB each, so they stay as the fallback
+stacks the tokens already declare.
+
+Three rules from the brand study do real information-design work here:
+
+- **Cold proof paper → garment black.** The rail is the garment, the canvas is
+  paper. In dark mode the rail lifts to `surface-raised` instead of inverting,
+  because inverting an already-black page turns it white.
+- **Depth is drawn, never diffused.** No blurred shadows anywhere — element
+  kind is encoded by _border treatment_ (solid = runs code, sunken fill =
+  stores data, dashed = wiring, dotted = build-time) exactly as
+  `DESIGN_SYSTEM.md` prescribes, so no new hues were needed.
+- **Pink is scarce** — the private correction crossing a public interface. It
+  means "you are here / you selected this" and nothing else.
+
+The payoff is that colour now means exactly one thing: something is wrong. Red
+and amber are the only other hues on the page, so a boundary breach or a
+complexity hotspot is visible before it is read. The mark in the masthead is
+the FRIEND declaration's asterisk, drawn at `currentColor` from
+`platform.design/logo`.
+
+Running the design system's own gate over this directory
+(`bun run packages/platform.design/scripts/brand-lint.ts prototypes/c4-topology`)
+reports zero hex literals. Its nine remaining findings are false positives —
+the Tailwind-utility regex matching SVG attribute names (`text-anchor`,
+`stroke-width`) and one JSON field (`from_zone`).
+
 ## Ideation / next steps
 
 - **Effect-aware components.** fallow gives folder/file/function structure;

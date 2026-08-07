@@ -1,99 +1,58 @@
-/* somewhatintelligent C4 viewer.
+/* somewhatintelligent — C4 topology viewer.
  *
- * Tokens first, both themes. Copper is the NAVIGATION accent — selection,
- * focus, where-you-are. Severity is a separate channel (red / amber) and is
- * always paired with a word, so color never carries meaning alone.
+ * Built on platform.design. Every colour resolves through the generated
+ * `--color-*` contract, which generate.ts inlines above this file; there are
+ * no literals below. Retint the brand, re-run the design system's codegen,
+ * and this viewer follows.
+ *
+ * Three rules from the brand study, each doing information-design work rather
+ * than decoration:
+ *
+ *   Cold proof paper → garment black. The estate is nearly achromatic: the
+ *   rail is the black garment, the canvas is proof paper, and elements are
+ *   drawn with rules and weight rather than hue.
+ *
+ *   Pink is scarce — the private correction crossing a public interface. Here
+ *   it means "you are here / you selected this", and nothing else.
+ *
+ *   So colour means exactly one thing: something is wrong. Red and amber are
+ *   the only other hues on the page, which makes a problem visible before it
+ *   is read.
+ *
+ * Corners are nearly square (the radius scale tops out at 4px) — rounding
+ * marks a physical control or a genuinely circular object, never friendliness.
  */
+
 :root {
-  --bg: #f6f7f8;
-  --panel: #ffffff;
-  --ink: #1c242e;
-  --ink-soft: #5a6673;
-  --line: #d7dde3;
-  --accent: #b87333;
-  --accent-soft: #b8733320;
+  --ink: var(--color-foreground);
+  --ink-soft: var(--color-muted-foreground);
+  --paper: var(--color-background);
+  --rule: var(--color-border);
+  --rule-strong: var(--color-border-strong);
+  --mark: var(--color-primary); /* the pink correction — selection only */
+  --mark-soft: hsl(var(--color-primary-hsl) / 0.1);
+  --mono: var(--font-mono);
+  --sans: var(--font-body);
+  --display: var(--font-display);
+  --label: 0.06em; /* type-mono-label tracking */
 
-  --critical: #c0392b;
-  --critical-fill: #c0392b18;
-  --warn: #9a6b12;
-  --warn-fill: #9a6b1218;
-  --ok: #3d7a5a;
-
-  --compute: #35688f;
-  --compute-fill: #35688f14;
-  --datastore: #2f7a63;
-  --datastore-fill: #2f7a6314;
-  --edge-role: #6a5d94;
-  --edge-role-fill: #6a5d9414;
-  --external: #6f7a86;
-  --external-fill: #6f7a8612;
-  --person: #8a5f2d;
-  --person-fill: #8a5f2d14;
-  --schema: #7b8060;
-  --dev: #8a7d3f;
-
-  --canvas-dot: #1c242e0d;
-  --shadow: 0 10px 30px rgb(20 25 32 / 0.14);
-  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* The rail and masthead are the garment. Light mode inverts; dark mode is
+     already black, so it lifts instead — inverting twice would go white. */
+  --chrome: var(--color-inverse);
+  --chrome-ink: var(--color-inverse-foreground);
+  --chrome-ink-hsl: var(--color-inverse-foreground-hsl);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #12171d;
-    --panel: #1a2029;
-    --ink: #dbe3ea;
-    --ink-soft: #8c99a6;
-    --line: #2e3945;
-    --accent: #e0a464;
-    --accent-soft: #e0a46422;
-    --critical: #e8695c;
-    --critical-fill: #e8695c1f;
-    --warn: #d9a63c;
-    --warn-fill: #d9a63c1f;
-    --ok: #6bb28c;
-    --compute: #6fa5cf;
-    --compute-fill: #6fa5cf1a;
-    --datastore: #62b697;
-    --datastore-fill: #62b6971a;
-    --edge-role: #a396cd;
-    --edge-role-fill: #a396cd1a;
-    --external: #8b97a4;
-    --external-fill: #8b97a416;
-    --person: #cfa06a;
-    --person-fill: #cfa06a1a;
-    --schema: #a9ae88;
-    --dev: #c0b16a;
-    --canvas-dot: #dbe3ea10;
-    --shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+    --chrome: var(--color-surface-raised);
+    --chrome-ink: var(--color-foreground);
+    --chrome-ink-hsl: var(--color-foreground-hsl);
   }
 }
-:root[data-theme="dark"] {
-  --bg: #12171d;
-  --panel: #1a2029;
-  --ink: #dbe3ea;
-  --ink-soft: #8c99a6;
-  --line: #2e3945;
-  --accent: #e0a464;
-  --accent-soft: #e0a46422;
-  --critical: #e8695c;
-  --critical-fill: #e8695c1f;
-  --warn: #d9a63c;
-  --warn-fill: #d9a63c1f;
-  --ok: #6bb28c;
-  --compute: #6fa5cf;
-  --compute-fill: #6fa5cf1a;
-  --datastore: #62b697;
-  --datastore-fill: #62b6971a;
-  --edge-role: #a396cd;
-  --edge-role-fill: #a396cd1a;
-  --external: #8b97a4;
-  --external-fill: #8b97a416;
-  --person: #cfa06a;
-  --person-fill: #cfa06a1a;
-  --schema: #a9ae88;
-  --dev: #c0b16a;
-  --canvas-dot: #dbe3ea10;
-  --shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+[data-theme="dark"] {
+  --chrome: var(--color-surface-raised);
+  --chrome-ink: var(--color-foreground);
+  --chrome-ink-hsl: var(--color-foreground-hsl);
 }
 
 * {
@@ -105,45 +64,83 @@ body {
 }
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.45;
 }
+
+/* The uppercase mono label voice — field names, section heads, metadata keys.
+   One definition; everything that speaks in labels points at it. */
+.rail h2,
+.stats .key,
+.inspector dt,
+.inspector h4,
+.legend-pop h4,
+.boundary-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: var(--label);
+  color: var(--ink-soft);
+}
+
 kbd {
   font-family: var(--mono);
   font-size: 10px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-xs);
+  padding: 1px 4px;
   margin-left: 7px;
-  color: var(--ink-soft);
+  opacity: 0.7;
 }
-button.ghost {
+
+/* Controls are square, ruled and uppercase — the mockups' button idiom. */
+button.ghost,
+.inspector .drillbtn,
+.zoombar button {
   all: unset;
   cursor: pointer;
-  font-size: 12px;
-  color: var(--ink-soft);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 4px 10px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 5px 11px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--color-card);
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
 }
-button.ghost:hover {
-  color: var(--ink);
-  border-color: var(--accent);
+button.ghost:hover,
+.inspector .drillbtn:hover,
+.zoombar button:hover {
+  border-color: var(--ink);
+  background: var(--color-secondary);
 }
 button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-background),
+    0 0 0 4px var(--color-ring);
+}
+/* Controls sit down when pressed rather than animating softly. */
+button.ghost:active,
+.inspector .drillbtn:active,
+.zoombar button:active,
+.chip:active {
+  transform: scale(0.97);
 }
 
 #app {
   display: grid;
   grid-template-rows: auto 1fr;
-  grid-template-columns: 250px 1fr auto;
+  grid-template-columns: 252px 1fr auto;
   grid-template-areas:
     "top top top"
     "rail canvas inspector";
@@ -151,102 +148,110 @@ button:focus-visible {
   overflow: hidden;
 }
 
-/* ── top bar & breadcrumb ─────────────────────────────────────────────── */
+/* ── masthead ──────────────────────────────────────────────────────────── */
+/* Black bar, wordmark left — the header every SI surface wears. */
 .topbar {
   grid-area: top;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  gap: 10px;
+  padding: 0 18px;
+  height: 46px;
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--chrome);
+  color: var(--chrome-ink);
+}
+.topbar .mark {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  display: block;
 }
 .topbar h1 {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-family: var(--sans);
+  font-size: 15px;
   font-weight: 600;
-  margin: 0;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
+  margin: 0 8px 0 0;
   white-space: nowrap;
 }
 .topbar .spacer {
   flex: 1;
 }
+.topbar .badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.62;
+  white-space: nowrap;
+}
+.topbar button.ghost {
+  background: transparent;
+  border-color: hsl(var(--chrome-ink-hsl) / 0.35);
+  color: var(--chrome-ink);
+}
+.topbar button.ghost:hover {
+  background: hsl(var(--chrome-ink-hsl) / 0.12);
+  border-color: var(--chrome-ink);
+}
+
 .crumbs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-wrap: wrap;
   min-width: 0;
 }
 .crumbs .sep {
-  color: var(--ink-soft);
-  opacity: 0.6;
+  opacity: 0.4;
 }
 .crumb {
   all: unset;
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--ink-soft);
+  gap: 7px;
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  opacity: 0.62;
   cursor: pointer;
   white-space: nowrap;
 }
 .crumb:hover {
-  background: var(--accent-soft);
-  color: var(--ink);
+  opacity: 1;
+  background: hsl(var(--chrome-ink-hsl) / 0.12);
 }
 .crumb.here {
-  color: var(--ink);
-  font-weight: 600;
+  opacity: 1;
   cursor: default;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .crumb .lvl,
 .viewlink .lvl,
 .results .lvl {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 9px;
   letter-spacing: 0.06em;
-  color: var(--ink-soft);
-  opacity: 0.8;
-}
-.badge {
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-.badge.stage {
-  border-color: var(--accent);
-  color: var(--accent);
+  opacity: 0.55;
 }
 
-/* ── rail ─────────────────────────────────────────────────────────────── */
+/* ── rail: the black garment ───────────────────────────────────────────── */
 .rail {
   grid-area: rail;
-  border-right: 1px solid var(--line);
-  background: var(--panel);
-  padding: 14px 0 0;
+  background: var(--chrome);
+  color: var(--chrome-ink);
+  border-right: 1px solid var(--rule-strong);
+  padding: 16px 0 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
 .rail h2 {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--ink-soft);
-  margin: 0 0 6px;
-  padding: 0 16px;
+  margin: 0 0 8px;
+  padding: 0 18px;
+  color: hsl(var(--chrome-ink-hsl) / 0.45);
 }
 .rail nav {
   display: flex;
@@ -254,144 +259,164 @@ button:focus-visible {
 }
 .rail footer {
   margin-top: auto;
-  padding: 12px 16px;
-  border-top: 1px solid var(--line);
+  padding: 14px 18px;
+  border-top: 1px solid hsl(var(--chrome-ink-hsl) / 0.18);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 7px;
 }
 .rail footer .src {
   font-family: var(--mono);
-  font-size: 10px;
-  color: var(--ink-soft);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: hsl(var(--chrome-ink-hsl) / 0.45);
 }
+.rail footer button.ghost {
+  background: transparent;
+  border-color: hsl(var(--chrome-ink-hsl) / 0.35);
+  color: var(--chrome-ink);
+}
+.rail footer button.ghost:hover {
+  background: hsl(var(--chrome-ink-hsl) / 0.12);
+}
+
 .viewlink {
   all: unset;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 16px;
-  font-size: 13px;
-  border-left: 2px solid transparent;
-  color: var(--ink);
+  gap: 9px;
+  padding: 6px 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--chrome-ink-hsl) / 0.62);
 }
 .viewlink:hover {
-  background: var(--accent-soft);
+  background: hsl(var(--chrome-ink-hsl) / 0.1);
+  color: var(--chrome-ink);
 }
 .viewlink:focus-visible {
+  outline: 2px solid var(--mark);
   outline-offset: -2px;
 }
 .viewlink.ancestor {
-  border-left-color: var(--line);
+  color: hsl(var(--chrome-ink-hsl) / 0.85);
 }
+/* Active nav inverts, the way the admin rail does — a light block on black. */
 .viewlink.active {
-  border-left-color: var(--accent);
-  background: var(--accent-soft);
+  background: var(--chrome-ink);
+  color: var(--chrome);
   font-weight: 600;
 }
 .viewlink.sub {
-  padding-left: 30px;
-  font-size: 12.5px;
+  padding-left: 32px;
+  font-size: 11.5px;
 }
 .viewlink.sub2 {
-  padding-left: 46px;
-  font-size: 12px;
-  font-family: var(--mono);
-  color: var(--ink-soft);
+  padding-left: 48px;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
 }
-.viewlink.sub2.active {
-  color: var(--ink);
-}
+
 .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+  width: 6px;
+  height: 6px;
   margin-left: auto;
   flex: none;
-}
-/* Severity resolves to two tokens; every surface below reads them, so adding a
-   third severity is one rule rather than an edit in five places. */
-.critical {
-  --sev: var(--critical);
-  --sev-fill: var(--critical-fill);
-}
-.warn {
-  --sev: var(--warn);
-  --sev-fill: var(--warn-fill);
-}
-.dot.critical,
-.dot.warn {
   background: var(--sev);
 }
 
-/* ── canvas ───────────────────────────────────────────────────────────── */
+/* Severity resolves to two tokens; every surface below reads them, so a third
+   severity would be one rule rather than an edit in six places. */
+.critical {
+  --sev: var(--color-destructive);
+  --sev-fill: hsl(var(--color-destructive-hsl) / 0.12);
+}
+.warn {
+  --sev: var(--color-warning);
+  --sev-fill: hsl(var(--color-warning-hsl) / 0.14);
+}
+.node.sev-critical {
+  --sev: var(--color-destructive);
+  --sev-fill: hsl(var(--color-destructive-hsl) / 0.12);
+}
+.node.sev-warn {
+  --sev: var(--color-warning);
+  --sev-fill: hsl(var(--color-warning-hsl) / 0.14);
+}
+
+/* ── canvas ────────────────────────────────────────────────────────────── */
 .canvas-wrap {
   grid-area: canvas;
   position: relative;
   overflow: hidden;
   display: grid;
   grid-template-rows: auto 1fr;
-  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background: var(--paper);
 }
+
+/* The registry strip — key above value, the way release metadata is set. */
 .stats {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  font-size: 12px;
-  color: var(--ink-soft);
+  gap: 30px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--color-card);
   overflow-x: auto;
   scrollbar-width: thin;
 }
 .stats .spacer {
   flex: 1;
-  min-width: 8px;
+  min-width: 10px;
 }
 .stat {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   white-space: nowrap;
 }
-.stat b {
+.stat .val {
   font-family: var(--mono);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+.stat.clear .val,
 .clear {
-  color: var(--ok);
+  color: var(--color-success);
 }
+.stats .chips {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .chip {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
   white-space: nowrap;
-  font-size: 11.5px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid;
-  cursor: pointer;
-  font-family: inherit;
-}
-.chip b {
   font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border: 1px solid var(--sev);
+  border-radius: var(--radius-xs);
+  color: var(--sev);
+  background: var(--sev-fill);
+  cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
-.chip.critical,
-.chip.warn {
-  color: var(--sev);
-  border-color: var(--sev);
-  background: var(--sev-fill);
-}
 button.chip:hover {
-  filter: brightness(1.08);
+  background: var(--sev);
+  color: var(--color-background);
 }
 
 .canvas-wrap svg {
@@ -406,144 +431,110 @@ button.chip:hover {
 }
 .canvas-hint {
   position: absolute;
-  bottom: 10px;
-  left: 14px;
+  bottom: 12px;
+  left: 18px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--ink-soft);
   pointer-events: none;
 }
 .zoombar {
   position: absolute;
-  top: 50px;
-  right: 14px;
+  top: 52px;
+  right: 16px;
   display: flex;
-  gap: 6px;
-}
-.zoombar button {
-  all: unset;
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1;
-  padding: 7px 10px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--ink);
-}
-.zoombar button:hover {
-  border-color: var(--accent);
+  gap: 5px;
 }
 
-/* ── diagram ──────────────────────────────────────────────────────────── */
+/* ── diagram ───────────────────────────────────────────────────────────── */
+/* Nearly achromatic on purpose: elements differ by rule weight and fill, so
+   the only colour in the drawing is a problem. */
 .node {
   cursor: pointer;
 }
 .node rect.box {
-  fill: var(--panel);
-  stroke-width: 1.5;
-}
-.node.role-compute rect.box,
-.node.role-code rect.box {
-  stroke: var(--compute);
-  fill: var(--compute-fill);
+  fill: var(--color-card);
+  stroke: var(--rule-strong);
+  stroke-width: 1;
 }
 .node.role-datastore rect.box {
-  stroke: var(--datastore);
-  fill: var(--datastore-fill);
+  fill: var(--color-surface-sunken); /* recessed — it stores rather than runs */
 }
 .node.role-edge rect.box {
-  stroke: var(--edge-role);
-  fill: var(--edge-role-fill);
-  stroke-dasharray: 5 3;
-}
-.node.role-schema rect.box {
-  stroke: var(--schema);
   fill: none;
-  stroke-dasharray: 2 3;
+  stroke-dasharray: 4 3;
 }
+.node.role-schema rect.box,
 .node.role-dev rect.box {
-  stroke: var(--dev);
   fill: none;
+  stroke: var(--rule);
   stroke-dasharray: 2 3;
 }
-.node.role-external rect.box {
-  stroke: var(--external);
-  fill: var(--external-fill);
-}
-.node.role-person rect.box {
-  stroke: var(--person);
-  fill: var(--person-fill);
-}
-.node.role-system rect.box {
-  stroke: var(--compute);
-  fill: var(--compute-fill);
-  stroke-width: 2;
-}
+.node.role-external rect.box,
 .node.role-system-ext rect.box {
-  stroke: var(--external);
-  fill: var(--external-fill);
+  fill: var(--color-muted);
+  stroke: var(--rule);
+}
+.node.role-system rect.box,
+.node.role-system-ext rect.box {
   stroke-width: 2;
 }
+/* Selection is the one place pink appears. */
 .node.selected rect.box {
-  stroke: var(--accent) !important;
+  stroke: var(--mark);
   stroke-width: 2.5;
   stroke-dasharray: none;
 }
 .node .sevbar {
-  stroke: none;
-}
-.node.sev-critical {
-  --sev: var(--critical);
-}
-.node.sev-warn {
-  --sev: var(--warn);
-}
-.node.sev-critical .sevbar,
-.node.sev-warn .sevbar {
   fill: var(--sev);
+  stroke: none;
 }
 .node text {
   fill: var(--ink);
   pointer-events: none;
 }
 .node text.name {
+  font-family: var(--sans);
   font-size: 13px;
   font-weight: 600;
 }
 .node text.kind {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   fill: var(--ink-soft);
 }
 .node text.desc {
+  font-family: var(--sans);
   font-size: 10.5px;
   fill: var(--ink-soft);
 }
 .node text.domain {
   font-family: var(--mono);
-  font-size: 9.5px;
-  fill: var(--accent);
+  font-size: 9px;
+  fill: var(--ink-soft);
 }
 .node text.drill {
-  font-size: 15px;
+  font-family: var(--mono);
+  font-size: 13px;
   fill: var(--ink-soft);
 }
 .node:hover text.drill {
-  fill: var(--accent);
+  fill: var(--mark);
 }
 .node rect.chip {
-  stroke-width: 1;
-}
-.node rect.chip.critical,
-.node rect.chip.warn {
   stroke: var(--sev);
   fill: var(--sev-fill);
+  stroke-width: 1;
 }
 .node text.chiptext {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   fill: var(--ink-soft);
 }
 .node text.chiptext.critical,
@@ -551,7 +542,7 @@ button.chip:hover {
   fill: var(--sev);
 }
 .node.dim {
-  opacity: 0.25;
+  opacity: 0.22;
 }
 .node,
 .edge {
@@ -559,58 +550,52 @@ button.chip:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .node,
-  .edge,
-  .inspector {
+  .edge {
     transition: none;
   }
 }
 
 .boundary {
   fill: none;
-  stroke: var(--ink-soft);
-  stroke-dasharray: 8 5;
+  stroke: var(--rule);
+  stroke-dasharray: 6 4;
   stroke-width: 1;
-  opacity: 0.5;
 }
 .boundary-label {
-  font-family: var(--mono);
-  font-size: 10px;
   fill: var(--ink-soft);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .edge path {
   fill: none;
-  stroke: var(--ink-soft);
-  stroke-width: 1.4;
-  opacity: 0.8;
+  stroke: var(--rule-strong);
+  stroke-width: 1.2;
+  opacity: 0.7;
 }
 .edge.asserted path {
   stroke-dasharray: 5 4;
 }
 .edge.typeonly path {
   stroke-dasharray: 1.5 3.5;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 .edge.violation path {
-  stroke: var(--critical);
+  stroke: var(--color-destructive);
   stroke-width: 2;
   opacity: 1;
 }
 .edge text {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 9px;
   fill: var(--ink-soft);
   paint-order: stroke;
-  stroke: var(--bg);
+  stroke: var(--paper);
   stroke-width: 3.5px;
   pointer-events: none;
 }
 .edge.violation text {
-  fill: var(--critical);
+  fill: var(--color-destructive);
 }
-/* Dense graphs hide labels until a node is hovered — otherwise they collide. */
+/* Dense graphs hide labels until a node is hovered — they collide otherwise. */
 .edges.quiet text {
   opacity: 0;
 }
@@ -619,35 +604,39 @@ button.chip:hover {
   opacity: 1;
 }
 .edge.dim {
-  opacity: 0.12;
+  opacity: 0.1;
 }
 .edge.hot path {
-  stroke: var(--accent);
+  stroke: var(--mark);
   opacity: 1;
   stroke-width: 2;
 }
 .edge.hot text {
-  fill: var(--accent);
+  fill: var(--mark);
 }
 
-/* ── inspector ────────────────────────────────────────────────────────── */
+/* ── inspector ─────────────────────────────────────────────────────────── */
 .inspector {
   grid-area: inspector;
   width: 0;
-  border-left: 1px solid var(--line);
-  background: var(--panel);
+  border-left: 1px solid var(--rule-strong);
+  background: var(--color-card);
   overflow-y: auto;
 }
 .inspector.open {
-  width: 336px;
+  width: 340px;
 }
 .inspector .inner {
-  padding: 16px;
-  width: 304px;
+  padding: 18px;
+  width: 308px;
 }
 .inspector h3 {
-  margin: 0 0 3px;
-  font-size: 16px;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 30px;
+  line-height: 0.94;
+  text-transform: uppercase;
+  margin: 0 0 6px;
   text-wrap: balance;
 }
 .inspector .close {
@@ -656,49 +645,50 @@ button.chip:hover {
   float: right;
   font-family: var(--mono);
   color: var(--ink-soft);
-  padding: 2px 6px;
-  border-radius: 5px;
+  padding: 2px 5px;
 }
 .inspector .close:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
+  color: var(--mark);
 }
 .inspector .meta {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-soft);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .inspector .meta.path {
+  text-transform: none;
+  letter-spacing: 0;
   overflow-wrap: anywhere;
 }
 .inspector p.desc {
-  font-size: 12.5px;
-  margin: 8px 0 12px;
+  font-size: 13px;
+  margin: 8px 0 14px;
 }
 .inspector .issues {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .inspector .clear {
-  font-size: 11.5px;
-  margin-bottom: 12px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
 }
 .inspector dl {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  font-size: 11.5px;
+  gap: 5px 14px;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
 }
 .inspector dt {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-soft);
   padding-top: 1px;
 }
 .inspector dd {
@@ -708,27 +698,20 @@ button.chip:hover {
   overflow-wrap: anywhere;
 }
 .inspector h4 {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-soft);
-  margin: 16px 0 7px;
+  margin: 18px 0 8px;
 }
 .inspector .drillbtn {
-  all: unset;
-  cursor: pointer;
   display: block;
-  font-size: 12px;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 7px;
-  padding: 6px 11px;
-  margin: 4px 0 4px;
   text-align: center;
+  margin: 6px 0;
+  border-color: var(--mark);
+  color: var(--mark);
+  background: transparent;
 }
 .inspector .drillbtn:hover {
-  background: var(--accent-soft);
+  background: var(--mark);
+  color: var(--color-primary-foreground);
+  border-color: var(--mark);
 }
 .inspector ul.rels {
   list-style: none;
@@ -736,11 +719,11 @@ button.chip:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 .inspector ul.rels li {
-  padding-left: 10px;
-  border-left: 2px solid var(--line);
+  padding-left: 11px;
+  border-left: 2px solid var(--rule);
 }
 .inspector ul.rels li.asserted {
   border-left-style: dotted;
@@ -750,7 +733,7 @@ button.chip:hover {
   border-left-color: var(--sev);
 }
 .inspector .who {
-  font-size: 12px;
+  font-size: 12.5px;
 }
 .inspector .lbl {
   font-family: var(--mono);
@@ -759,54 +742,64 @@ button.chip:hover {
   overflow-wrap: anywhere;
 }
 .inspector pre {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 9px;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 10px;
   font-family: var(--mono);
   font-size: 10px;
   line-height: 1.5;
   overflow-x: auto;
 }
 
-/* ── search & legend ──────────────────────────────────────────────────── */
+/* ── search & legend ───────────────────────────────────────────────────── */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgb(10 14 18 / 0.5);
+  background: hsl(var(--color-inverse-hsl) / 0.55);
   display: flex;
   justify-content: center;
-  align-items: flex-start; /* otherwise the box stretches to full height */
+  align-items: flex-start;
   padding-top: 12vh;
   z-index: 20;
 }
+.searchbox,
+.legend-pop {
+  background: var(--color-popover);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--brutal-md);
+}
 .searchbox {
-  width: min(620px, 92vw);
+  width: min(640px, 92vw);
   max-height: 66vh;
   display: flex;
   flex-direction: column;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
   overflow: hidden;
 }
 .searchbox input {
   all: unset;
   padding: 14px 18px;
-  font-size: 15px;
+  font-family: var(--mono);
+  font-size: 14px;
   color: var(--ink);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
+}
+.searchbox input::placeholder {
+  color: var(--ink-soft);
 }
 .results {
   list-style: none;
   margin: 0;
-  padding: 6px;
+  padding: 5px;
   overflow-y: auto;
 }
 .results li.empty {
   padding: 14px 12px;
-  font-size: 12.5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-soft);
 }
 .results button {
@@ -814,18 +807,19 @@ button.chip:hover {
   cursor: pointer;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 11px;
   width: 100%;
-  padding: 7px 12px;
-  border-radius: 7px;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
   box-sizing: border-box;
 }
 .results button:hover,
 .results li:first-child button {
-  background: var(--accent-soft);
+  background: var(--mark-soft);
 }
 .results .label {
-  font-size: 13px;
+  font-family: var(--mono);
+  font-size: 12.5px;
   white-space: nowrap;
 }
 .results .hint {
@@ -843,15 +837,11 @@ button.chip:hover {
 
 .legend-pop {
   position: fixed;
-  left: 16px;
-  bottom: 16px;
-  width: 290px;
+  left: 18px;
+  bottom: 18px;
+  width: 300px;
   z-index: 25;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-  padding: 14px 16px;
+  padding: 16px;
   font-size: 11.5px;
   color: var(--ink-soft);
   display: flex;
@@ -859,65 +849,47 @@ button.chip:hover {
   gap: 6px;
 }
 .legend-pop h4 {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  margin: 6px 0 2px;
+  margin: 8px 0 3px;
 }
 .legend-pop h4:first-child {
   margin-top: 0;
 }
 .legend-pop p {
-  margin: 6px 0 2px;
+  margin: 8px 0 2px;
   line-height: 1.5;
 }
 .legend-pop .k {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
 }
 .legend-pop .sw {
-  width: 15px;
+  width: 16px;
   height: 11px;
-  border-radius: 3px;
-  border: 1.5px solid;
   flex: none;
-}
-.legend-pop .sw.compute {
-  border-color: var(--compute);
-  background: var(--compute-fill);
+  border: 1px solid var(--rule-strong);
+  background: var(--color-card);
 }
 .legend-pop .sw.datastore {
-  border-color: var(--datastore);
-  background: var(--datastore-fill);
+  background: var(--color-surface-sunken);
 }
 .legend-pop .sw.edge {
-  border-color: var(--edge-role);
-  background: var(--edge-role-fill);
+  background: none;
   border-style: dashed;
 }
 .legend-pop .sw.external {
-  border-color: var(--external);
-  background: var(--external-fill);
+  background: var(--color-muted);
+  border-color: var(--rule);
 }
-.legend-pop .sw.person {
-  border-color: var(--person);
-  background: var(--person-fill);
-  border-radius: 8px;
-}
-.legend-pop .sw.crit {
-  border-color: var(--critical);
-  background: var(--critical);
-}
+.legend-pop .sw.crit,
 .legend-pop .sw.warn {
-  border-color: var(--warn);
-  background: var(--warn);
+  background: var(--sev);
+  border-color: var(--sev);
 }
 .legend-pop .stroke {
-  width: 24px;
+  width: 26px;
   height: 0;
-  border-top: 2px solid var(--ink-soft);
+  border-top: 2px solid var(--rule-strong);
   flex: none;
 }
 .legend-pop .stroke.dashed {
@@ -927,11 +899,11 @@ button.chip:hover {
   border-top-style: dotted;
 }
 .legend-pop .stroke.bad {
-  border-color: var(--critical);
+  border-color: var(--color-destructive);
 }
 .legend-pop button {
   align-self: flex-start;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 @media (max-width: 940px) {
@@ -947,9 +919,7 @@ button.chip:hover {
     flex-direction: row;
     align-items: center;
     overflow-x: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-    padding: 6px 0;
+    padding: 4px 0;
   }
   .rail h2,
   .rail footer {
@@ -960,15 +930,10 @@ button.chip:hover {
   }
   .viewlink {
     white-space: nowrap;
-    border-left: none;
-    border-bottom: 2px solid transparent;
-  }
-  .viewlink.active {
-    border-bottom-color: var(--accent);
   }
   .viewlink.sub,
   .viewlink.sub2 {
-    padding-left: 12px;
+    padding-left: 14px;
   }
   .inspector.open {
     position: fixed;
@@ -976,6 +941,6 @@ button.chip:hover {
     top: 0;
     bottom: 0;
     z-index: 15;
-    box-shadow: var(--shadow);
+    box-shadow: var(--brutal-md);
   }
 }
