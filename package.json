@@ -6,7 +6,8 @@
     "infra",
     "apps/*",
     "packages/*",
-    "tools/*"
+    "tools/*",
+    "prototypes/*"
   ],
   "type": "module",
   "scripts": {

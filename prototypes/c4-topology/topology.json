@@ -1,0 +1,868 @@
+{
+  "generatedAt": "2026-08-07T04:07:22.289Z",
+  "stage": "dev_claude",
+  "stacks": ["SomewhatIntelligentAuth", "PlatformCommerce", "AgenticInbox", "Mezedes"],
+  "nodes": [
+    {
+      "stack": "SomewhatIntelligentAuth",
+      "fqn": "AuthMigrations",
+      "type": "Drizzle.Schema",
+      "logicalId": "AuthMigrations",
+      "namespace": [],
+      "props": {
+        "schema": "/home/user/somewhatintelligent/apps/platform.auth/api/schema.gen.ts",
+        "out": "/home/user/somewhatintelligent/apps/platform.auth/api/migrations",
+        "dialect": "sqlite"
+      },
+      "exported": false
+    },
+    {
+      "stack": "SomewhatIntelligentAuth",
+      "fqn": "AuthDatabase",
+      "type": "Cloudflare.D1Database",
+      "logicalId": "AuthDatabase",
+      "namespace": [],
+      "props": {
+        "migrationsDir": "«expr:AuthMigrations»",
+        "migrationsTable": "d1_migrations"
+      },
+      "exported": true
+    },
+    {
+      "stack": "SomewhatIntelligentAuth",
+      "fqn": "SomewhatIntelligentAuthApp",
+      "type": "Cloudflare.Worker",
+      "logicalId": "SomewhatIntelligentAuthApp",
+      "namespace": [],
+      "props": {
+        "name": "si-identity-dev-claude",
+        "rootDir": "/home/user/somewhatintelligent/apps/platform.auth",
+        "compatibility": {
+          "flags": ["nodejs_compat"]
+        },
+        "env": {
+          "AUTH": "«fn»",
+          "AVATARS": "«resource:AuthAvatars»",
+          "CF_VERSION_METADATA": {
+            "kind": "Cloudflare.Workers.VersionMetadata",
+            "name": "CF_VERSION_METADATA",
+            "toWorkerBinding": "«fn»",
+            "asEffect": "«fn»",
+            "pipe": "«fn»"
+          },
+          "VITE_AUTH_USERNAME": true,
+          "VITE_AUTH_ADMIN": true,
+          "VITE_AUTH_TWO_FACTOR": true,
+          "VITE_AUTH_DEVICE_AUTHORIZATION": true,
+          "VITE_AUTH_MAGIC_LINK": true,
+          "VITE_AUTH_OAUTH_PROVIDER": true,
+          "VITE_AUTH_ORGANIZATION": true,
+          "VITE_AUTH_SOCIAL_PROVIDERS": [],
+          "OTEL_SERVICE_NAME": "",
+          "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_TRACES_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_METRICS_HEADERS": ""
+        },
+        "dev": {
+          "port": 1350,
+          "strictPort": true
+        },
+        "workersDev": true,
+        "vite": {
+          "main": "./app/worker.ts",
+          "rootDir": "/home/user/somewhatintelligent/apps/platform.auth"
+        },
+        "isExternal": true
+      },
+      "exported": false
+    },
+    {
+      "stack": "SomewhatIntelligentAuth",
+      "fqn": "AuthAvatars",
+      "type": "Cloudflare.R2.Bucket",
+      "logicalId": "AuthAvatars",
+      "namespace": [],
+      "props": {
+        "name": "si-avatars-dev-claude"
+      },
+      "exported": false
+    },
+    {
+      "stack": "SomewhatIntelligentAuth",
+      "fqn": "AuthWorker",
+      "type": "Cloudflare.Worker",
+      "logicalId": "AuthWorker",
+      "namespace": [],
+      "props": {
+        "main": "file:///home/user/somewhatintelligent/apps/platform.auth/api/worker.ts",
+        "workersDev": false,
+        "observability": {
+          "enabled": true
+        },
+        "compatibility": {
+          "flags": ["nodejs_compat"]
+        },
+        "env": {
+          "AUTH_ORIGIN": "«Object»",
+          "AUTH_COOKIE_DOMAIN": "«Object»",
+          "EMAIL": "«Object»",
+          "OTEL_SERVICE_NAME": "auth",
+          "SANDBOX": "«expr»"
+        },
+        "exports": {
+          "default": {
+            "fetch": "«fn»",
+            "tail": "«fn»",
+            "trace": "«fn»",
+            "tailStream": "«fn»",
+            "scheduled": "«fn»",
+            "test": "«fn»",
+            "email": "«fn»",
+            "queue": "«fn»"
+          }
+        }
+      },
+      "exported": false
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "CommerceSchema",
+      "type": "Drizzle.Schema",
+      "logicalId": "CommerceSchema",
+      "namespace": [],
+      "props": {
+        "schema": "/home/user/somewhatintelligent/apps/platform.commerce/domain/Schema.ts",
+        "out": "/home/user/somewhatintelligent/apps/platform.commerce/migrations",
+        "dialect": "sqlite"
+      },
+      "exported": false
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "CommerceDatabase",
+      "type": "Cloudflare.D1Database",
+      "logicalId": "CommerceDatabase",
+      "namespace": [],
+      "props": {
+        "migrationsDir": "«expr:CommerceSchema»",
+        "migrationsTable": "drizzle_migrations"
+      },
+      "exported": true
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "CommerceMedia",
+      "type": "Cloudflare.R2.Bucket",
+      "logicalId": "CommerceMedia",
+      "namespace": [],
+      "props": {
+        "name": "si-commerce-media-dev-claude"
+      },
+      "exported": false
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "Commerce",
+      "type": "Cloudflare.Worker",
+      "logicalId": "Commerce",
+      "namespace": [],
+      "props": {
+        "main": "file:///home/user/somewhatintelligent/apps/platform.commerce/workers/Commerce.ts",
+        "workersDev": false,
+        "env": {
+          "OTEL_SERVICE_NAME": "commerce"
+        },
+        "exports": {
+          "default": {
+            "fetch": "«fn»",
+            "tail": "«fn»",
+            "trace": "«fn»",
+            "tailStream": "«fn»",
+            "scheduled": "«fn»",
+            "test": "«fn»",
+            "email": "«fn»",
+            "queue": "«fn»"
+          }
+        }
+      },
+      "exported": false
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "Settlement",
+      "type": "Cloudflare.Worker",
+      "logicalId": "Settlement",
+      "namespace": [],
+      "props": {
+        "main": "file:///home/user/somewhatintelligent/apps/platform.commerce/workers/Settlement.ts",
+        "domain": "hooks-dev-claude.somewhatintelligent.ca",
+        "workersDev": false,
+        "env": {
+          "OTEL_SERVICE_NAME": "commerce-settlement",
+          "CommercePaymentEvents_queueName": "«expr:CommercePaymentEvents»"
+        },
+        "exports": {
+          "default": {
+            "fetch": "«fn»",
+            "tail": "«fn»",
+            "trace": "«fn»",
+            "tailStream": "«fn»",
+            "scheduled": "«fn»",
+            "test": "«fn»",
+            "email": "«fn»",
+            "queue": "«fn»"
+          }
+        }
+      },
+      "exported": true
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "CommercePaymentEvents",
+      "type": "Cloudflare.Queues.Queue",
+      "logicalId": "CommercePaymentEvents",
+      "namespace": [],
+      "props": {
+        "name": "si-commerce-payments-dev-claude"
+      },
+      "exported": false
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "Settlement/CommercePaymentEventsConsumer",
+      "type": "Cloudflare.Queues.Consumer",
+      "logicalId": "CommercePaymentEventsConsumer",
+      "namespace": ["Settlement"],
+      "props": {
+        "queueId": "«expr:CommercePaymentEvents»",
+        "scriptName": "«expr:Settlement»",
+        "settings": {
+          "maxRetries": 5
+        }
+      },
+      "exported": false
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "Media",
+      "type": "Cloudflare.Worker",
+      "logicalId": "Media",
+      "namespace": [],
+      "props": {
+        "main": "file:///home/user/somewhatintelligent/apps/platform.commerce/workers/Media.ts",
+        "env": {
+          "OTEL_SERVICE_NAME": "commerce-media"
+        },
+        "exports": {
+          "default": {
+            "fetch": "«fn»",
+            "tail": "«fn»",
+            "trace": "«fn»",
+            "tailStream": "«fn»",
+            "scheduled": "«fn»",
+            "test": "«fn»",
+            "email": "«fn»",
+            "queue": "«fn»"
+          }
+        }
+      },
+      "exported": true
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "CommerceOperator",
+      "type": "Cloudflare.Worker",
+      "logicalId": "CommerceOperator",
+      "namespace": [],
+      "props": {
+        "name": "si-commerce-operator-dev-claude",
+        "rootDir": "/home/user/somewhatintelligent/apps/platform.commerce",
+        "compatibility": {
+          "flags": ["nodejs_compat"]
+        },
+        "domain": "commerce-dev-claude.somewhatintelligent.ca",
+        "workersDev": false,
+        "observability": {
+          "enabled": true
+        },
+        "env": {
+          "COMMERCE": "«fn»",
+          "SETTLEMENT": "«fn»",
+          "POLICY_AUD": "«expr:OperatorAccess»",
+          "TEAM_DOMAIN": "«ref:Cloudflare@production»",
+          "OPERATOR_AUTH": "access",
+          "PAYMENTS_ENVIRONMENT": "dev",
+          "CF_VERSION_METADATA": {
+            "kind": "Cloudflare.Workers.VersionMetadata",
+            "name": "CF_VERSION_METADATA",
+            "toWorkerBinding": "«fn»",
+            "asEffect": "«fn»",
+            "pipe": "«fn»"
+          },
+          "OTEL_SERVICE_NAME": "",
+          "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_TRACES_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_METRICS_HEADERS": ""
+        },
+        "vite": {
+          "main": "./app/worker.ts",
+          "rootDir": "/home/user/somewhatintelligent/apps/platform.commerce"
+        },
+        "isExternal": true
+      },
+      "exported": true
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "OperatorAccess",
+      "type": "Cloudflare.Access.Application",
+      "logicalId": "OperatorAccess",
+      "namespace": [],
+      "props": {
+        "domain": "commerce-dev-claude.somewhatintelligent.ca",
+        "type": "self_hosted",
+        "allowedIdps": ["«ref:Cloudflare@production»"],
+        "policies": ["«ref:Cloudflare@production»"],
+        "autoRedirectToIdentity": true,
+        "oauthConfiguration": {
+          "enabled": true,
+          "dynamicClientRegistration": {
+            "enabled": true
+          }
+        },
+        "adopt": true
+      },
+      "exported": false
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "Site",
+      "type": "Cloudflare.Worker",
+      "logicalId": "Site",
+      "namespace": [],
+      "props": {
+        "rootDir": "/home/user/somewhatintelligent/apps/platform.site",
+        "sessionKVBindingName": false,
+        "compatibility": {
+          "date": "2026-04-15"
+        },
+        "workersDev": true,
+        "env": {
+          "AUTH_ORIGIN": "«ref:SomewhatIntelligentAuth»",
+          "COMMERCE": "«fn»",
+          "MEDIA": "«fn»"
+        },
+        "source": {
+          "provider": "@distilled.cloud/astro/source",
+          "devMode": "server",
+          "options": {
+            "rootDir": "/home/user/somewhatintelligent/apps/platform.site",
+            "sessionKVBindingName": false,
+            "astro": {
+              "output": "server"
+            }
+          }
+        },
+        "isExternal": true
+      },
+      "exported": true
+    },
+    {
+      "stack": "PlatformCommerce",
+      "fqn": "StripeListener",
+      "type": "Command.Dev",
+      "logicalId": "StripeListener",
+      "namespace": [],
+      "props": {
+        "command": "«expr:Settlement»",
+        "shell": true
+      },
+      "exported": false
+    },
+    {
+      "stack": "AgenticInbox",
+      "fqn": "InboxAccess",
+      "type": "Cloudflare.Access.Application",
+      "logicalId": "InboxAccess",
+      "namespace": [],
+      "props": {
+        "name": "AgenticInbox-InboxAccess-dev-stoli-qamzqweyw7kcrmor",
+        "domain": "mail.somewhatintelligent.ca",
+        "type": "self_hosted",
+        "allowedIdps": ["«ref:Cloudflare@production»"],
+        "policies": ["«ref:Cloudflare@production»"],
+        "autoRedirectToIdentity": true,
+        "oauthConfiguration": {
+          "enabled": true,
+          "dynamicClientRegistration": {
+            "enabled": true
+          }
+        },
+        "adopt": true
+      },
+      "exported": true
+    },
+    {
+      "stack": "AgenticInbox",
+      "fqn": "Inbox",
+      "type": "Cloudflare.Worker",
+      "logicalId": "Inbox",
+      "namespace": [],
+      "props": {
+        "name": "agentic-inbox-si",
+        "rootDir": "/home/user/somewhatintelligent/apps/platform.inbox",
+        "compatibility": {
+          "date": "2025-11-28",
+          "flags": ["nodejs_compat"]
+        },
+        "domain": "mail.somewhatintelligent.ca",
+        "workersDev": false,
+        "observability": {
+          "enabled": true
+        },
+        "env": {
+          "DOMAINS": "mail.somewhatintelligent.ca",
+          "EMAIL_ADDRESSES": [],
+          "POLICY_AUD": "«expr:InboxAccess»",
+          "TEAM_DOMAIN": "«ref:Cloudflare@production»",
+          "CF_VERSION_METADATA": {
+            "kind": "Cloudflare.Workers.VersionMetadata",
+            "name": "CF_VERSION_METADATA",
+            "toWorkerBinding": "«fn»",
+            "asEffect": "«fn»",
+            "pipe": "«fn»"
+          },
+          "BUCKET": "«Object»",
+          "AI": "«Object»",
+          "EMAIL": "«Object»",
+          "MAILBOX": {
+            "kind": "Cloudflare.DurableObject",
+            "name": "MailboxDO",
+            "className": "MailboxDO"
+          },
+          "EMAIL_AGENT": {
+            "kind": "Cloudflare.DurableObject",
+            "name": "EmailAgent",
+            "className": "EmailAgent"
+          },
+          "EMAIL_MCP": {
+            "kind": "Cloudflare.DurableObject",
+            "name": "EmailMCP",
+            "className": "EmailMCP"
+          },
+          "OTEL_SERVICE_NAME": "",
+          "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_TRACES_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_METRICS_HEADERS": ""
+        },
+        "vite": {
+          "main": "workers/app.ts",
+          "rootDir": "/home/user/somewhatintelligent/apps/platform.inbox"
+        },
+        "isExternal": true
+      },
+      "exported": true
+    },
+    {
+      "stack": "AgenticInbox",
+      "fqn": "Bucket",
+      "type": "Cloudflare.R2.Bucket",
+      "logicalId": "Bucket",
+      "namespace": [],
+      "props": {
+        "name": "agentic-inbox-si"
+      },
+      "exported": false
+    },
+    {
+      "stack": "AgenticInbox",
+      "fqn": "Ai",
+      "type": "Cloudflare.AI.Gateway",
+      "logicalId": "Ai",
+      "namespace": [],
+      "props": {
+        "id": "agentic-inbox-si"
+      },
+      "exported": false
+    },
+    {
+      "stack": "Mezedes",
+      "fqn": "MezedesAccess",
+      "type": "Cloudflare.Access.Application",
+      "logicalId": "MezedesAccess",
+      "namespace": [],
+      "props": {
+        "domain": "mezedes-dev-claude.somewhatintelligent.ca",
+        "type": "self_hosted",
+        "allowedIdps": ["«ref:Cloudflare@production»"],
+        "policies": ["«ref:Cloudflare@production»"],
+        "autoRedirectToIdentity": true,
+        "oauthConfiguration": {
+          "enabled": true,
+          "dynamicClientRegistration": {
+            "enabled": true
+          }
+        },
+        "adopt": true
+      },
+      "exported": false
+    },
+    {
+      "stack": "Mezedes",
+      "fqn": "Mezedes",
+      "type": "Cloudflare.Worker",
+      "logicalId": "Mezedes",
+      "namespace": [],
+      "props": {
+        "main": "/home/user/somewhatintelligent/apps/mezedes/src/server/entry.ts",
+        "observability": {
+          "enabled": true
+        },
+        "compatibility": {
+          "date": "2026-07-01",
+          "flags": ["nodejs_compat"]
+        },
+        "dev": {
+          "port": 8787,
+          "strictPort": true
+        },
+        "workersDev": true,
+        "assets": {
+          "directory": "/home/user/somewhatintelligent/apps/mezedes/dist/shell",
+          "notFoundHandling": "single-page-application",
+          "runWorkerFirst": true
+        },
+        "env": {
+          "BLOBS": "«Object»",
+          "OWNER": {
+            "kind": "Cloudflare.DurableObject",
+            "name": "Owner",
+            "className": "Owner"
+          },
+          "LOADER": "«Object»",
+          "AUTH": "access",
+          "POLICY_AUD": "«expr:MezedesAccess»",
+          "TEAM_DOMAIN": "«ref:Cloudflare@production»",
+          "ARTIFACT_SUFFIX": "a-dev-claude.somewhatintelligent.ca",
+          "SHELL_ORIGIN": "https://mezedes-dev-claude.somewhatintelligent.ca",
+          "OTEL_SERVICE_NAME": "",
+          "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_TRACES_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "",
+          "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "",
+          "OTEL_EXPORTER_OTLP_METRICS_HEADERS": ""
+        },
+        "isExternal": true
+      },
+      "exported": false
+    },
+    {
+      "stack": "Mezedes",
+      "fqn": "Blobs",
+      "type": "Cloudflare.R2.Bucket",
+      "logicalId": "Blobs",
+      "namespace": [],
+      "props": {},
+      "exported": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "SomewhatIntelligentAuth/AuthMigrations",
+      "to": "SomewhatIntelligentAuth/AuthDatabase",
+      "path": "migrationsDir",
+      "kind": "prop"
+    },
+    {
+      "from": "SomewhatIntelligentAuth/AuthAvatars",
+      "to": "SomewhatIntelligentAuth/SomewhatIntelligentAuthApp",
+      "path": "env.AVATARS",
+      "kind": "prop"
+    },
+    {
+      "from": "SomewhatIntelligentAuth/AuthWorker",
+      "to": "SomewhatIntelligentAuth/SomewhatIntelligentAuthApp",
+      "path": "binding:AUTH",
+      "kind": "binding"
+    },
+    {
+      "from": "SomewhatIntelligentAuth/AuthAvatars",
+      "to": "SomewhatIntelligentAuth/SomewhatIntelligentAuthApp",
+      "path": "binding:AVATARS",
+      "kind": "binding"
+    },
+    {
+      "from": "SomewhatIntelligentAuth/AuthDatabase",
+      "to": "SomewhatIntelligentAuth/AuthWorker",
+      "path": "binding:AuthDatabase",
+      "kind": "binding"
+    },
+    {
+      "from": "SomewhatIntelligentAuth/AuthAvatars",
+      "to": "SomewhatIntelligentAuth/AuthWorker",
+      "path": "binding:AuthAvatars",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/CommerceSchema",
+      "to": "PlatformCommerce/CommerceDatabase",
+      "path": "migrationsDir",
+      "kind": "prop"
+    },
+    {
+      "from": "PlatformCommerce/CommerceDatabase",
+      "to": "PlatformCommerce/Commerce",
+      "path": "binding:CommerceDatabase",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/CommerceMedia",
+      "to": "PlatformCommerce/Commerce",
+      "path": "binding:CommerceMedia",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/CommercePaymentEvents",
+      "to": "PlatformCommerce/Settlement",
+      "path": "env.CommercePaymentEvents_queueName",
+      "kind": "prop"
+    },
+    {
+      "from": "PlatformCommerce/CommerceDatabase",
+      "to": "PlatformCommerce/Settlement",
+      "path": "binding:CommerceDatabase",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/CommerceMedia",
+      "to": "PlatformCommerce/Settlement",
+      "path": "binding:CommerceMedia",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/CommercePaymentEvents",
+      "to": "PlatformCommerce/Settlement",
+      "path": "binding:CommercePaymentEvents",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/CommercePaymentEvents",
+      "to": "PlatformCommerce/Settlement/CommercePaymentEventsConsumer",
+      "path": "queueId",
+      "kind": "prop"
+    },
+    {
+      "from": "PlatformCommerce/Settlement",
+      "to": "PlatformCommerce/Settlement/CommercePaymentEventsConsumer",
+      "path": "scriptName",
+      "kind": "prop"
+    },
+    {
+      "from": "PlatformCommerce/CommerceDatabase",
+      "to": "PlatformCommerce/Media",
+      "path": "binding:CommerceDatabase",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/CommerceMedia",
+      "to": "PlatformCommerce/Media",
+      "path": "binding:CommerceMedia",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/OperatorAccess",
+      "to": "PlatformCommerce/CommerceOperator",
+      "path": "env.POLICY_AUD",
+      "kind": "prop"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "PlatformCommerce/CommerceOperator",
+      "path": "env.TEAM_DOMAIN",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "PlatformCommerce/Commerce",
+      "to": "PlatformCommerce/CommerceOperator",
+      "path": "binding:COMMERCE",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/Settlement",
+      "to": "PlatformCommerce/CommerceOperator",
+      "path": "binding:SETTLEMENT",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/OperatorAccess",
+      "to": "PlatformCommerce/CommerceOperator",
+      "path": "binding:POLICY_AUD",
+      "kind": "binding"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "PlatformCommerce/OperatorAccess",
+      "path": "allowedIdps.0",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "PlatformCommerce/OperatorAccess",
+      "path": "policies.0",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "SomewhatIntelligentAuth/__stack__",
+      "to": "PlatformCommerce/Site",
+      "path": "env.AUTH_ORIGIN",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "PlatformCommerce/Commerce",
+      "to": "PlatformCommerce/Site",
+      "path": "binding:COMMERCE",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/Media",
+      "to": "PlatformCommerce/Site",
+      "path": "binding:MEDIA",
+      "kind": "binding"
+    },
+    {
+      "from": "PlatformCommerce/Settlement",
+      "to": "PlatformCommerce/StripeListener",
+      "path": "command",
+      "kind": "prop"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "AgenticInbox/InboxAccess",
+      "path": "allowedIdps.0",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "AgenticInbox/InboxAccess",
+      "path": "policies.0",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "AgenticInbox/InboxAccess",
+      "to": "AgenticInbox/Inbox",
+      "path": "env.POLICY_AUD",
+      "kind": "prop"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "AgenticInbox/Inbox",
+      "path": "env.TEAM_DOMAIN",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "AgenticInbox/InboxAccess",
+      "to": "AgenticInbox/Inbox",
+      "path": "binding:POLICY_AUD",
+      "kind": "binding"
+    },
+    {
+      "from": "AgenticInbox/Bucket",
+      "to": "AgenticInbox/Inbox",
+      "path": "binding:BUCKET",
+      "kind": "binding"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "Mezedes/MezedesAccess",
+      "path": "allowedIdps.0",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "Mezedes/MezedesAccess",
+      "path": "policies.0",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "Mezedes/MezedesAccess",
+      "to": "Mezedes/Mezedes",
+      "path": "env.POLICY_AUD",
+      "kind": "prop"
+    },
+    {
+      "from": "Cloudflare/__stack__@production",
+      "to": "Mezedes/Mezedes",
+      "path": "env.TEAM_DOMAIN",
+      "kind": "cross-stack"
+    },
+    {
+      "from": "Mezedes/Blobs",
+      "to": "Mezedes/Mezedes",
+      "path": "binding:BLOBS",
+      "kind": "binding"
+    },
+    {
+      "from": "Mezedes/MezedesAccess",
+      "to": "Mezedes/Mezedes",
+      "path": "binding:POLICY_AUD",
+      "kind": "binding"
+    }
+  ],
+  "stackOutputs": {
+    "SomewhatIntelligentAuth": {
+      "origin": "https://si-identity-dev-claude.apostoli-geyer.workers.dev",
+      "authBaseURL": "https://si-identity-dev-claude.apostoli-geyer.workers.dev/api/auth",
+      "cookieDomain": null,
+      "features": {
+        "basePath": "/api/auth",
+        "socialProviders": [],
+        "plugins": [
+          "username",
+          "jwt",
+          "admin",
+          "two-factor",
+          "bearer",
+          "passkey",
+          "device-authorization",
+          "api-key",
+          "magic-link",
+          "oauth-provider",
+          "organization"
+        ]
+      },
+      "databaseId": "«expr:AuthDatabase»"
+    },
+    "PlatformCommerce": {
+      "paymentsEnvironment": "dev",
+      "webhookUrl": "«expr:Settlement»",
+      "mediaOrigin": "«expr:Media»",
+      "operatorUrl": "«expr:CommerceOperator»",
+      "databaseName": "«expr:CommerceDatabase»",
+      "databaseId": "«expr:CommerceDatabase»",
+      "site": {
+        "url": "«expr:Site»",
+        "workerName": "«expr:Site»"
+      }
+    },
+    "AgenticInbox": {
+      "access": "«resource:InboxAccess»",
+      "site": "«resource:Inbox»"
+    },
+    "Mezedes": {
+      "shell": "https://mezedes-dev-claude.somewhatintelligent.ca",
+      "mcp": "https://mezedes-dev-claude.somewhatintelligent.ca/mcp",
+      "previews": "p--<token>.<artifactZone>, from the shell",
+      "artifacts": "https://<slug>.a-dev-claude.somewhatintelligent.ca"
+    }
+  }
+}
