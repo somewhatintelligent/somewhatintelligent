@@ -20,9 +20,8 @@ import { Button } from "platform.ui/components/button";
 
 import { Empty, PageHeader, Section } from "../components/page.tsx";
 import { Hint } from "../components/outcome.tsx";
-import { RoleBadge } from "../components/badges.tsx";
 import { getStorefrontProduct } from "../lib/storefront.functions.ts";
-import { money } from "../lib/format.ts";
+import { money, position } from "../lib/format.ts";
 
 export const Route = createFileRoute("/storefront/$slug")({
   loader: async ({ params }) => getStorefrontProduct({ data: { slug: params.slug } }),
@@ -88,7 +87,19 @@ function StorefrontProduct() {
                     loading="lazy"
                   />
                   <div className="flex items-center gap-2">
-                    <RoleBadge role={item.role} />
+                    {/*
+                      THE POSITION, which is the only thing that distinguishes
+                      one of these from another now — and it is ONE-BASED, like
+                      the operator gallery's numbers and the shop's filmstrip.
+                      `01` is the listing cover and the shot the product page
+                      opens on; the rest follow it in this order. Three places
+                      print this number and a shopper sees one of them, so all
+                      three have to count the same way.
+                    */}
+                    <Badge variant={index === 0 ? "outline" : "secondary"}>
+                      {position(index)}
+                      {index === 0 ? " · cover" : ""}
+                    </Badge>
                     <span className="truncate text-xs text-muted-foreground">{item.alt}</span>
                   </div>
                 </li>

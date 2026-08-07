@@ -42,7 +42,7 @@ import { Hint, Outcome } from "../components/outcome.tsx";
 import { ProductStatusBadge } from "../components/badges.tsx";
 import { DeletionDialog } from "../components/deletion-dialog.tsx";
 import { AddSize, VariantEditor } from "../components/variant-editor.tsx";
-import { Identity, ProductMarkets } from "../components/product-identity.tsx";
+import { Identity, ProductMarkets, ProductSizeGuide } from "../components/product-identity.tsx";
 import { DataTable, Td, type Column } from "../components/table.tsx";
 import {
   adjustStock,
@@ -148,7 +148,20 @@ function Product() {
   const { draft, markets, preorder, releases, variants, media } = detail;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 xl:h-[calc(100dvh-6rem)] xl:flex-none xl:overflow-hidden">
+    /**
+     * THE PAGE SCROLLS AT XL NOW, and it has to. This container used to be a
+     * fixed `100dvh` box with `overflow-hidden`, which fitted the editing grid
+     * exactly and clipped anything beyond it — so appending the size-guide
+     * panel to a clipped box would have made it unreachable rather than merely
+     * lower down. The grid keeps its own bounded height, so its row ratios and
+     * every `flex-1` inside it still resolve; what changed is that the panel
+     * under it is scrolled to instead of cut off.
+     *
+     * The one-viewport rule is the SHOP product page's, not this one's. An
+     * operator tool that scrolls is ordinary; an operator tool that hides a
+     * control is not.
+     */
+    <div className="flex min-h-0 flex-1 flex-col gap-4 xl:h-[calc(100dvh-6rem)] xl:flex-none xl:overflow-y-auto">
       <PageHeader
         back={
           <Button
@@ -226,7 +239,16 @@ function Product() {
         product is between draft and on sale is a different kind of fact from
         what it is, and it is the one an operator opens the page to change.
       */}
-      <div className="grid min-h-0 flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(22rem,0.75fr)] xl:grid-rows-[minmax(0,3fr)_minmax(0,2fr)] xl:items-stretch">
+      {/*
+        A DEFINITE HEIGHT AND NO SHRINKING at xl, which is what the two `fr`
+        row tracks and every `flex-1`/`h-full` inside these four panels resolve
+        against. `flex-1` would have worked while this was the container's only
+        child; with the size-guide panel beside it, flexing means the two
+        divide the viewport and the photograph loses half its height. Bounded
+        here, the grid keeps the layout it was designed with and the panel is
+        scrolled to.
+      */}
+      <div className="grid min-h-0 flex-1 items-start gap-4 xl:h-[calc(100dvh-9rem)] xl:flex-none xl:grid-cols-[minmax(0,1.55fr)_minmax(22rem,0.75fr)] xl:grid-rows-[minmax(0,3fr)_minmax(0,2fr)] xl:items-stretch">
         <Identity productId={productId} draft={draft} media={media} refresh={refresh} />
 
         <div className="grid min-h-0 min-w-0 gap-4 overflow-hidden xl:h-full xl:grid-rows-[minmax(9rem,0.8fr)_minmax(0,1.2fr)]">
@@ -248,6 +270,16 @@ function Product() {
         />
 
         <Lifecycle draft={draft} releases={releases} refresh={refresh} />
+      </div>
+
+      {/*
+        BELOW THE FOLD, and correctly so. The size guide is the last thing an
+        operator adds and the only panel a shopper has to open a drawer to see,
+        so it earns its own full-width row under the editing grid rather than a
+        cell competing with the photograph for attention.
+      */}
+      <div className="xl:min-h-[22rem] xl:flex-none">
+        <ProductSizeGuide productId={productId} draft={draft} refresh={refresh} />
       </div>
     </div>
   );

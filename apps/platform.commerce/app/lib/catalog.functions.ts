@@ -23,9 +23,9 @@ import type {
   CreateProductInput,
   IngestProductMediaInput,
   ListProductsInput,
-  ProductMediaRole,
   ProductStatus,
   PublishProductInput,
+  PutProductSizeGuideInput,
   PutVariantInput,
   ReorderProductMediaInput,
   SaveProductDraftInput,
@@ -150,8 +150,6 @@ export const setPreorderCap = createServerFn({ method: "POST" })
 
 // ── Media ────────────────────────────────────────────────────────────────────
 
-const ROLES: ProductMediaRole[] = ["cover", "gallery", "evidence"];
-
 /**
  * One text field out of a multipart body.
  *
@@ -186,16 +184,6 @@ export const ingestProductMedia = createServerFn({ method: "POST" })
     const productId = field(data, "productId");
     const commandId = field(data, "commandId");
     const altField = field(data, "alt").trim();
-    /**
-     * Narrowed against the three the domain knows rather than cast. An
-     * unrecognised role would otherwise reach `ingestProductMedia` as a
-     * `ProductMediaRole` it is not, and be refused deep in the domain with
-     * `invalid_role` instead of here.
-     */
-    const submitted = field(data, "role");
-    const role: ProductMediaRole = ROLES.includes(submitted as ProductMediaRole)
-      ? (submitted as ProductMediaRole)
-      : "gallery";
 
     const input: IngestProductMediaInput = {
       productId,
@@ -208,24 +196,55 @@ export const ingestProductMedia = createServerFn({ method: "POST" })
       contentType: file.type,
       /** Falling back to the filename beats storing an empty alt for a real image. */
       alt: altField || file.name,
-      role,
     };
 
+    /**
+     * NO POSITION AND NO ROLE. An upload lands at the END of the order, which
+     * is the one place a new photograph can go without silently changing which
+     * one leads. `reorderProductMedia` is how it moves from there.
+     */
     return commerce().ingestProductMedia(
       operatorCall(context.actor, "ingestProductMedia", commandId, input),
     );
   });
 
-export const setProductMediaRole = createServerFn({ method: "POST" })
+/**
+ * THE SIZE-GUIDE PLATE, uploaded or replaced. Multipart for the same reason
+ * `ingestProductMedia` is: the bytes cross a service binding as an
+ * `ArrayBuffer`, so there is no base64 round trip to pay for.
+ *
+ * The alt text and the fit comments are NOT here — they are draft copy and
+ * travel through `saveProductDraft`, because a release freezes them and does
+ * not freeze the bytes.
+ */
+export const putProductSizeGuide = createServerFn({ method: "POST" })
   .middleware([requireOperator])
-  .validator(
-    (data: { productId: string; mediaId: string; role: ProductMediaRole; commandId: string }) =>
-      data,
-  )
+  .validator((data: FormData) => data)
+  .handler(async ({ context, data }) => {
+    const file = data.get("file");
+    if (!(file instanceof File)) {
+      throw new Response("no file in upload", { status: 400 });
+    }
+
+    const input: PutProductSizeGuideInput = {
+      productId: field(data, "productId"),
+      bytes: await file.arrayBuffer(),
+      /** The store's display allowlist, same as product photography. */
+      contentType: file.type,
+    };
+
+    return commerce().putProductSizeGuide(
+      operatorCall(context.actor, "putProductSizeGuide", field(data, "commandId"), input),
+    );
+  });
+
+export const removeProductSizeGuide = createServerFn({ method: "POST" })
+  .middleware([requireOperator])
+  .validator((data: { productId: string; commandId: string }) => data)
   .handler(async ({ context, data }) => {
     const { commandId, ...input } = data;
-    return commerce().setProductMediaRole(
-      operatorCall(context.actor, "setProductMediaRole", commandId, input),
+    return commerce().removeProductSizeGuide(
+      operatorCall(context.actor, "removeProductSizeGuide", commandId, input),
     );
   });
 

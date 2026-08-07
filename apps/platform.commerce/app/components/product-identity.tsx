@@ -1,5 +1,5 @@
 /**
- * WHAT THE PRODUCT IS — the photograph, the name, the words, in that order.
+ * WHAT THE PRODUCT IS — the photographs, the name, the words, in that order.
  *
  * This replaces a "Draft" form and a "Media" panel that sat in different
  * columns, which is the shape the DATABASE has (a `product_draft` row and a
@@ -10,18 +10,16 @@
  * So the image leads at the size you can actually judge it at, the title is set
  * in the display face rather than as a form field among equals, and the slug
  * sits under it as the quiet consequence of the title it is derived from.
+ *
+ * THE ONLY THING AN OPERATOR DECIDES ABOUT AN IMAGE IS WHERE IT SITS. The role
+ * control is gone: `cover` / `gallery` / `evidence` asked for a second answer to
+ * a question the order already answered, and let the two disagree. Position
+ * zero is the cover; the numbers under the thumbnails are the same numbers the
+ * shop's filmstrip prints, so what an operator arranges here is literally what a
+ * shopper sees.
  */
 import { useRef, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Image as ImageIcon,
-  ImageUp,
-  MoreVertical,
-  Plus,
-  Star,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ImageUp, MoreVertical, Plus, Ruler, Trash2 } from "lucide-react";
 
 import { Button } from "platform.ui/components/button";
 import { Field } from "platform.ui/components/field";
@@ -31,28 +29,24 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "platform.ui/components/dropdown-menu";
 import { Switch } from "platform.ui/components/switch";
 import { Textarea } from "platform.ui/components/textarea";
 
-import type { ProductDetail, ProductMediaRole } from "../../domain/Contracts.ts";
+import type { ProductDetail } from "../../domain/Contracts.ts";
 import {
   ingestProductMedia,
+  putProductSizeGuide,
+  removeProductSizeGuide,
   reorderProductMedia,
   saveProductDraft,
-  setProductMediaRole,
 } from "../lib/catalog.functions.ts";
 import { deleteProductMedia, planProductMediaDeletion } from "../lib/deletion.functions.ts";
-import { centsFrom, commandId, dollarsFrom, refusalText } from "../lib/format.ts";
-import { Outcome } from "./outcome.tsx";
+import { centsFrom, commandId, dollarsFrom, position, refusalText } from "../lib/format.ts";
+import { Hint, Outcome } from "./outcome.tsx";
 import { DeletionDialog } from "./deletion-dialog.tsx";
-
-const ROLES: ProductMediaRole[] = ["cover", "gallery", "evidence"];
 
 export function Identity({
   productId,
@@ -69,6 +63,7 @@ export function Identity({
     title: draft.title,
     slug: draft.slug,
     descriptionMarkdown: draft.descriptionMarkdown ?? "",
+    detailsMarkdown: draft.detailsMarkdown ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -76,7 +71,8 @@ export function Identity({
   const dirty =
     form.title !== draft.title ||
     form.slug !== draft.slug ||
-    form.descriptionMarkdown !== (draft.descriptionMarkdown ?? "");
+    form.descriptionMarkdown !== (draft.descriptionMarkdown ?? "") ||
+    form.detailsMarkdown !== (draft.detailsMarkdown ?? "");
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -92,6 +88,13 @@ export function Identity({
           title: form.title,
           slug: form.slug,
           descriptionMarkdown: form.descriptionMarkdown || null,
+          /**
+           * EMPTY MEANS NO PANEL, and `null` is how that is said on the wire.
+           * Saving `""` would publish a `Product details` accordion that opens
+           * onto nothing, which is the one thing the storefront must never
+           * render — see the omission rule in `Storefront.ts`.
+           */
+          detailsMarkdown: form.detailsMarkdown.trim() || null,
           commandId: commandId(),
         },
       });
@@ -115,7 +118,7 @@ export function Identity({
     >
       <Gallery productId={productId} media={media} refresh={refresh} />
 
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4 overflow-auto">
         <Field>
           <Label htmlFor="title" className="sr-only">
             Title
@@ -150,11 +153,30 @@ export function Identity({
           </Label>
           <Textarea
             id="description"
-            rows={5}
+            rows={4}
             value={form.descriptionMarkdown}
             onChange={(e) => setForm({ ...form, descriptionMarkdown: e.target.value })}
-            placeholder="Markdown. Shown on the product page."
-            className="min-h-32 flex-1 resize-y"
+            placeholder="Markdown. Always visible under the title — shipping and returns go here if you want them said."
+            className="min-h-24 flex-1 resize-y"
+          />
+        </Field>
+
+        {/*
+          THE OPTIONAL PANEL, and it is optional all the way down: empty here
+          means the product page renders no `Product details` accordion at all,
+          rather than an empty one with a chevron that opens onto nothing.
+        */}
+        <Field className="flex min-h-0 flex-1 flex-col">
+          <Label htmlFor="details" className="text-xs">
+            Product details
+          </Label>
+          <Textarea
+            id="details"
+            rows={3}
+            value={form.detailsMarkdown}
+            onChange={(e) => setForm({ ...form, detailsMarkdown: e.target.value })}
+            placeholder="Markdown. Optional — an accordion on the product page. Leave empty and there is no accordion."
+            className="min-h-20 flex-1 resize-y"
           />
         </Field>
 
@@ -226,22 +248,24 @@ export function ProductMarkets({
      * is the one shape that cannot mean anything, so it refuses.
      */
     const entries: { market: "CA" | "US"; priceCents: number; active: boolean }[] = [];
-    for (const { code, label } of MARKET_FORM) {
+    for (const { code, label: marketLabel } of MARKET_FORM) {
       const value = form[code];
       if (value.price.trim() === "") {
         if (value.active) {
-          setError(new Error(`${label} is on but has no price.`));
+          setError(new Error(`${marketLabel} is on but has no price.`));
           return;
         }
         if (stored.has(code)) {
-          setError(new Error(`${label} has a saved price — turn it off instead of blanking it.`));
+          setError(
+            new Error(`${marketLabel} has a saved price — turn it off instead of blanking it.`),
+          );
           return;
         }
         continue;
       }
       const priceCents = centsFrom(value.price);
       if (priceCents === null || priceCents < 0) {
-        setError(new Error(`${label} price must be a number of dollars — 45.00`));
+        setError(new Error(`${marketLabel} price must be a number of dollars — 45.00`));
         return;
       }
       entries.push({ market: code, priceCents, active: value.active });
@@ -284,7 +308,7 @@ export function ProductMarkets({
         </p>
       </div>
       <div className="flex flex-1 flex-col justify-center gap-3">
-        {MARKET_FORM.map(({ code, label, currency }) => (
+        {MARKET_FORM.map(({ code, label: marketLabel, currency }) => (
           <Field key={code}>
             <div className="flex items-center gap-3">
               <Switch
@@ -293,10 +317,10 @@ export function ProductMarkets({
                 onCheckedChange={(active) =>
                   setForm({ ...form, [code]: { ...form[code], active } })
                 }
-                aria-label={`Sell in ${label}`}
+                aria-label={`Sell in ${marketLabel}`}
               />
               <Label htmlFor={`market-price-${code}`} className="w-24 shrink-0 text-xs">
-                {label}
+                {marketLabel}
               </Label>
               <div className="relative min-w-0 flex-1">
                 <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
@@ -329,17 +353,18 @@ export function ProductMarkets({
 }
 
 /**
- * THE PHOTOGRAPH, one at a time and large.
+ * THE PHOTOGRAPH, one at a time and large, with its POSITION under it.
  *
  * A grid of thumbnails is the right shape for choosing between images and the
  * wrong one for judging them — at three-to-a-row in a side column each was
  * about the size of a postage stamp, which is not enough to notice that the
  * colour is off.
  *
- * The role control acts on THE IMAGE ON SCREEN rather than on a row in a list,
- * which is why `setProductMediaRole` had to exist: the role was previously
- * fixed at upload, so the cover could only be chosen by deleting and
- * re-uploading in the right order.
+ * The menu on the image moves it EARLIER or LATER and nothing else, because
+ * position is now the whole of what an operator decides: `01` leads the listing
+ * and opens the product page, and the rest follow it in the shop's filmstrip in
+ * exactly this order. An upload lands at the end, which is the one place a new
+ * photograph can go without silently changing which one leads.
  */
 function Gallery({
   productId,
@@ -381,12 +406,10 @@ function Gallery({
     const body = new FormData();
     body.set("file", file);
     body.set("productId", productId);
-    // The FIRST image is the cover by default, because a product with images
-    // and no cover publishes into a listing with no picture.
-    body.set("role", media.length === 0 ? "cover" : "gallery");
     body.set("alt", file.name.replace(/\.[^.]+$/, ""));
     body.set("commandId", commandId());
     await act(() => ingestProductMedia({ data: body }));
+    // Appended, so follow it to the end of the strip.
     setAt(media.length);
   };
 
@@ -448,44 +471,6 @@ function Gallery({
                   }
                 />
                 <DropdownMenuContent align="end">
-                  {/*
-                    A RADIO GROUP, and not only because Base UI demands one.
-                    `DropdownMenuLabel` is `Menu.GroupLabel`, which throws
-                    `MenuGroupContext is missing` outside a group — but the fix
-                    is not to wrap plain items in `Menu.Group`. An image has
-                    exactly one role, so this is a single-select: the radio
-                    group states that in the accessibility tree, renders the
-                    checked mark itself, and replaces the hand-rolled `Check`
-                    that only looked like one.
-                  */}
-                  <DropdownMenuRadioGroup
-                    value={current.role}
-                    onValueChange={(next) =>
-                      void act(() =>
-                        setProductMediaRole({
-                          data: {
-                            productId,
-                            mediaId: current.id,
-                            role: next as ProductMediaRole,
-                            commandId: commandId(),
-                          },
-                        }),
-                      )
-                    }
-                  >
-                    <DropdownMenuLabel>Role</DropdownMenuLabel>
-                    {ROLES.map((role) => (
-                      <DropdownMenuRadioItem key={role} value={role} disabled={busy}>
-                        {role === "cover" ? (
-                          <Star className="size-4" />
-                        ) : (
-                          <ImageIcon className="size-4" />
-                        )}
-                        {role}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem disabled={busy || index === 0} onClick={() => void shift(-1)}>
                     <ArrowLeft className="size-4" />
                     Move earlier
@@ -506,11 +491,15 @@ function Gallery({
               </DropdownMenu>
             </div>
 
-            {current.role === "cover" ? (
-              <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium">
-                Cover
-              </span>
-            ) : null}
+            {/*
+              THE POSITION, stated on the image itself. `01` is the listing
+              cover and the shot the product page opens on — an operator should
+              not have to count thumbnails to know which one that is.
+            */}
+            <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium tnum">
+              {position(index)}
+              {index === 0 ? " · cover" : ""}
+            </span>
           </>
         ) : (
           <button
@@ -526,33 +515,34 @@ function Gallery({
       </div>
 
       {/*
-        THE STRIP IS THE NAVIGATION. Every image is visible and one click away,
-        which is what carousel arrows were standing in for badly — and the
-        selected one is ringed rather than counted.
+        THE STRIP IS THE NAVIGATION, and it is NUMBERED. Every image is visible
+        and one click away, and the number under each is the position the
+        storefront prints — so the order an operator sees here is the order a
+        shopper gets, with no translation step in between.
       */}
       <div className="flex flex-wrap gap-2">
         {media.map((item, i) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setAt(i)}
-            aria-label={`Show ${item.alt || `image ${i + 1}`}`}
-            className={`relative size-14 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
-              i === index ? "border-primary" : "border-border hover:border-border-strong"
-            }`}
-          >
-            <img src={item.href} alt="" className="h-full w-full object-cover" loading="lazy" />
-            {item.role === "cover" ? (
-              <span className="absolute inset-x-0 bottom-0 bg-background/85 text-center text-[0.6rem] leading-tight">
-                cover
-              </span>
-            ) : null}
-          </button>
+          <div key={item.id} className="flex flex-col items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => setAt(i)}
+              aria-label={`Show image ${position(i)}${item.alt ? `, ${item.alt}` : ""}`}
+              aria-pressed={i === index}
+              className={`relative size-14 shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
+                i === index ? "border-primary" : "border-border hover:border-border-strong"
+              }`}
+            >
+              <img src={item.href} alt="" className="h-full w-full object-cover" loading="lazy" />
+            </button>
+            <span className="tnum text-[0.65rem] leading-none text-muted-foreground">
+              {position(i)}
+            </span>
+          </div>
         ))}
         <button
           type="button"
           onClick={() => input.current?.click()}
-          aria-label="Add an image"
+          aria-label="Add an image at the end"
           className="flex size-14 shrink-0 items-center justify-center rounded-md border-2 border-dashed border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
         >
           <Plus className="size-4" />
@@ -570,13 +560,6 @@ function Gallery({
           if (file) void upload(file);
         }}
       />
-
-      {media.length > 0 && !media.some((item) => item.role === "cover") ? (
-        <p className="text-xs text-warning">
-          No image is set as the cover, so a listing would show no picture. Publish still accepts
-          it.
-        </p>
-      ) : null}
 
       {current && confirming ? (
         <DeletionDialog
@@ -599,5 +582,226 @@ function Gallery({
 
       <Outcome error={error} />
     </div>
+  );
+}
+
+/**
+ * THE SIZE GUIDE — one chart, its description, and the fit comments beside it.
+ *
+ * A PANEL OF ITS OWN because it is not product photography: it never joins the
+ * ordered set, is never the listing cover, and a shopper sees it only after
+ * opening `Size & fit`. Giving it its own upload rather than a "kind" dropdown
+ * on the gallery is what lets `product_image` carry no role column at all.
+ *
+ * NOTHING HERE GENERATES A CHART, and nothing here dictates what one looks
+ * like. The operator uploads the image they made, in any format the store can
+ * display; it is drawn at `contain` scale over the sizing background, which
+ * works whether or not it has a transparent one of its own. A transparent PNG
+ * sits most cleanly on that background — worth SAYING, which the checkerboard
+ * preview below does, and not worth refusing an upload over.
+ *
+ * ALL THREE FIELDS CLEAR TOGETHER on remove, because half a panel is not a
+ * state worth being able to reach.
+ */
+export function ProductSizeGuide({
+  productId,
+  draft,
+  refresh,
+}: {
+  productId: string;
+  draft: ProductDetail["draft"];
+  refresh: () => Promise<void>;
+}) {
+  const [form, setForm] = useState({
+    alt: draft.sizeGuideAlt ?? "",
+    notes: draft.sizeGuideNotesMarkdown ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  const dirty =
+    form.alt !== (draft.sizeGuideAlt ?? "") || form.notes !== (draft.sizeGuideNotesMarkdown ?? "");
+
+  const act = async (
+    call: () => Promise<{ ok: boolean; error?: string; message?: string }>,
+    success: string,
+  ) => {
+    setBusy(true);
+    setError(null);
+    setDone(null);
+    try {
+      const result = await call();
+      if (!result.ok) {
+        setError(new Error(refusalText(result.error ?? "failed", result.message)));
+        return;
+      }
+      setDone(success);
+      await refresh();
+    } catch (cause) {
+      setError(cause);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const upload = (file: File) => {
+    const body = new FormData();
+    body.set("file", file);
+    body.set("productId", productId);
+    body.set("commandId", commandId());
+    return act(
+      () => putProductSizeGuide({ data: body }),
+      draft.sizeGuideAssetId ? "Size guide replaced" : "Size guide uploaded",
+    );
+  };
+
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    return act(
+      () =>
+        saveProductDraft({
+          data: {
+            productId,
+            expectedRevision: draft.revision,
+            /** Empty is `null`, so the frozen release carries an absence rather than a blank. */
+            sizeGuideAlt: form.alt.trim() || null,
+            sizeGuideNotesMarkdown: form.notes.trim() || null,
+            commandId: commandId(),
+          },
+        }),
+      "Size guide saved",
+    );
+  };
+
+  return (
+    <form
+      onSubmit={save}
+      className="flex h-full min-h-0 self-stretch flex-col gap-3 overflow-auto rounded-xl border border-border bg-card p-5"
+    >
+      <div>
+        <h2 className="text-base font-semibold tracking-tight">Size guide</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          One image. No plate, no <code>Size &amp; fit</code> panel on the product page.
+        </p>
+      </div>
+
+      <div className="grid min-h-0 gap-3 sm:grid-cols-[13rem_minmax(0,1fr)]">
+        {/*
+          CHECKERBOARD, so an operator can SEE whether their chart carries a
+          background of its own. Nothing forces the answer either way — this is
+          the panel TELLING them what the shop will render, so a white rectangle
+          they did not intend is obvious here rather than after publishing.
+        */}
+        <div
+          className="flex aspect-4/3 items-center justify-center overflow-hidden rounded-lg border border-border"
+          style={{
+            backgroundColor: "var(--color-surface-sunken)",
+            backgroundImage:
+              "linear-gradient(45deg, rgb(128 128 128 / 0.16) 25%, transparent 25%, transparent 75%, rgb(128 128 128 / 0.16) 75%), linear-gradient(45deg, rgb(128 128 128 / 0.16) 25%, transparent 25%, transparent 75%, rgb(128 128 128 / 0.16) 75%)",
+            backgroundSize: "16px 16px",
+            backgroundPosition: "0 0, 8px 8px",
+          }}
+        >
+          {draft.sizeGuideHref ? (
+            <img
+              src={draft.sizeGuideHref}
+              alt={form.alt || "Size guide"}
+              className="h-full w-full object-contain p-2"
+              loading="lazy"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => input.current?.click()}
+              className="flex flex-col items-center gap-1.5 p-4 text-center text-sm text-muted-foreground"
+            >
+              <Ruler className="size-6" />
+              Upload a size chart
+            </button>
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-3">
+          <Field>
+            <Label htmlFor="size-guide-alt" className="text-xs">
+              Chart description
+            </Label>
+            <Textarea
+              id="size-guide-alt"
+              rows={3}
+              value={form.alt}
+              onChange={(e) => setForm({ ...form, alt: e.target.value })}
+              placeholder="The measurements in words — pit-to-pit 50 cm at S, 53 at M, 56 at L; length 70, 72, 74."
+              className="min-h-16 resize-y"
+            />
+            <Hint>
+              This is the alt text. A screen reader gets this instead of the chart, so it has to
+              carry the numbers rather than say &ldquo;sizing chart&rdquo;.
+            </Hint>
+          </Field>
+
+          <Field>
+            <Label htmlFor="size-guide-notes" className="text-xs">
+              Fit comments
+            </Label>
+            <Textarea
+              id="size-guide-notes"
+              rows={3}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Markdown. Shown beside the chart — relaxed unisex fit, model is 170 cm and wears M."
+              className="min-h-16 resize-y"
+            />
+          </Field>
+        </div>
+      </div>
+
+      <input
+        ref={input}
+        type="file"
+        /** The store's display allowlist — the same one product photography takes. */
+        accept="image/jpeg,image/png,image/webp,image/avif"
+        className="sr-only"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void upload(file);
+        }}
+      />
+
+      <div className="mt-auto flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+        <Outcome error={error} done={done} />
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={busy}
+          onClick={() => input.current?.click()}
+        >
+          <ImageUp className="size-4" />
+          {draft.sizeGuideAssetId ? "Replace plate" : "Upload plate"}
+        </Button>
+        {draft.sizeGuideAssetId ? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={busy}
+            onClick={() =>
+              void act(
+                () => removeProductSizeGuide({ data: { productId, commandId: commandId() } }),
+                "Size guide removed from the draft",
+              )
+            }
+          >
+            <Trash2 className="size-4" />
+            Remove
+          </Button>
+        ) : null}
+        <Button type="submit" variant={dirty ? "default" : "outline"} disabled={busy || !dirty}>
+          {busy ? "Saving…" : "Save size guide"}
+        </Button>
+      </div>
+    </form>
   );
 }

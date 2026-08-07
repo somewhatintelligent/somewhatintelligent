@@ -23,6 +23,17 @@ export const centsFrom = (input: string): number | null => {
 /** Cents to the decimal string a price input shows. */
 export const dollarsFrom = (cents: number): string => (cents / 100).toFixed(2);
 
+/**
+ * A MEDIA POSITION, as every surface prints it.
+ *
+ * One-based and zero-padded, and it has to be the SAME function everywhere: the
+ * operator arranges images against these numbers, the storefront filmstrip
+ * prints them, and the release preview labels them. Three call sites counting
+ * differently is three chances for what an operator sees to disagree with what
+ * a shopper does.
+ */
+export const position = (index: number): string => String(index + 1).padStart(2, "0");
+
 export const when = (at: number | null | undefined): string =>
   at === null || at === undefined
     ? "—"
@@ -72,10 +83,11 @@ const REFUSALS: Record<string, string> = {
   already_fulfilled: "This order was already marked shipped.",
   out_of_stock: "Not enough stock left.",
   preorder_full: "The pre-order run is fully subscribed.",
-  unsupported_type: "Only JPEG, PNG, WebP and AVIF images are accepted.",
+  /** One allowlist for every image the store holds — photography and size guides. */
+  unsupported_type: "Images must be JPEG, PNG, WebP or AVIF.",
   invalid_size: "The image is empty or larger than 10 MB.",
-  invalid_role: "Not a media role this product accepts.",
   storage_unavailable: "Object storage did not accept the upload. Try again.",
+  invalid_order: "That is not the exact set of this product's images.",
   deletion_plan_expired: "The confirmation expired. Plan the deletion again.",
   deletion_plan_mismatch: "That confirmation is not valid for this deletion.",
   deletion_already_executed: "This deletion has already been carried out.",

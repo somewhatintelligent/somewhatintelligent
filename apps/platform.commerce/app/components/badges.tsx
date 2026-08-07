@@ -63,11 +63,3 @@ export function PaymentBadge({ status }: { status: string }) {
     </Badge>
   );
 }
-
-export function RoleBadge({ role }: { role: string }) {
-  return (
-    <Badge variant={role === "cover" ? "default" : "outline"} size="sm">
-      {role}
-    </Badge>
-  );
-}
