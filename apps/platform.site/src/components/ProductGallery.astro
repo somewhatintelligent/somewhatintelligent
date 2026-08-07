@@ -65,16 +65,34 @@ const showFilmstrip = media.length > 1;
       /*
         THE SIZING PLATE, hidden until `Size & fit` opens.
 
-        `contain` over a background this element paints itself, so the chart
-        never depends on its own background matching the page's. A chart with a
-        transparent background sits directly on the plate; one that brings its
-        own reads as a card on it. Both are legible, which is the point — the
-        store does not dictate the format. `contain` rather than `cover` so a
-        tall chart and a wide one are both whole.
+        THE CHART IS DRAWN IN THE PAGE'S OWN INK, not in whatever colour it was
+        exported as. Its alpha channel is the artwork, so CSS masks it and
+        paints the result `currentColor` — a chart exported as black line art
+        renders light on this dark stage, and the same file would render dark on
+        a light one. One asset, no inverted second copy, and no white slab
+        dropped into the middle of an inverted page to make dark ink legible.
+
+        `role="img"` + `aria-label` rather than `<img alt>` because a masked
+        element is a background, and the alt text is the only thing a screen
+        reader gets instead of the measurements — see `SizeGuide.alt` in the
+        contract. `product.css` keeps a plain-image fallback for engines with no
+        mask support, so the chart is never invisible, only un-themed.
+
+        `contain`, so a tall chart and a wide one are both whole; `cover` would
+        crop measurements off the edge.
       */
       sizingPlate && (
         <figure class="product-sizing-plate" data-sizing-plate hidden>
-          <img src={sizingPlate.href} alt={sizingPlate.alt} loading="lazy" />
+          {/*
+            The href is server-minted — `mediaHref(<ULID>)` — so it carries no
+            characters that could escape the `url()`. It is not operator input.
+          */}
+          <div
+            class="product-sizing-art"
+            role="img"
+            aria-label={sizingPlate.alt}
+            style={`--plate-art: url("${sizingPlate.href}")`}
+          />
         </figure>
       )
     }

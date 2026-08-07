@@ -683,44 +683,78 @@ export function ProductSizeGuide({
       <div>
         <h2 className="text-base font-semibold tracking-tight">Size guide</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          One image. No plate, no <code>Size &amp; fit</code> panel on the product page.
+          One image, monochrome line art on transparency. The shop masks it and paints it in the
+          page's own ink, so the same file works light-on-dark and dark-on-light. No plate, no{" "}
+          <code>Size &amp; fit</code> panel on the product page.
         </p>
       </div>
 
-      <div className="grid min-h-0 gap-3 sm:grid-cols-[13rem_minmax(0,1fr)]">
+      <div className="grid min-h-0 gap-3 lg:grid-cols-[22rem_minmax(0,1fr)]">
         {/*
-          CHECKERBOARD, so an operator can SEE whether their chart carries a
-          background of its own. Nothing forces the answer either way — this is
-          the panel TELLING them what the shop will render, so a white rectangle
-          they did not intend is obvious here rather than after publishing.
+          WHAT THE SHOP WILL ACTUALLY DO, on both surfaces it can do it on.
+
+          The storefront masks this file and paints the result in the page's own
+          ink — see `.product-sizing-art`. So a preview of the raw upload would
+          be a preview of something no shopper ever sees, and the one failure
+          worth catching early is invisible in it: a chart with a baked-in
+          background, or one in full colour, flattens to a solid slab under a
+          mask. Rendering it here the same way makes that obvious before
+          publishing rather than after.
         */}
-        <div
-          className="flex aspect-4/3 items-center justify-center overflow-hidden rounded-lg border border-border"
-          style={{
-            backgroundColor: "var(--color-surface-sunken)",
-            backgroundImage:
-              "linear-gradient(45deg, rgb(128 128 128 / 0.16) 25%, transparent 25%, transparent 75%, rgb(128 128 128 / 0.16) 75%), linear-gradient(45deg, rgb(128 128 128 / 0.16) 25%, transparent 25%, transparent 75%, rgb(128 128 128 / 0.16) 75%)",
-            backgroundSize: "16px 16px",
-            backgroundPosition: "0 0, 8px 8px",
-          }}
-        >
-          {draft.sizeGuideHref ? (
-            <img
-              src={draft.sizeGuideHref}
-              alt={form.alt || "Size guide"}
-              className="h-full w-full object-contain p-2"
-              loading="lazy"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => input.current?.click()}
-              className="flex flex-col items-center gap-1.5 p-4 text-center text-sm text-muted-foreground"
-            >
-              <Ruler className="size-6" />
-              Upload a size chart
-            </button>
-          )}
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              {
+                label: "On the shop",
+                surface: "var(--color-inverse)",
+                ink: "var(--color-inverse-foreground)",
+              },
+              {
+                label: "On a light surface",
+                surface: "var(--color-inverse-foreground)",
+                ink: "var(--color-inverse)",
+              },
+            ] as const
+          ).map(({ label, surface, ink }) => (
+            <figure key={label} className="m-0">
+              <div
+                className="flex aspect-4/3 items-center justify-center overflow-hidden rounded-lg border border-border"
+                style={{ backgroundColor: surface, color: ink }}
+              >
+                {draft.sizeGuideHref ? (
+                  <div
+                    role="img"
+                    aria-label={form.alt || "Size guide preview"}
+                    className="h-full w-full"
+                    style={{
+                      backgroundColor: "currentColor",
+                      WebkitMaskImage: `url("${draft.sizeGuideHref}")`,
+                      maskImage: `url("${draft.sizeGuideHref}")`,
+                      WebkitMaskSize: "contain",
+                      maskSize: "contain",
+                      WebkitMaskPosition: "center",
+                      maskPosition: "center",
+                      WebkitMaskRepeat: "no-repeat",
+                      maskRepeat: "no-repeat",
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => input.current?.click()}
+                    className="flex flex-col items-center gap-1.5 p-4 text-center text-sm"
+                    style={{ color: ink, opacity: 0.7 }}
+                  >
+                    <Ruler className="size-6" />
+                    Upload a size chart
+                  </button>
+                )}
+              </div>
+              <figcaption className="mt-1 text-center text-xs text-muted-foreground">
+                {label}
+              </figcaption>
+            </figure>
+          ))}
         </div>
 
         <div className="flex min-w-0 flex-col gap-3">

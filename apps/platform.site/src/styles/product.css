@@ -159,12 +159,19 @@
 /*
  * THE SIZING PLATE.
  *
- * ITS OWN BACKGROUND, and that is the point rather than a detail. An operator
- * draws the chart on whatever canvas they happen to use, in whatever format
- * they already have; compositing it over a surface this element paints means it
- * reads correctly regardless, instead of depending on their background matching
- * ours. A plate that only works because two colours happen to agree is a plate
- * that breaks the day either one is retouched.
+ * THE CHART IS TINTED, NOT PLACED. Its alpha channel is the artwork, so the
+ * mask below discards whatever colour it was exported in and paints the result
+ * `currentColor` — which on this inverted stage is the light foreground. The
+ * same file therefore renders light here and would render dark on a light
+ * surface, with no inverted second copy to keep in step and no white slab
+ * dropped into the middle of a dark page just to make black ink legible.
+ *
+ * WHAT THIS ASSUMES, stated plainly because it is the one assumption here:
+ * the chart is MONOCHROME line art on real transparency. A full-colour image
+ * masked this way flattens to a single-colour silhouette. The operator console
+ * previews the chart exactly as this renders it, on both surfaces, so an upload
+ * that will not survive the treatment is visible before it is published rather
+ * than after.
  *
  * `contain`, so a wide chart and a tall one are both whole. `cover` would crop
  * measurements off the edge, which on this particular image is the one thing
@@ -175,13 +182,26 @@
   padding: clamp(24px, 4vw, 64px);
   align-items: center;
   justify-content: center;
-  background: var(--color-inverse-foreground);
 }
 
-.product-sizing-plate img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+/*
+ * THE FALLBACK IS THE OLD BEHAVIOUR, and it is the base rule rather than the
+ * exception: an engine with no mask support paints the plate light and drops
+ * the chart on it as an ordinary image. Dark ink on a light plate is legible
+ * everywhere. Only the theming is lost, never the chart.
+ */
+.product-sizing-art {
+  width: 100%;
+  height: 100%;
+  background: var(--color-inverse-foreground) var(--plate-art) center / contain no-repeat;
+}
+
+@supports ((mask: url("")) or (-webkit-mask: url(""))) {
+  .product-sizing-art {
+    background: currentColor;
+    -webkit-mask: var(--plate-art) center / contain no-repeat;
+    mask: var(--plate-art) center / contain no-repeat;
+  }
 }
 
 /* ── The purchase sheet ─────────────────────────────────────────────────── */
