@@ -311,10 +311,31 @@
 /* ── The purchase sheet ─────────────────────────────────────────────────── */
 
 /*
- * THE SHEET SCROLLS, THE DOCUMENT DOES NOT. A long description plus two open
- * panels can exceed the viewport; when it does, the overflow belongs to this
+ * THE SHEET SCROLLS, THE DOCUMENT DOES NOT. A long description plus an open
+ * panel can exceed the viewport; when it does, the overflow belongs to this
  * column — the photograph and the chrome stay put, which is what makes the page
  * one viewport rather than one screenful of a taller thing.
+ *
+ * IT IS THE LAST RESORT RATHER THAN THE MECHANISM, though, and that distinction
+ * is the whole of the bug it fixes. Opening a panel used to hand the entire
+ * column to this scroller, and a classic scrollbar is fifteen pixels of LAYOUT
+ * rather than fifteen pixels of decoration: the sheet narrowed, the title
+ * re-wrapped from one line to two, and every line beneath it moved down the
+ * page. A drawer opening at the BOTTOM of the column re-typeset the title at the
+ * TOP of it, on a page whose one rule is that it does not move.
+ *
+ * The panels below now absorb their own overflow, so opening one cannot reach
+ * this scroller at all. It engages only when the window is too short for the
+ * sheet with everything CLOSED — and in that case it is already engaged before
+ * anything is clicked, so it is still not a click that moves the title.
+ *
+ * NO `scrollbar-gutter: stable` ANYWHERE ON THIS PAGE, deliberately, though it
+ * is the reflex fix and it is one line. It buys constancy by spending the
+ * scrollbar's fifteen pixels in EVERY state, including the overwhelmingly common
+ * one where nothing scrolls — and this column is knife-edge at the width the
+ * title is set, so the price of never seeing the title re-wrap is seeing it
+ * wrapped permanently. That is conceding the bug and calling it a fix. Removing
+ * the reflow's cause costs nothing and keeps the one-line title.
  */
 .product-sheet {
   display: flex;
@@ -323,6 +344,17 @@
   flex-direction: column;
   padding: 26px 32px;
   overflow-y: auto;
+}
+
+/*
+ * THE READING ORDER IS RIGID; ONLY THE DRAWERS GIVE. Identifier, title,
+ * description, price, sizes, buy, state — none of it compresses to make room
+ * for an accordion, because all of it is what the shopper came to read. Stated
+ * rather than left to flexbox's automatic minimum size, which arrives at the
+ * same answer by an argument that is easy to break with one `min-height`.
+ */
+.product-sheet > :not(.product-panels) {
+  flex: none;
 }
 
 .product-object-id,
@@ -468,25 +500,109 @@
  * PUSHED TO THE BOTTOM of the sheet by `margin-top: auto`, so a short
  * description does not leave them floating in the middle of the column with a
  * gap underneath. They are the last thing read and they sit last.
+ *
+ * AND THIS IS THE ONLY ELASTIC PART OF THE COLUMN — the region that takes
+ * whatever height is left after the sheet above it has what it needs. An open
+ * drawer of ANY depth therefore leaves the title, the price and the buy control
+ * exactly where they were, because the drawer can no longer make the column
+ * taller than it is.
+ *
+ * `min-height: 0` is what allows the giving. A flex item's automatic minimum is
+ * its min-content height, and measured on this region that is the whole of an
+ * open drawer — operator-authored prose of unknown length, which is the one
+ * thing on this page that must not get a vote on the layout. Overriding it does
+ * not leave the region unfloored, it moves the floor onto the panels, where it
+ * can be stated in terms of the labels instead of the copy: `flex: none` holds
+ * every closed drawer at full height, and `--panel-head` holds the open one at
+ * the height it had shut. The shrink can therefore take every pixel of drawer
+ * and not one pixel of label.
+ *
+ * `margin-top: auto` still resolves to zero once the region wants the space, so
+ * pinned-to-the-bottom and taking-what-is-left are one rule read from either
+ * side of "does it fit".
  */
 .product-panels {
+  /*
+   * THE HEIGHT OF A CLOSED DRAWER, declared once because two rules have to agree
+   * on it exactly or the fix has a seam. The summary is set to it (less its own
+   * border) and the open drawer is floored at it, which is what makes opening
+   * cost the sheet precisely nothing: a drawer shrunk to its floor occupies what
+   * it occupied shut. It was `padding: 15px 0` around a 15px line, arrived at by
+   * addition; it is stated here because something else now depends on the answer.
+   */
+  --panel-head: 46px;
+
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
   margin-top: auto;
   padding-top: 18px;
 }
 
+/* A closed drawer is its summary and nothing else, so it never gives. */
 .product-panel {
+  flex: none;
   border-top: 1px solid var(--color-border);
+}
+
+/*
+ * THE OPEN DRAWER IS THE THING THAT SCROLLS, and the scroller is the `<details>`
+ * box ITSELF rather than the body inside it. That is not a stylistic choice:
+ * bounding `.product-panel-body` requires `<details>` to be the flex container
+ * its body shrinks inside, and since Chrome 131 it is not — the UA wraps the
+ * content in a `::details-content` box, so the shrink stops one level above the
+ * prose and the drawer spills into the sheet exactly as before. Reaching for
+ * that pseudo-element would rest this page's one layout invariant on a box the
+ * engines currently disagree about. Shrinking the element the flexbox already
+ * owns needs none of them to agree.
+ *
+ * THE FLOOR IS THE HEIGHT IT HAD SHUT. Anything lower and the drawer eats its
+ * own summary on a short window; anything lower ALSO breaks the invariant from
+ * the other side, because a drawer that can shrink smaller than it was closed
+ * makes the sheet need LESS room open than shut — the scrollbar disappears on
+ * click and the title reflows in the opposite direction. Both failures were
+ * real, and both are this one number.
+ */
+.product-panel[open] {
+  min-height: var(--panel-head);
+  flex: 0 1 auto;
+  overflow-y: auto;
+}
+
+/*
+ * ITS OWN LABEL STAYS PUT while its copy runs underneath. The summary is inside
+ * the scroller now, so without this the heading you just clicked is the first
+ * thing to leave — a drawer that scrolls its own name off the top. Scoped to
+ * `[open]` because a closed panel has no scroller for `sticky` to stick to, and
+ * a ground of its own because scrolled text would otherwise run through it.
+ */
+.product-panel[open] > summary {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  background: var(--color-inverse);
 }
 
 .product-panel:last-child {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* The last drawer is a pixel taller shut than the others — it closes the stack,
+   so it carries a rule underneath as well as above. Its floor has to know that,
+   or opening the bottom panel gives the sheet back exactly one pixel, which is
+   enough to drop a scrollbar and re-wrap the title. Measured, not reasoned. */
+.product-panel[open]:last-child {
+  min-height: calc(var(--panel-head) + 1px);
+}
+
+/* `height` rather than the padding that used to produce it — see `--panel-head`,
+   which the open drawer's floor is set from and which has to be the truth
+   rather than a number that happens to match. Less the 1px border above. */
 .product-panel > summary {
   display: flex;
+  height: calc(var(--panel-head) - 1px);
   align-items: center;
   justify-content: space-between;
-  padding: 15px 0;
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -680,5 +796,27 @@
 
   .product-panels {
     margin-top: 24px;
+  }
+
+  /*
+   * NO BOUNDED DRAWER HERE, and nothing to bound it against. The desktop rule
+   * exists because the sheet is a fixed-height column and an open drawer would
+   * otherwise re-typeset the title above it; here the sheet is as tall as its
+   * contents and the page already scrolls, so a drawer that scrolled INSIDE a
+   * scrolling page would be two scrollers nested for no reason — the reader
+   * would have to find the inner one to read four paragraphs. The copy just
+   * makes the page longer, which on a phone is what a reader expects it to do.
+   *
+   * The sticky summary goes with it: there is no inner scroller left to pin the
+   * label against, and left in place it would pin against the PAGE and park a
+   * heading over the photograph on the way past.
+   */
+  .product-panel[open] {
+    overflow: visible;
+  }
+
+  .product-panel[open] > summary {
+    position: static;
+    background: transparent;
   }
 }
