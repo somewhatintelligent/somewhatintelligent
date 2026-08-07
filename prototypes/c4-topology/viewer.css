@@ -7,7 +7,6 @@
 :root {
   --bg: #f6f7f8;
   --panel: #ffffff;
-  --panel-2: #f0f2f4;
   --ink: #1c242e;
   --ink-soft: #5a6673;
   --line: #d7dde3;
@@ -32,7 +31,6 @@
   --person-fill: #8a5f2d14;
   --schema: #7b8060;
   --dev: #8a7d3f;
-  --code: #35688f;
 
   --canvas-dot: #1c242e0d;
   --shadow: 0 10px 30px rgb(20 25 32 / 0.14);
@@ -43,7 +41,6 @@
   :root:not([data-theme="light"]) {
     --bg: #12171d;
     --panel: #1a2029;
-    --panel-2: #222a34;
     --ink: #dbe3ea;
     --ink-soft: #8c99a6;
     --line: #2e3945;
@@ -66,7 +63,6 @@
     --person-fill: #cfa06a1a;
     --schema: #a9ae88;
     --dev: #c0b16a;
-    --code: #6fa5cf;
     --canvas-dot: #dbe3ea10;
     --shadow: 0 10px 30px rgb(0 0 0 / 0.45);
   }
@@ -74,7 +70,6 @@
 :root[data-theme="dark"] {
   --bg: #12171d;
   --panel: #1a2029;
-  --panel-2: #222a34;
   --ink: #dbe3ea;
   --ink-soft: #8c99a6;
   --line: #2e3945;
@@ -97,7 +92,6 @@
   --person-fill: #cfa06a1a;
   --schema: #a9ae88;
   --dev: #c0b16a;
-  --code: #6fa5cf;
   --canvas-dot: #dbe3ea10;
   --shadow: 0 10px 30px rgb(0 0 0 / 0.45);
 }
@@ -141,7 +135,6 @@ button.ghost:hover {
   color: var(--ink);
   border-color: var(--accent);
 }
-button.ghost:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -288,7 +281,6 @@ button:focus-visible {
   background: var(--accent-soft);
 }
 .viewlink:focus-visible {
-  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 .viewlink.ancestor {
@@ -319,11 +311,19 @@ button:focus-visible {
   margin-left: auto;
   flex: none;
 }
-.dot.critical {
-  background: var(--critical);
+/* Severity resolves to two tokens; every surface below reads them, so adding a
+   third severity is one rule rather than an edit in five places. */
+.critical {
+  --sev: var(--critical);
+  --sev-fill: var(--critical-fill);
 }
+.warn {
+  --sev: var(--warn);
+  --sev-fill: var(--warn-fill);
+}
+.dot.critical,
 .dot.warn {
-  background: var(--warn);
+  background: var(--sev);
 }
 
 /* ── canvas ───────────────────────────────────────────────────────────── */
@@ -365,7 +365,6 @@ button:focus-visible {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.stat.clear,
 .clear {
   color: var(--ok);
 }
@@ -385,22 +384,14 @@ button:focus-visible {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
-.chip.critical {
-  color: var(--critical);
-  border-color: var(--critical);
-  background: var(--critical-fill);
-}
+.chip.critical,
 .chip.warn {
-  color: var(--warn);
-  border-color: var(--warn);
-  background: var(--warn-fill);
+  color: var(--sev);
+  border-color: var(--sev);
+  background: var(--sev-fill);
 }
 button.chip:hover {
   filter: brightness(1.08);
-}
-button.chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .canvas-wrap svg {
@@ -503,11 +494,15 @@ button.chip:focus-visible {
 .node .sevbar {
   stroke: none;
 }
-.node.sev-critical .sevbar {
-  fill: var(--critical);
+.node.sev-critical {
+  --sev: var(--critical);
 }
+.node.sev-warn {
+  --sev: var(--warn);
+}
+.node.sev-critical .sevbar,
 .node.sev-warn .sevbar {
-  fill: var(--warn);
+  fill: var(--sev);
 }
 .node text {
   fill: var(--ink);
@@ -541,24 +536,19 @@ button.chip:focus-visible {
 .node rect.chip {
   stroke-width: 1;
 }
-.node rect.chip.critical {
-  stroke: var(--critical);
-  fill: var(--critical-fill);
-}
+.node rect.chip.critical,
 .node rect.chip.warn {
-  stroke: var(--warn);
-  fill: var(--warn-fill);
+  stroke: var(--sev);
+  fill: var(--sev-fill);
 }
 .node text.chiptext {
   font-family: var(--mono);
   font-size: 9px;
   fill: var(--ink-soft);
 }
-.node.sev-critical text.chiptext {
-  fill: var(--critical);
-}
-.node.sev-warn text.chiptext {
-  fill: var(--warn);
+.node text.chiptext.critical,
+.node text.chiptext.warn {
+  fill: var(--sev);
 }
 .node.dim {
   opacity: 0.25;
@@ -647,7 +637,6 @@ button.chip:focus-visible {
   border-left: 1px solid var(--line);
   background: var(--panel);
   overflow-y: auto;
-  transition: width 0.16s ease;
 }
 .inspector.open {
   width: 336px;
@@ -756,11 +745,9 @@ button.chip:focus-visible {
 .inspector ul.rels li.asserted {
   border-left-style: dotted;
 }
-.inspector ul.rels li.critical {
-  border-left-color: var(--critical);
-}
+.inspector ul.rels li.critical,
 .inspector ul.rels li.warn {
-  border-left-color: var(--warn);
+  border-left-color: var(--sev);
 }
 .inspector .who {
   font-size: 12px;

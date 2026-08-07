@@ -1,6 +1,11 @@
 /**
- * Native code-graph extraction — what `fallow viz` computes, done directly
- * with the same underlying engine (oxc), no subprocess.
+ * Native code-graph extraction — the import graph, complexity metrics and
+ * boundary analysis computed directly with oxc, the same engine `fallow`
+ * itself is built on.
+ *
+ * Dead code is the exception: proving an export unused needs a type checker,
+ * so that one answer is delegated to `fallow dead-code` (see `askFallow`),
+ * with a syntactic fallback when it is unavailable.
  *
  *   bun prototypes/c4-topology/oxgraph.ts
  *
@@ -466,10 +471,71 @@ for (const file of parsed.values()) {
   }
 }
 
-// Export-consumption pass: which (file, exportName) pairs does anyone import?
-// Re-reads module records per file; parse is fast enough that retaining the
-// entries in ParsedFile isn't worth the memory.
-for (const file of parsed.values()) {
+// ── enrichment: fallow's checker-grade dead-code analysis ──────────────────
+//
+// The import graph above is ours and exact. Unused exports are NOT a graph
+// question — proving an export unused means resolving re-export chains through
+// barrels and seeing type-position uses, which needs a type checker. fallow
+// has one; we don't. So we ask it, and fall back to our syntactic candidates
+// (labelled as such in the UI) when it isn't available.
+
+interface DeadCode {
+  unusedExports: Map<string, string[]>;
+  unusedFiles: Set<string>;
+  authoritative: boolean;
+}
+
+const askFallow = (): DeadCode => {
+  const empty: DeadCode = {
+    unusedExports: new Map(),
+    unusedFiles: new Set(),
+    authoritative: false,
+  };
+  let raw: string | undefined;
+  try {
+    raw = execFileSync("bunx", ["fallow", "dead-code", "--format", "json", "-q"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch (error) {
+    // fallow exits non-zero when it finds issues — a successful run with
+    // findings on stdout, not a failure.
+    raw = (error as { stdout?: string }).stdout;
+  }
+  if (!raw) {
+    console.warn("! fallow dead-code unavailable — using syntactic unused-export candidates");
+    return empty;
+  }
+  let report: {
+    unused_exports?: { path: string; export_name: string }[];
+    unused_files?: { path: string }[];
+  };
+  try {
+    report = JSON.parse(raw);
+  } catch {
+    console.warn("! fallow dead-code output unparseable — using syntactic candidates");
+    return empty;
+  }
+  const unusedExports = new Map<string, string[]>();
+  for (const finding of report.unused_exports ?? []) {
+    if (!unusedExports.has(finding.path)) unusedExports.set(finding.path, []);
+    unusedExports.get(finding.path)!.push(finding.export_name);
+  }
+  return {
+    unusedExports,
+    unusedFiles: new Set((report.unused_files ?? []).map((f) => f.path)),
+    authoritative: true,
+  };
+};
+
+const deadCode = askFallow();
+
+// Export-consumption pass — ONLY when fallow could not answer. It re-reads and
+// re-parses every source file, so on the normal path its whole output would be
+// discarded a few lines below.
+for (const file of deadCode.authoritative ? [] : parsed.values()) {
   const full = path.join(repoRoot, file.path);
   const raw = fs.readFileSync(full, "utf8");
   const parseAs = file.path.endsWith(".astro")
@@ -493,15 +559,6 @@ for (const file of parsed.values()) {
         if (entry.importName.kind === "Name") consumed.add(`${target}#${entry.importName.name}`);
         else if (entry.importName.kind === "Default") consumed.add(`${target}#default`);
         else namespaceConsumed.add(target); // namespace import: everything reachable
-      }
-    }
-    for (const exp of mod.staticExports) {
-      for (const entry of exp.entries as any[]) {
-        if (!entry.moduleRequest) continue;
-        const target = resolveSpecifier(file.path, entry.moduleRequest.value);
-        if (!target) continue;
-        if (entry.importName?.kind === "Name") consumed.add(`${target}#${entry.importName.name}`);
-        else namespaceConsumed.add(target); // star re-export
       }
     }
     for (const dyn of mod.dynamicImports) {
@@ -591,12 +648,15 @@ const zoneOf = (p: string): string => {
   if (p.startsWith("apps/") || p.startsWith("packages/")) return p.split("/").slice(0, 2).join("/");
   return "infra";
 };
-const zoneNames = [...new Set(paths.map(zoneOf))].sort();
+const fileZone = paths.map(zoneOf);
+const zoneNames = [...new Set(fileZone)].sort();
 const zoneIdx = new Map(zoneNames.map((z, i) => [z, i]));
+const zoneCounts = new Map(zoneNames.map((z) => [z, 0]));
+for (const zone of fileZone) zoneCounts.set(zone, zoneCounts.get(zone)! + 1);
 const violations = [...edgeMap.values()]
   .filter((e) => {
-    const a = zoneOf(paths[e.from]!);
-    const b = zoneOf(paths[e.to]!);
+    const a = fileZone[e.from]!;
+    const b = fileZone[e.to]!;
     if (a === b) return false;
     const rule = zoneRules.get(a);
     if (!rule) return false; // no rule for the zone = unrestricted
@@ -607,72 +667,11 @@ const violations = [...edgeMap.values()]
   .map((e) => ({
     from: e.from,
     to: e.to,
-    from_zone: zoneIdx.get(zoneOf(paths[e.from]!))!,
-    to_zone: zoneIdx.get(zoneOf(paths[e.to]!))!,
+    from_zone: zoneIdx.get(fileZone[e.from]!)!,
+    to_zone: zoneIdx.get(fileZone[e.to]!)!,
     line: e.line,
     specifier: e.specifier,
   }));
-
-// ── enrichment: fallow's checker-grade dead-code analysis ──────────────────
-//
-// The import graph above is ours and exact. Unused exports are NOT a graph
-// question — proving an export unused means resolving re-export chains through
-// barrels and seeing type-position uses, which needs a type checker. fallow
-// has one; we don't. So we ask it, and fall back to our syntactic candidates
-// (labelled as such in the UI) when it isn't available.
-
-interface DeadCode {
-  unusedExports: Map<string, string[]>;
-  unusedFiles: Set<string>;
-  authoritative: boolean;
-}
-
-const askFallow = (): DeadCode => {
-  const empty: DeadCode = {
-    unusedExports: new Map(),
-    unusedFiles: new Set(),
-    authoritative: false,
-  };
-  let raw: string | undefined;
-  try {
-    raw = execFileSync("bunx", ["fallow", "dead-code", "--format", "json", "-q"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-  } catch (error) {
-    // fallow exits non-zero when it finds issues — a successful run with
-    // findings on stdout, not a failure.
-    raw = (error as { stdout?: string }).stdout;
-  }
-  if (!raw) {
-    console.warn("! fallow dead-code unavailable — using syntactic unused-export candidates");
-    return empty;
-  }
-  let report: {
-    unused_exports?: { path: string; export_name: string }[];
-    unused_files?: { path: string }[];
-  };
-  try {
-    report = JSON.parse(raw);
-  } catch {
-    console.warn("! fallow dead-code output unparseable — using syntactic candidates");
-    return empty;
-  }
-  const unusedExports = new Map<string, string[]>();
-  for (const finding of report.unused_exports ?? []) {
-    if (!unusedExports.has(finding.path)) unusedExports.set(finding.path, []);
-    unusedExports.get(finding.path)!.push(finding.export_name);
-  }
-  return {
-    unusedExports,
-    unusedFiles: new Set((report.unused_files ?? []).map((f) => f.path)),
-    authoritative: true,
-  };
-};
-
-const deadCode = askFallow();
 
 // per-file rollup
 const importerCount = new Map<number, number>();
@@ -688,11 +687,11 @@ const outFiles = paths.map((p, i) => {
   // Syntactic fallback only: value exports nothing imports by name. Types are
   // excluded because their uses are invisible without a checker — better to
   // under-report than to claim a live type is dead.
-  const candidates =
-    namespaceConsumed.has(p) || entry
+  const unusedExports = deadCode.authoritative
+    ? (deadCode.unusedExports.get(p) ?? [])
+    : namespaceConsumed.has(p) || entry
       ? []
       : f.exports.filter((e) => !e.typeOnly && !consumed.has(`${p}#${e.name}`)).map((e) => e.name);
-  const unusedExports = deadCode.authoritative ? (deadCode.unusedExports.get(p) ?? []) : candidates;
   const orphan = deadCode.authoritative
     ? deadCode.unusedFiles.has(p)
     : !entry && (importerCount.get(i) ?? 0) === 0;
@@ -712,7 +711,7 @@ const outFiles = paths.map((p, i) => {
     is_entry: entry,
     importer_count: importerCount.get(i) ?? 0,
     import_count: importCount.get(i) ?? 0,
-    zone: zoneIdx.get(zoneOf(p))!,
+    zone: zoneIdx.get(fileZone[i]!)!,
     fn_count: f.fnCount,
     max_cyclomatic: Math.max(0, ...f.functions.map((x) => x.cyclomatic)),
     max_cognitive: Math.max(0, ...f.functions.map((x) => x.cognitive)),
@@ -737,7 +736,7 @@ const codegraph = {
   files: outFiles,
   edges: [...edgeMap.values()].map((e) => [e.from, e.to, e.typeOnly ? 1 : 0]),
   workspaces: [],
-  zones: zoneNames.map((name) => ({ name, files: paths.filter((p) => zoneOf(p) === name).length })),
+  zones: zoneNames.map((name) => ({ name, files: zoneCounts.get(name)! })),
   cycles,
   violations,
 };

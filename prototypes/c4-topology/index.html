@@ -11,7 +11,6 @@
 :root {
   --bg: #f6f7f8;
   --panel: #ffffff;
-  --panel-2: #f0f2f4;
   --ink: #1c242e;
   --ink-soft: #5a6673;
   --line: #d7dde3;
@@ -36,7 +35,6 @@
   --person-fill: #8a5f2d14;
   --schema: #7b8060;
   --dev: #8a7d3f;
-  --code: #35688f;
 
   --canvas-dot: #1c242e0d;
   --shadow: 0 10px 30px rgb(20 25 32 / 0.14);
@@ -47,7 +45,6 @@
   :root:not([data-theme="light"]) {
     --bg: #12171d;
     --panel: #1a2029;
-    --panel-2: #222a34;
     --ink: #dbe3ea;
     --ink-soft: #8c99a6;
     --line: #2e3945;
@@ -70,7 +67,6 @@
     --person-fill: #cfa06a1a;
     --schema: #a9ae88;
     --dev: #c0b16a;
-    --code: #6fa5cf;
     --canvas-dot: #dbe3ea10;
     --shadow: 0 10px 30px rgb(0 0 0 / 0.45);
   }
@@ -78,7 +74,6 @@
 :root[data-theme="dark"] {
   --bg: #12171d;
   --panel: #1a2029;
-  --panel-2: #222a34;
   --ink: #dbe3ea;
   --ink-soft: #8c99a6;
   --line: #2e3945;
@@ -101,7 +96,6 @@
   --person-fill: #cfa06a1a;
   --schema: #a9ae88;
   --dev: #c0b16a;
-  --code: #6fa5cf;
   --canvas-dot: #dbe3ea10;
   --shadow: 0 10px 30px rgb(0 0 0 / 0.45);
 }
@@ -145,7 +139,6 @@ button.ghost:hover {
   color: var(--ink);
   border-color: var(--accent);
 }
-button.ghost:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -292,7 +285,6 @@ button:focus-visible {
   background: var(--accent-soft);
 }
 .viewlink:focus-visible {
-  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 .viewlink.ancestor {
@@ -323,11 +315,19 @@ button:focus-visible {
   margin-left: auto;
   flex: none;
 }
-.dot.critical {
-  background: var(--critical);
+/* Severity resolves to two tokens; every surface below reads them, so adding a
+   third severity is one rule rather than an edit in five places. */
+.critical {
+  --sev: var(--critical);
+  --sev-fill: var(--critical-fill);
 }
+.warn {
+  --sev: var(--warn);
+  --sev-fill: var(--warn-fill);
+}
+.dot.critical,
 .dot.warn {
-  background: var(--warn);
+  background: var(--sev);
 }
 
 /* ── canvas ───────────────────────────────────────────────────────────── */
@@ -369,7 +369,6 @@ button:focus-visible {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.stat.clear,
 .clear {
   color: var(--ok);
 }
@@ -389,22 +388,14 @@ button:focus-visible {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
-.chip.critical {
-  color: var(--critical);
-  border-color: var(--critical);
-  background: var(--critical-fill);
-}
+.chip.critical,
 .chip.warn {
-  color: var(--warn);
-  border-color: var(--warn);
-  background: var(--warn-fill);
+  color: var(--sev);
+  border-color: var(--sev);
+  background: var(--sev-fill);
 }
 button.chip:hover {
   filter: brightness(1.08);
-}
-button.chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .canvas-wrap svg {
@@ -507,11 +498,15 @@ button.chip:focus-visible {
 .node .sevbar {
   stroke: none;
 }
-.node.sev-critical .sevbar {
-  fill: var(--critical);
+.node.sev-critical {
+  --sev: var(--critical);
 }
+.node.sev-warn {
+  --sev: var(--warn);
+}
+.node.sev-critical .sevbar,
 .node.sev-warn .sevbar {
-  fill: var(--warn);
+  fill: var(--sev);
 }
 .node text {
   fill: var(--ink);
@@ -545,24 +540,19 @@ button.chip:focus-visible {
 .node rect.chip {
   stroke-width: 1;
 }
-.node rect.chip.critical {
-  stroke: var(--critical);
-  fill: var(--critical-fill);
-}
+.node rect.chip.critical,
 .node rect.chip.warn {
-  stroke: var(--warn);
-  fill: var(--warn-fill);
+  stroke: var(--sev);
+  fill: var(--sev-fill);
 }
 .node text.chiptext {
   font-family: var(--mono);
   font-size: 9px;
   fill: var(--ink-soft);
 }
-.node.sev-critical text.chiptext {
-  fill: var(--critical);
-}
-.node.sev-warn text.chiptext {
-  fill: var(--warn);
+.node text.chiptext.critical,
+.node text.chiptext.warn {
+  fill: var(--sev);
 }
 .node.dim {
   opacity: 0.25;
@@ -651,7 +641,6 @@ button.chip:focus-visible {
   border-left: 1px solid var(--line);
   background: var(--panel);
   overflow-y: auto;
-  transition: width 0.16s ease;
 }
 .inspector.open {
   width: 336px;
@@ -760,11 +749,9 @@ button.chip:focus-visible {
 .inspector ul.rels li.asserted {
   border-left-style: dotted;
 }
-.inspector ul.rels li.critical {
-  border-left-color: var(--critical);
-}
+.inspector ul.rels li.critical,
 .inspector ul.rels li.warn {
-  border-left-color: var(--warn);
+  border-left-color: var(--sev);
 }
 .inspector .who {
   font-size: 12px;
@@ -1057,7 +1044,32 @@ const basename = (p) => p.split("/").pop();
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 const nodeByKey = new Map(VM.nodes.map((n) => [n.key, n]));
+
+/**
+ * Every composite id in one place. Component ids contain "/" and could contain
+ * ":", so the tail is always rejoined rather than destructured — three call
+ * sites used to disagree about that.
+ */
+const Key = {
+  system: (stack) => "sys:" + stack,
+  codeMap: (container) => "code:" + container,
+  codeFiles: (container, comp) => `codefiles:${container}:${comp}`,
+  component: (container, comp) => `codecomp:${container}:${comp}`,
+  file: (index) => "codefile:" + index,
+  parse(id) {
+    const [kind, container, ...rest] = id.split(":");
+    if (kind === "codefile") return { kind, index: Number(container) };
+    if (kind === "code") return { kind, container: [container, ...rest].join(":") };
+    if (kind === "codefiles" || kind === "codecomp") {
+      return { kind, container, comp: rest.join(":") };
+    }
+    if (kind === "system" || kind === "sys")
+      return { kind: "system", stack: rest.length ? [container, ...rest].join(":") : container };
+    return { kind: id };
+  },
+};
 const systemByStack = new Map(VM.systems.map((s) => [s.stack, s]));
+const displayName = (key) => nodeByKey.get(key)?.name ?? key;
 
 // ── issue model ────────────────────────────────────────────────────────────
 //
@@ -1068,14 +1080,20 @@ const systemByStack = new Map(VM.systems.map((s) => [s.stack, s]));
 const COMPLEX_AT = 10; // cyclomatic — worth a look
 const HOTSPOT_AT = 20; // cyclomatic — hard to hold in your head
 
+const SEVERITY_RANK = { critical: 0, warn: 1, ok: 2 };
+
 const ISSUE_KINDS = {
-  violation: { label: "boundary violation", severity: "critical" },
-  cycle: { label: "import cycle", severity: "critical" },
-  hotspot: { label: "complexity hotspot", severity: "critical" },
-  dead: { label: "dead export", severity: "warn" },
-  orphan: { label: "unreferenced file", severity: "warn" },
-  complex: { label: "complex function", severity: "warn" },
+  violation: { label: "boundary violation", short: "breach", severity: "critical" },
+  cycle: { label: "import cycle", short: "cycle", severity: "critical" },
+  hotspot: { label: "complexity hotspot", short: "hotspot", severity: "critical" },
+  dead: { label: "dead export", short: "dead", severity: "warn" },
+  orphan: { label: "unreferenced file", short: "orphan", severity: "warn" },
+  complex: { label: "complex function", short: "complex", severity: "warn" },
 };
+
+/** The one complexity ladder — chips and the inspector both read it. */
+const severityOfComplexity = (cyclomatic) =>
+  cyclomatic >= HOTSPOT_AT ? "critical" : cyclomatic >= COMPLEX_AT ? "warn" : "ok";
 
 /** Issue counts for one file, as {kind: n}. */
 const fileIssues = (f) => {
@@ -1083,8 +1101,9 @@ const fileIssues = (f) => {
   if (f.unused_export_count > 0) counts.dead = f.unused_export_count;
   if (f.status === "unused") counts.orphan = 1;
   if (f.in_cycle) counts.cycle = 1;
-  if (f.max_cyclomatic >= HOTSPOT_AT) counts.hotspot = 1;
-  else if (f.max_cyclomatic >= COMPLEX_AT) counts.complex = 1;
+  const complexity = severityOfComplexity(f.max_cyclomatic);
+  if (complexity === "critical") counts.hotspot = 1;
+  else if (complexity === "warn") counts.complex = 1;
   return counts;
 };
 
@@ -1105,11 +1124,15 @@ CODE.files.forEach((f, i) => {
 const issuesOfFiles = (indexes) =>
   indexes.reduce((acc, i) => addCounts(acc, FILE_ISSUES[i] ?? {}), {});
 
+/** A container's own code — imported workspace packages are context, not scope. */
+const ownComponents = (container) => container.components.filter((c) => !c.pkg);
+const ownFiles = (container) => ownComponents(container).flatMap((c) => c.files);
+
 /** Rolled-up issues per container key ("Stack/FQN") and per system stack. */
 const CONTAINER_ISSUES = new Map();
 const SYSTEM_FILES = new Map(); // deduped: containers in one system share files
 for (const [key, container] of Object.entries(CODE.containers)) {
-  const own = container.components.filter((c) => !c.pkg).flatMap((c) => c.files);
+  const own = ownFiles(container);
   CONTAINER_ISSUES.set(key, issuesOfFiles(own));
   const stack = key.split("/")[0];
   if (!SYSTEM_FILES.has(stack)) SYSTEM_FILES.set(stack, new Set());
@@ -1121,26 +1144,23 @@ const SYSTEM_ISSUES = new Map(
 
 const totalIssues = (counts) => Object.values(counts).reduce((a, b) => a + b, 0);
 const worstSeverity = (counts) =>
-  Object.keys(counts).some((k) => ISSUE_KINDS[k]?.severity === "critical")
-    ? "critical"
-    : Object.keys(counts).length
-      ? "warn"
-      : "ok";
+  Object.keys(counts).reduce(
+    (worst, kind) =>
+      SEVERITY_RANK[ISSUE_KINDS[kind].severity] < SEVERITY_RANK[worst]
+        ? ISSUE_KINDS[kind].severity
+        : worst,
+    "ok",
+  );
 
 /** Every file the view covers, deduped — the honest denominator for totals. */
 const viewFiles = (view) => {
   if (view.id === "landscape")
     return new Set([...SYSTEM_FILES.values()].flatMap((set) => [...set]));
   if (view.id.startsWith("system:")) return SYSTEM_FILES.get(view.id.slice(7)) ?? new Set();
-  if (view.codeKey) {
-    return new Set(
-      CODE.containers[view.codeKey].components.filter((c) => !c.pkg).flatMap((c) => c.files),
-    );
-  }
+  if (view.codeKey) return new Set(ownFiles(CODE.containers[view.codeKey]));
   if (view.id.startsWith("codefiles:")) {
-    const [, key, ...rest] = view.id.split(":");
-    const comp = CODE.containers[key]?.components.find((c) => c.id === rest.join(":"));
-    return new Set(comp?.files ?? []);
+    const { container, comp } = Key.parse(view.id);
+    return new Set(CODE.containers[container]?.components.find((c) => c.id === comp)?.files ?? []);
   }
   return new Set();
 };
@@ -1151,14 +1171,13 @@ const chipsFor = (counts) =>
   Object.entries(counts)
     .sort(
       (a, b) =>
-        (ISSUE_KINDS[a[0]].severity === "critical" ? -1 : 1) -
-        (ISSUE_KINDS[b[0]].severity === "critical" ? -1 : 1),
+        SEVERITY_RANK[ISSUE_KINDS[a[0]].severity] - SEVERITY_RANK[ISSUE_KINDS[b[0]].severity],
     )
     .map(([kind, n]) => ({
       kind,
       n,
       severity: ISSUE_KINDS[kind].severity,
-      short: `${n} ${kind === "dead" ? "dead" : kind === "orphan" ? "orphan" : kind === "violation" ? "breach" : kind}`,
+      short: `${n} ${ISSUE_KINDS[kind].short}`,
       long: n === 1 ? ISSUE_KINDS[kind].label : ISSUE_KINDS[kind].label + "s",
     }));
 
@@ -1183,11 +1202,11 @@ const views = [
   })),
   ...codeKeys.map((key) => ({
     id: "code:" + key,
-    label: (nodeByKey.get(key)?.name ?? key) + " code",
+    label: displayName(key) + " code",
     lvl: "L3",
     parent: "system:" + key.split("/")[0],
     codeKey: key,
-    title: `Modules — ${nodeByKey.get(key)?.name ?? key} (${CODE.containers[key].appRoot})`,
+    title: `Modules — ${displayName(key)} (${CODE.containers[key].appRoot})`,
   })),
   {
     id: "components",
@@ -1200,20 +1219,21 @@ const views = [
 
 /** L4 views are per-module and resolved on demand rather than enumerated. */
 const resolveView = (id) => {
-  const found = views.find((v) => v.id === id);
+  const found = viewById.get(id);
   if (found) return found;
-  if (id.startsWith("codefiles:")) {
-    const [, key, comp] = id.split(":");
+  const parsed = Key.parse(id);
+  if (parsed.kind === "codefiles" && CODE.containers[parsed.container]) {
     return {
       id,
       lvl: "L4",
-      label: comp,
-      parent: "code:" + key,
-      title: `Files — ${nodeByKey.get(key)?.name ?? key} / ${comp}`,
+      label: parsed.comp,
+      parent: Key.codeMap(parsed.container),
+      title: `Files — ${displayName(parsed.container)} / ${parsed.comp}`,
     };
   }
-  return views[0];
+  return views[0]; // unknown or stale id (renamed stack in an old bookmark)
 };
+const viewById = new Map(views.map((v) => [v.id, v]));
 
 const breadcrumbOf = (id) => {
   const chain = [];
@@ -1230,7 +1250,7 @@ const breadcrumbOf = (id) => {
 const systemOf = (key) => {
   if (key.startsWith("actor/")) return key;
   const stack = key.split("/")[0];
-  return systemByStack.has(stack) ? "sys:" + stack : key;
+  return systemByStack.has(stack) ? Key.system(stack) : key;
 };
 
 function landscapeGraph() {
@@ -1248,7 +1268,7 @@ function landscapeGraph() {
   for (const s of VM.systems) {
     const issues = SYSTEM_ISSUES.get(s.stack) ?? {};
     nodes.push({
-      key: "sys:" + s.stack,
+      key: Key.system(s.stack),
       name: s.name,
       role: s.external || s.synthetic ? "system-ext" : "system",
       kindLine: s.external
@@ -1302,7 +1322,7 @@ function systemGraph(stack) {
       col: colOf(n),
       member: true,
       chips: chipsFor(issues),
-      drill: CODE.containers[key] ? "code:" + key : undefined,
+      drill: CODE.containers[key] ? Key.codeMap(key) : undefined,
     };
   });
 
@@ -1346,6 +1366,7 @@ function componentsGraph() {
       kindLine: `[${m.kind}]`,
       desc: m.description,
       col: colFor[m.kind],
+      member: true,
     })),
     edges: VM.components.wiring.map((w) => ({
       from: "cmp:" + w.from,
@@ -1353,7 +1374,7 @@ function componentsGraph() {
       label: w.label,
       provenance: "asserted",
     })),
-    boundary: { label: "Commerce Core — hexagonal interior (hand-authored)" },
+    boundary: { label: "Commerce Core — hexagonal interior (hand-authored)", memberOnly: true },
   };
 }
 
@@ -1382,6 +1403,15 @@ const layerByDepth = (ids, edgeList, maxCol) => {
   return new Map(ids.map((id) => [id, Math.min(depth.get(id), maxCol)]));
 };
 
+/** Files → the two numbers every module-ish thing reports. */
+const moduleMetrics = (fileIndexes) => {
+  const files = fileIndexes.map((i) => CODE.files[i]);
+  return {
+    fns: files.reduce((total, f) => total + f.fn_count, 0),
+    cx: Math.max(0, ...files.map((f) => f.max_cyclomatic)),
+  };
+};
+
 const violationPairs = (container) => {
   const pairs = new Set();
   const compOf = (filePath) =>
@@ -1404,19 +1434,19 @@ function codeCompGraph(key) {
   const breaches = violationPairs(container);
 
   const nodes = container.components.map((c) => {
-    const files = c.files.map((i) => CODE.files[i]);
-    const fns = files.reduce((s, f) => s + f.fn_count, 0);
-    const cx = Math.max(0, ...files.map((f) => f.max_cyclomatic));
+    const { fns, cx } = moduleMetrics(c.files);
     return {
-      key: `codecomp:${key}:${c.id}`,
+      key: Key.component(key, c.id),
       name: c.id,
       role: c.pkg ? "external" : "code",
       kindLine: `[${plural(c.files.length, "file")} · ${fns} fns]`,
       desc: `max complexity ${cx}`,
       col: c.entry ? 0 : Math.max(1, cols.get(c.id)),
-      drill: `codefiles:${key}:${c.id}`,
+      drill: Key.codeFiles(key, c.id),
       member: !c.pkg,
-      chips: chipsFor(issuesOfFiles(c.files)),
+      // Imported packages are context: their problems belong to their own view,
+      // and chipping them here would contradict the strip, which counts own files.
+      chips: c.pkg ? [] : chipsFor(issuesOfFiles(c.files)),
     };
   });
 
@@ -1425,9 +1455,7 @@ function codeCompGraph(key) {
     return {
       from: `codecomp:${key}:${e.from}`,
       to: `codecomp:${key}:${e.to}`,
-      label: violation
-        ? "breaks boundary"
-        : `${e.n} import${e.n === 1 ? "" : "s"}${e.typeOnly ? " · types" : ""}`,
+      label: violation ? "breaks boundary" : plural(e.n, "import") + (e.typeOnly ? " · types" : ""),
       provenance: "extracted",
       typeOnly: e.typeOnly,
       violation,
@@ -1438,7 +1466,7 @@ function codeCompGraph(key) {
     nodes,
     edges,
     boundary: {
-      label: `${nodeByKey.get(key)?.name ?? key} · ${container.appRoot}`,
+      label: `${displayName(key)} · ${container.appRoot}`,
       memberOnly: true,
     },
   };
@@ -1460,17 +1488,17 @@ function codeFileGraph(key, compId) {
     const toIn = member.has(to);
     if ((!fromIn && !toIn) || !compOfFile.has(from) || !compOfFile.has(to)) continue;
     const typeOnly = (flags & 1) === 1;
-    if (fromIn && toIn) raw.push({ from: `codefile:${from}`, to: `codefile:${to}`, typeOnly });
+    if (fromIn && toIn) raw.push({ from: Key.file(from), to: Key.file(to), typeOnly });
     else if (fromIn) {
       neighbourComps.add(compOfFile.get(to));
-      raw.push({ from: `codefile:${from}`, to: `codecomp:${key}:${compOfFile.get(to)}`, typeOnly });
+      raw.push({ from: Key.file(from), to: Key.component(key, compOfFile.get(to)), typeOnly });
     } else {
       neighbourComps.add(compOfFile.get(from));
-      raw.push({ from: `codecomp:${key}:${compOfFile.get(from)}`, to: `codefile:${to}`, typeOnly });
+      raw.push({ from: Key.component(key, compOfFile.get(from)), to: Key.file(to), typeOnly });
     }
   }
 
-  const fileIds = [...member].map((i) => `codefile:${i}`);
+  const fileIds = [...member].map(Key.file);
   const cols = layerByDepth(
     fileIds,
     raw.filter((e) => e.from.startsWith("codefile:") && e.to.startsWith("codefile:")),
@@ -1480,7 +1508,7 @@ function codeFileGraph(key, compId) {
   const nodes = [...member].map((i) => {
     const f = CODE.files[i];
     return {
-      key: `codefile:${i}`,
+      key: Key.file(i),
       name: basename(f.path),
       role: "code",
       kindLine: `[${f.fn_count} fns · cx ${f.max_cyclomatic}${f.is_entry ? " · entry" : ""}]`,
@@ -1492,13 +1520,13 @@ function codeFileGraph(key, compId) {
   });
   for (const compName of neighbourComps) {
     nodes.push({
-      key: `codecomp:${key}:${compName}`,
+      key: Key.component(key, compName),
       name: compName,
       role: "external",
       kindLine: "[module]",
       compact: true,
-      col: raw.some((e) => e.from === `codecomp:${key}:${compName}`) ? 0 : 4,
-      drill: `codefiles:${key}:${compName}`,
+      col: raw.some((e) => e.from === Key.component(key, compName)) ? 0 : 4,
+      drill: Key.codeFiles(key, compName),
     });
   }
 
@@ -1510,7 +1538,7 @@ function codeFileGraph(key, compId) {
   return {
     nodes,
     edges,
-    boundary: { label: `${nodeByKey.get(key)?.name ?? key} / ${compId}`, memberOnly: true },
+    boundary: { label: `${displayName(key)} / ${compId}`, memberOnly: true },
   };
 }
 
@@ -1528,16 +1556,16 @@ function containerKindLine(n) {
   return `[${kind}: ${n.technology || n.type || ""}]`;
 }
 
-const graphFor = (id) =>
-  id === "landscape"
-    ? landscapeGraph()
-    : id === "components"
-      ? componentsGraph()
-      : id.startsWith("code:")
-        ? codeCompGraph(id.slice(5))
-        : id.startsWith("codefiles:")
-          ? codeFileGraph(id.split(":")[1], id.split(":").slice(2).join(":"))
-          : systemGraph(id.slice(7));
+const graphFor = (id) => {
+  if (id === "landscape") return landscapeGraph();
+  if (id === "components") return componentsGraph();
+  const parsed = Key.parse(id);
+  const known = CODE.containers[parsed.container];
+  if (parsed.kind === "code" && known) return codeCompGraph(parsed.container);
+  if (parsed.kind === "codefiles" && known) return codeFileGraph(parsed.container, parsed.comp);
+  if (parsed.kind === "system" && systemByStack.has(parsed.stack)) return systemGraph(parsed.stack);
+  return landscapeGraph(); // stale id (a renamed stack in an old bookmark)
+};
 
 // ── layout ─────────────────────────────────────────────────────────────────
 
@@ -1564,26 +1592,47 @@ function layout(graph) {
     if (!cols.has(n.col)) cols.set(n.col, []);
     cols.get(n.col).push(n);
   }
+
+  // Longest-path depth saturates on a dense mesh — every module ends up at the
+  // same depth and the column becomes an unreadable stack. Spill any oversized
+  // column across fractional lanes; ordering is by value, so they slot in after
+  // their parent column and before the next one.
+  const MAX_PER_COL = 7;
+  for (const [col, members] of [...cols]) {
+    if (members.length <= MAX_PER_COL) continue;
+    const lanes = Math.ceil(members.length / MAX_PER_COL);
+    const perLane = Math.ceil(members.length / lanes);
+    cols.set(col, members.slice(0, perLane));
+    for (let lane = 1; lane < lanes; lane++) {
+      const slice = members.slice(lane * perLane, (lane + 1) * perLane);
+      if (slice.length) {
+        cols.set(col + lane / (lanes + 1), slice);
+        for (const n of slice) n.col = col + lane / (lanes + 1);
+      }
+    }
+  }
   const colIndexes = [...cols.keys()].sort((a, b) => a - b);
 
   // Two barycenter passes: order each column by the mean position of its
   // neighbours, which is most of what keeps edges from crossing.
   const pos = new Map(graph.nodes.map((n, i) => [n.key, i]));
-  const neighboursOf = (key) =>
-    graph.edges
-      .filter((e) => e.from === key || e.to === key)
-      .map((e) => (e.from === key ? e.to : e.from));
+  const neighbours = new Map(graph.nodes.map((n) => [n.key, []]));
+  for (const e of graph.edges) {
+    neighbours.get(e.from)?.push(e.to);
+    neighbours.get(e.to)?.push(e.from);
+  }
+  const meanOf = (n) => {
+    const ns = neighbours
+      .get(n.key)
+      .map((k) => pos.get(k))
+      .filter((v) => v !== undefined);
+    return ns.length ? ns.reduce((sum, v) => sum + v, 0) / ns.length : pos.get(n.key);
+  };
   for (const pass of [0, 1]) {
     for (const ci of pass === 0 ? colIndexes : [...colIndexes].reverse()) {
-      cols.get(ci).sort((a, b) => {
-        const mean = (n) => {
-          const ns = neighboursOf(n.key)
-            .map((k) => pos.get(k))
-            .filter((v) => v !== undefined);
-          return ns.length ? ns.reduce((s, v) => s + v, 0) / ns.length : pos.get(n.key);
-        };
-        return mean(a) - mean(b);
-      });
+      // Means are computed once per column, not once per comparison.
+      const means = new Map(cols.get(ci).map((n) => [n.key, meanOf(n)]));
+      cols.get(ci).sort((a, b) => means.get(a.key) - means.get(b.key));
       cols.get(ci).forEach((n, i) => pos.set(n.key, i));
     }
   }
@@ -1617,21 +1666,33 @@ let searchOpen = false;
 let viewBox = { x: 0, y: 0, w: 1200, h: 800 };
 let svg;
 let contentBounds = { width: 1200, height: 800 };
-let labelsOnHoverOnly = false;
+let fittedView = null; // the view the current viewBox was fitted to
+// Cached per render so hover never re-queries the DOM.
+let edgeEls = [];
+let nodeEls = [];
+let adjacency = new Map();
 
-const navigate = (id) => {
+const navigate = (id, select = null) => {
   currentView = id;
-  selectedKey = null;
+  selectedKey = select;
+  searchOpen = false;
+  render();
+};
+const closeSearch = () => {
   searchOpen = false;
   render();
 };
 
-function renderView() {
+function render() {
   app.textContent = "";
   const view = resolveView(currentView);
   const graph = graphFor(currentView);
   app.append(topbar(view), rail(view), canvas(graph, view), inspector());
   if (searchOpen) app.append(searchOverlay());
+
+  const params = new URLSearchParams({ view: currentView });
+  if (selectedKey) params.set("select", selectedKey);
+  history.replaceState(null, "", "#" + params.toString());
 }
 
 function topbar(view) {
@@ -1831,7 +1892,15 @@ function rail(view) {
 function canvas(graph, view) {
   const { placed, width, height } = layout(graph);
   contentBounds = { width, height };
-  labelsOnHoverOnly = graph.edges.length > 14;
+  const dense = graph.edges.length > 14;
+
+  adjacency = new Map();
+  for (const e of graph.edges) {
+    if (!adjacency.has(e.from)) adjacency.set(e.from, new Set());
+    if (!adjacency.has(e.to)) adjacency.set(e.to, new Set());
+    adjacency.get(e.from).add(e.to);
+    adjacency.get(e.to).add(e.from);
+  }
 
   svg = svgEl("svg", { role: "img", "aria-label": view.title });
   svg.append(
@@ -1847,9 +1916,7 @@ function canvas(graph, view) {
   svg.append(root);
 
   if (graph.boundary) {
-    const members = [...placed.values()].filter(
-      (n) => !graph.boundary.memberOnly || n.member || n.key.startsWith("cmp:"),
-    );
+    const members = [...placed.values()].filter((n) => !graph.boundary.memberOnly || n.member);
     if (members.length) {
       const minX = Math.min(...members.map((n) => n.x)) - 24;
       const minY = Math.min(...members.map((n) => n.y)) - 32;
@@ -1871,10 +1938,21 @@ function canvas(graph, view) {
     }
   }
 
-  root.append(edgeLayer(graph, placed));
-  for (const n of placed.values()) root.append(nodeEl(n));
+  root.append(edgeLayer(graph, placed, dense));
+  nodeEls = [...placed.values()].map((n) => {
+    const element = nodeEl(n);
+    root.append(element);
+    return { key: n.key, element };
+  });
 
-  fitView();
+  // Re-fit only when the view changes; otherwise selecting a node would throw
+  // away the pan and zoom the reader just set up.
+  if (fittedView !== view.id) {
+    fittedView = view.id;
+    fitView();
+  } else {
+    applyViewBox();
+  }
   attachPanZoom();
 
   return el(
@@ -1891,7 +1969,7 @@ function canvas(graph, view) {
     ),
     el("div", {
       class: "canvas-hint",
-      text: labelsOnHoverOnly
+      text: dense
         ? "hover a node for its relationships · drag to pan"
         : "drag to pan · wheel to zoom",
     }),
@@ -1918,8 +1996,8 @@ function marker(id, color) {
  * Edges attach along each node's side, fanned by the far endpoint's y, so a
  * hub like a shared database doesn't collapse every arrow onto one point.
  */
-function edgeLayer(graph, placed) {
-  const layer = svgEl("g", { class: labelsOnHoverOnly ? "edges quiet" : "edges" });
+function edgeLayer(graph, placed, dense) {
+  const layer = svgEl("g", { class: dense ? "edges quiet" : "edges" });
   const descs = [];
   for (const e of graph.edges) {
     const a = placed.get(e.from);
@@ -1960,7 +2038,17 @@ function edgeLayer(graph, placed) {
   }
 
   let loopNth = 0;
-  for (const d of descs) layer.append(edgeEl(d, d.same ? loopNth++ : 0));
+  edgeEls = descs.map((d) => {
+    const element = edgeEl(d, d.same ? loopNth++ : 0);
+    layer.append(element);
+    return {
+      element,
+      path: element.querySelector("path"),
+      from: d.e.from,
+      to: d.e.to,
+      violation: d.e.violation,
+    };
+  });
   return layer;
 }
 
@@ -2028,9 +2116,7 @@ function edgeLabel(x, y, text, anchor) {
 
 function nodeEl(n) {
   const severity = n.chips?.length
-    ? n.chips.some((c) => c.severity === "critical")
-      ? "critical"
-      : "warn"
+    ? worstSeverity(Object.fromEntries(n.chips.map((c) => [c.kind, c.n])))
     : null;
   const g = svgEl("g", {
     class: `node role-${n.role}${n.key === selectedKey ? " selected" : ""}${severity ? " sev-" + severity : ""}`,
@@ -2038,6 +2124,7 @@ function nodeEl(n) {
     role: "button",
     "aria-label": `${n.name}${severity ? `, ${n.chips.map((c) => c.long).join(", ")}` : ""}`,
     "data-key": n.key,
+    "data-issues": n.chips?.map((c) => c.kind).join(" "),
   });
   g.append(
     svgEl("rect", {
@@ -2113,7 +2200,12 @@ function nodeEl(n) {
         }),
         svgEl(
           "text",
-          { class: "chiptext", x: x + w / 2, y: n.y + n.h - 7, "text-anchor": "middle" },
+          {
+            class: `chiptext ${chip.severity}`,
+            x: x + w / 2,
+            y: n.y + n.h - 7,
+            "text-anchor": "middle",
+          },
           document.createTextNode(chip.short),
         ),
       );
@@ -2157,40 +2249,28 @@ function nodeEl(n) {
 
 /** Hover isolation: the node's own relationships light up, everything else fades. */
 function focusNode(key, on) {
-  svg.querySelector(".edges")?.classList.toggle("focusing", on);
-  for (const edge of svg.querySelectorAll(".edge")) {
-    const touches = edge.dataset.from === key || edge.dataset.to === key;
-    edge.classList.toggle("hot", on && touches);
-    edge.classList.toggle("dim", on && !touches);
-    if (!edge.classList.contains("violation")) {
-      edge
-        .querySelector("path")
-        .setAttribute("marker-end", on && touches ? "url(#arr-hot)" : "url(#arr)");
+  for (const edge of edgeEls) {
+    const touches = edge.from === key || edge.to === key;
+    edge.element.classList.toggle("hot", on && touches);
+    edge.element.classList.toggle("dim", on && !touches);
+    if (!edge.violation) {
+      edge.path.setAttribute("marker-end", on && touches ? "url(#arr-hot)" : "url(#arr)");
     }
   }
-  const connected = new Set([key]);
-  if (on) {
-    for (const edge of svg.querySelectorAll(".edge")) {
-      if (edge.dataset.from === key) connected.add(edge.dataset.to);
-      if (edge.dataset.to === key) connected.add(edge.dataset.from);
-    }
+  const connected = adjacency.get(key) ?? new Set();
+  for (const node of nodeEls) {
+    node.element.classList.toggle("dim", on && node.key !== key && !connected.has(node.key));
   }
-  for (const node of svg.querySelectorAll(".node"))
-    node.classList.toggle("dim", on && !connected.has(node.dataset.key));
 }
 
 /** Clicking a stat chip pins every node carrying that issue. */
 function highlightIssue(kind) {
-  const wanted = new Set(
-    [...svg.querySelectorAll(".node")]
-      .filter((el) => el.getAttribute("aria-label")?.includes(ISSUE_KINDS[kind].label))
-      .map((el) => el.dataset.key),
-  );
-  const already = svg.classList.contains("filtering") && svg.dataset.issue === kind;
-  svg.classList.toggle("filtering", !already);
-  svg.dataset.issue = already ? "" : kind;
-  for (const node of svg.querySelectorAll(".node"))
-    node.classList.toggle("dim", !already && !wanted.has(node.dataset.key));
+  const clearing = svg.dataset.issue === kind;
+  svg.dataset.issue = clearing ? "" : kind;
+  for (const node of nodeEls) {
+    const carries = node.element.dataset.issues?.split(" ").includes(kind);
+    node.element.classList.toggle("dim", !clearing && !carries);
+  }
 }
 
 // ── inspector ──────────────────────────────────────────────────────────────
@@ -2310,7 +2390,7 @@ function topologyPanel(key) {
           { class: e.provenance },
           el("div", {
             class: "who",
-            text: (dir === "out" ? "→ " : "← ") + (nodeByKey.get(otherKey)?.name ?? otherKey),
+            text: (dir === "out" ? "→ " : "← ") + displayName(otherKey),
           }),
           el("div", {
             class: "lbl",
@@ -2476,7 +2556,13 @@ const searchIndex = (() => {
   }
   // A file reachable from several containers appears once: its identity is the
   // thing itself, not the route that reaches it.
-  return [...new Map(entries.map((e) => [e.select ?? `${e.view}|${e.label}`, e])).values()];
+  return [...new Map(entries.map((e) => [e.select ?? `${e.view}|${e.label}`, e])).values()].map(
+    (e) => ({
+      ...e,
+      lvl: resolveView(e.view).lvl, // the badge must name where the click lands
+      haystack: `${e.label} ${e.hint}`.toLowerCase(),
+    }),
+  );
 })();
 
 function searchOverlay() {
@@ -2493,9 +2579,7 @@ function searchOverlay() {
     results.textContent = "";
     const matches = (
       query
-        ? searchIndex.filter(
-            (e) => e.label.toLowerCase().includes(query) || e.hint.toLowerCase().includes(query),
-          )
+        ? searchIndex.filter((e) => e.haystack.includes(query))
         : searchIndex.filter((e) => e.issues)
     )
       .sort((a, b) => (b.issues ?? 0) - (a.issues ?? 0) || a.label.length - b.label.length)
@@ -2516,14 +2600,7 @@ function searchOverlay() {
           {},
           el(
             "button",
-            {
-              onclick: () => {
-                currentView = m.view;
-                selectedKey = m.select ?? null;
-                searchOpen = false;
-                render();
-              },
-            },
+            { onclick: () => navigate(m.view, m.select) },
             el("span", { class: "lvl", text: m.lvl }),
             el("span", { class: "label", text: m.label }),
             el("span", { class: "hint", text: m.hint }),
@@ -2536,10 +2613,8 @@ function searchOverlay() {
 
   input.addEventListener("input", run);
   input.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape") {
-      searchOpen = false;
-      render();
-    } else if (ev.key === "Enter") results.querySelector("button")?.click();
+    if (ev.key === "Escape") closeSearch();
+    else if (ev.key === "Enter") results.querySelector("button")?.click();
   });
 
   const overlay = el(
@@ -2547,10 +2622,7 @@ function searchOverlay() {
     {
       class: "overlay",
       onclick: (ev) => {
-        if (ev.target === overlay) {
-          searchOpen = false;
-          render();
-        }
+        if (ev.target === overlay) closeSearch();
       },
     },
     el("div", { class: "searchbox" }, input, results),
@@ -2599,8 +2671,13 @@ function fitView() {
   viewBox = { x: -20, y: -20, w: contentBounds.width + 40, h: contentBounds.height + 40 };
   applyViewBox();
 }
+let viewBoxFrame = 0;
 function applyViewBox() {
-  svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+  if (viewBoxFrame) return; // pointermove fires far faster than we can paint
+  viewBoxFrame = requestAnimationFrame(() => {
+    viewBoxFrame = 0;
+    svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+  });
 }
 function zoom(factor, cx, cy) {
   const px = cx ?? viewBox.x + viewBox.w / 2;
@@ -2649,7 +2726,7 @@ function attachPanZoom() {
   );
   svg.addEventListener("click", (ev) => {
     if (ev.target.closest(".node")) return;
-    if (svg.classList.contains("filtering")) return highlightIssue(svg.dataset.issue);
+    if (svg.dataset.issue) return highlightIssue(svg.dataset.issue);
     if (selectedKey) {
       selectedKey = null;
       render();
@@ -2682,12 +2759,6 @@ if (boot.get("view")) currentView = boot.get("view");
 if (boot.get("select")) selectedKey = boot.get("select");
 if (boot.get("theme")) document.documentElement.dataset.theme = boot.get("theme");
 
-function render() {
-  renderView();
-  const params = new URLSearchParams({ view: currentView });
-  if (selectedKey) params.set("select", selectedKey);
-  history.replaceState(null, "", "#" + params.toString());
-}
 render();
 
 </script>
