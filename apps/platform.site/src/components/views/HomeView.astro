@@ -82,10 +82,17 @@ const records = [
 </div>
 
 <style>
+  /*
+   * THE RECORD ROW MEASURES ITSELF. It was pinned at `244px`, which had to be
+   * tall enough for the tallest arrangement and was therefore too tall for
+   * every other one. `auto` makes the row exactly the plate plus its margins,
+   * and the hero — `minmax(0, 1fr)` — absorbs whatever that frees. One number
+   * fewer to keep in step with the plate size.
+   */
   .home-main {
     display: grid;
     min-height: 0;
-    grid-template-rows: minmax(0, 1fr) 244px;
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .hero {
@@ -152,7 +159,13 @@ const records = [
   }
 
   .record-grid {
-    --record-scaffold-size: min(calc(12vw - 28px), 190px);
+    --record-scaffold-size: min(calc(10.5vw - 28px), 158px);
+    /* The shared top edge, and the same value optically corrected for text. */
+    --record-top: 36px;
+    --record-cap: 33px;
+    /* Clearance under the plate, and the band the action link sits in. */
+    --record-foot: 16px;
+    --record-action: 42px;
 
     display: grid;
     min-height: 0;
@@ -183,10 +196,37 @@ const records = [
     text-transform: uppercase;
   }
 
+  /*
+   * ── One shared top edge ──────────────────────────────────────────────────
+   *
+   * THE PLATE AND THE PROSE START ON THE SAME LINE, and `--record-top` is that
+   * line. It was two numbers that happened to be near each other — the visual's
+   * `margin-top: 40px` against the copy's `padding-top: 44px` — with the plate
+   * then pushed to the BOTTOM of its cell by `align-self: end`, so the row had
+   * to be tall enough for dead space above the plate plus the plate itself. The
+   * text floated somewhere above the plate's top edge and lined up with nothing.
+   *
+   * Top-aligning the plate deletes that dead space, which is why the row gets
+   * shorter rather than merely tidier: its height is now the plate plus the two
+   * margins, and the hero above it takes back what the row gives up.
+   *
+   * `--record-cap` is the same line MINUS the 3px between a line box's top and
+   * the top of a capital. Aligning the two boxes leaves the text looking low,
+   * because a border is a hard edge and a cap is not; this aligns what the eye
+   * actually sees.
+   *
+   * THE VERTICAL PLACEMENT IS SET ONCE, ON `.record-scaffold`, AND THAT MATTERS:
+   * the template puts BOTH classes on the SAME element, so these two rules are
+   * one element's cascade rather than a parent's and a child's. Equal
+   * specificity means the later rule wins, which is why `.record-scaffold` used
+   * to carry `margin-top: 0` — it was there to cancel a `margin-top` on
+   * `.record-visual` that could never have applied. Two rules quietly fighting
+   * over one box is how the plate ended up on top of its own label the first
+   * time this was changed. Top and bottom live here; `.record-visual` keeps only
+   * what the scaffold does not restate.
+   */
   .record-visual {
     min-width: 0;
-    margin-top: 40px;
-    margin-bottom: 14px;
     margin-left: 14px;
     overflow: hidden;
   }
@@ -196,12 +236,12 @@ const records = [
     display: flex;
     width: var(--record-scaffold-size);
     height: var(--record-scaffold-size);
-    align-self: end;
+    align-self: start;
     align-items: center;
     justify-content: center;
-    margin-top: 0;
+    margin-top: var(--record-top);
+    margin-bottom: var(--record-foot);
     margin-right: 14px;
-    margin-bottom: 18px;
     border: 1px solid var(--color-border);
     background: var(--color-surface-sunken);
     font-family: var(--font-display);
@@ -239,13 +279,19 @@ const records = [
     line-height: 0.9;
   }
 
+  /*
+   * STRETCHED, DELIBERATELY, even though its text is top-aligned. The action
+   * link is absolutely positioned against this cell, so the cell has to reach
+   * the bottom of the record for `bottom` to mean the bottom of the record. Its
+   * CONTENT starts at the shared top edge; its BOX still spans the row.
+   */
   .record-copy {
     position: relative;
     display: flex;
     min-width: 0;
     flex-direction: column;
     justify-content: flex-start;
-    padding: 44px 18px 50px;
+    padding: var(--record-cap) 18px var(--record-action);
   }
 
   .record-copy p {
