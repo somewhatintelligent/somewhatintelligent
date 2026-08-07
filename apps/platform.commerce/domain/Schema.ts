@@ -10,6 +10,20 @@
  * `product_release` snapshots, `product_image` rows, and a
  * `product_release_image` join that freezes the image set at publish time.
  *
+ * BYTES ARE ONE TABLE; USES ARE ANOTHER. `product_asset` holds every image the
+ * store keeps and IS the `/media/<id>` address. What an asset is FOR is a
+ * referencing row: `product_image` makes it ordered photography, and
+ * `product_draft.size_guide_asset_id` makes one the measurement chart. The two
+ * uses differ only in lifecycle — photography cascades with its product, a
+ * chart is retained while a release still names it — which is a foreign key
+ * each, not a table each.
+ *
+ * MEDIA IS ORDERED, NEVER LABELLED. `product_image.position` is the whole
+ * presentation model — zero is the listing cover and the first thing a shopper
+ * sees, the rest follow it in a numbered filmstrip. There is no `role` column,
+ * because a label beside an order is a second source of truth for the same
+ * question.
+ *
  * Deliberately absent versus v2: no `store_media_gc_outbox` and no
  * `dead_stripe_event`. Media deletes remove the R2 object inline, and a payment
  * event that exhausts its attempts is written to `payment_event` with a `dead`
@@ -46,8 +60,6 @@ const PRODUCT_STATUSES = ["draft", "active", "unavailable", "archived"] as const
  * many garments the run will produce, and the buyer is told so before paying.
  */
 const VARIANT_MODES = ["stock", "preorder"] as const;
-
-const PRODUCT_IMAGE_ROLES = ["cover", "gallery", "evidence"] as const;
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
@@ -113,6 +125,58 @@ export const product = sqliteTable(
 );
 
 /**
+ * BYTES, AND ONLY BYTES — every image this store holds, in one table.
+ *
+ * An asset row IS the media identity: `/media/<id>` names exactly this row, and
+ * `Contracts.mediaHref` spells that one address for every image because there
+ * genuinely is one address space rather than two pretending to be one.
+ *
+ * WHAT USE AN ASSET IS PUT TO LIVES ELSEWHERE, which is the whole point of the
+ * split. {@link productImage} makes an asset ordered product photography;
+ * `product_draft.size_guide_asset_id` makes one the measurement chart. Those
+ * two uses have genuinely different LIFECYCLES — photography cascades away with
+ * its product, a chart is retained while a published release still names it —
+ * and that difference is expressed by the referencing rows, not by forking the
+ * bytes.
+ *
+ * The first cut of this schema DID fork them: a `product_size_guide` table
+ * column-for-column identical to `product_image` minus `alt` and `position`.
+ * The lifecycle difference justified separating the REFERENCES; it never
+ * justified separating the identity. Duplicating it meant `/media/:id` — the
+ * public, unauthenticated, highest-volume path in this app — probing two tables
+ * in a union, `deriveProductImpact` having to remember two sets of storage keys
+ * to avoid orphaning R2 objects, and a third asset kind costing a third table.
+ *
+ * `storage_key` is the opaque R2 key: unique, never in a DTO, and shaped
+ * `products/{productId}/{assetId}` so a product delete still clears one prefix.
+ *
+ * NO `alt` AND NO `position` HERE. Both are things a USE has, not things bytes
+ * have — and the size guide's alt is EDITORIAL CONTENT that has to freeze with
+ * a release the way a description does, so it lives on {@link productDraft} and
+ * {@link productRelease} beside the reference and the fit comments.
+ */
+export const productAsset = sqliteTable(
+  "product_asset",
+  {
+    id: text("id").primaryKey(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => product.id, { onDelete: "cascade" }),
+    storageKey: text("storage_key").notNull().unique(),
+    contentSha256: text("content_sha256").notNull(),
+    /** Any type in the store's display allowlist — see `domain/Media.ts`. */
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    /** Every per-product sweep — the ordered gallery scan, the delete impact. */
+    index("idx_product_asset_product").on(t.productId),
+    check("product_asset_size_non_negative", sql`size_bytes >= 0`),
+  ],
+);
+
+/**
  * The editable working copy — exactly one per product, which is why
  * `product_id` is the primary key. `revision` bumps by one per save and is the
  * optimistic-concurrency token for `saveProductDraft` and `publishProduct`.
@@ -127,7 +191,24 @@ export const productDraft = sqliteTable(
       .references(() => product.id, { onDelete: "cascade" }),
     revision: integer("revision").notNull().default(1),
     title: text("title").notNull(),
+    /** Always visible on the product page, directly under the title. */
     descriptionMarkdown: text("description_markdown"),
+    /**
+     * The optional `Product details` panel. NULL means the accordion does not
+     * exist — not an empty one, and not a placeholder.
+     */
+    detailsMarkdown: text("details_markdown"),
+    /**
+     * The optional `Size & fit` panel, which is THREE nullable fields and one
+     * rule: no asset, no accordion. The alt text and the fit comments sit here
+     * rather than on the asset row because they are content an operator writes
+     * and a release freezes, exactly like the description.
+     */
+    sizeGuideAssetId: text("size_guide_asset_id").references(() => productAsset.id, {
+      onDelete: "set null",
+    }),
+    sizeGuideAlt: text("size_guide_alt"),
+    sizeGuideNotesMarkdown: text("size_guide_notes_markdown"),
     updatedBySub: text("updated_by_sub").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -178,10 +259,36 @@ export const productRelease = sqliteTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     descriptionMarkdown: text("description_markdown"),
+    detailsMarkdown: text("details_markdown"),
+    /**
+     * THE ASSET REFERENCE IS FROZEN, THE BYTES ARE SHARED — the same trade
+     * {@link productReleaseImage} makes, and for the same reason: republishing
+     * an unchanged chart should cost a column, not a second copy in R2.
+     *
+     * `restrict` rather than `cascade`, and it is the one place in this schema
+     * where the two differ in intent. A published release is what a buyer saw;
+     * a chart silently vanishing out of it because someone tidied the draft is
+     * the exact failure this constraint exists to make impossible. So the
+     * database refuses the delete, and `removeProductSizeGuide` clears the
+     * DRAFT's reference while retaining an asset any release still names.
+     */
+    sizeGuideAssetId: text("size_guide_asset_id").references(() => productAsset.id, {
+      onDelete: "restrict",
+    }),
+    sizeGuideAlt: text("size_guide_alt"),
+    sizeGuideNotesMarkdown: text("size_guide_notes_markdown"),
     publishedBySub: text("published_by_sub").notNull(),
     publishedAt: integer("published_at").notNull(),
   },
-  (t) => [uniqueIndex("product_release_product_version_unique").on(t.productId, t.version)],
+  (t) => [
+    uniqueIndex("product_release_product_version_unique").on(t.productId, t.version),
+    /**
+     * WHICH RELEASES STILL NAME THIS PLATE — the read behind the retain rule
+     * above, and it runs on every size-guide replace and remove. Without it
+     * that is a full scan of every release the store has ever published.
+     */
+    index("idx_product_release_size_guide").on(t.sizeGuideAssetId),
+  ],
 );
 
 /**
@@ -223,45 +330,79 @@ export const releaseMarket = sqliteTable(
  * lifecycle because bytes travelled through a separate service; here the bytes
  * are written to R2 in the same call that inserts the row, so a row that exists
  * is servable by construction.
+ *
+ * THERE IS NO `role` COLUMN, AND THAT IS THE MODEL RATHER THAN AN OMISSION.
+ *
+ * `cover` / `gallery` / `evidence` asked an operator to answer a question the
+ * ORDER already answers, and then let the two disagree: an image could be
+ * `gallery` at position 0 and `cover` at position 2, so "which picture leads"
+ * had two sources of truth and a tie-break rule between them. POSITION ZERO IS
+ * THE COVER. Everything else follows it, numbered, in the filmstrip. One fact,
+ * one column, nothing to reconcile.
  */
 export const productImage = sqliteTable(
   "product_image",
   {
-    id: text("id").primaryKey(),
-    productId: text("product_id")
-      .notNull()
-      .references(() => product.id, { onDelete: "cascade" }),
-    storageKey: text("storage_key").notNull().unique(),
-    contentSha256: text("content_sha256").notNull(),
-    contentType: text("content_type").notNull(),
-    sizeBytes: integer("size_bytes").notNull(),
+    /**
+     * THE ASSET IS THE IMAGE. This row adds a USE to bytes that already exist —
+     * an order and an alt — so it holds no id of its own: the asset's id is the
+     * media address, the release-membership key, and the primary key here.
+     *
+     * `cascade` because photography belongs to its product and goes with it.
+     * The size guide's reference is `RESTRICT` instead, and that difference in
+     * ONE WORD is the whole reason the two uses are separate tables while the
+     * bytes are not.
+     */
+    assetId: text("asset_id")
+      .primaryKey()
+      .references(() => productAsset.id, { onDelete: "cascade" }),
     alt: text("alt").notNull(),
-    role: text("role", { enum: PRODUCT_IMAGE_ROLES }).notNull(),
+    /**
+     * THE ONLY THING THAT DECIDES PRESENTATION. Zero leads; the rest follow.
+     * `ingestProductMedia` appends at the end and `reorderProductMedia` is the
+     * only way to change it.
+     */
     position: integer("position").notNull().default(0),
-    createdAt: integer("created_at").notNull(),
   },
   (t) => [
-    index("idx_product_image_product").on(t.productId, t.position),
-    check("product_image_role_valid", sql`role IN ('cover', 'gallery', 'evidence')`),
-    check("product_image_size_non_negative", sql`size_bytes >= 0`),
+    /**
+     * NOT UNIQUE ON position, DELIBERATELY.
+     *
+     * A reorder is N `SET position = ?` statements in one batch, and SQLite
+     * checks a UNIQUE index after EACH statement rather than at commit — so
+     * swapping two images collides on the intermediate state and aborts the
+     * whole batch. The constraint would make the ordinary gesture fail while
+     * protecting against nothing: a duplicate position is a display tie, not a
+     * corruption, and every read orders on `(position, asset_id)` so the tie
+     * resolves deterministically anyway.
+     *
+     * Product scoping comes from the JOIN to `product_asset` rather than from a
+     * `product_id` copied down here. A second column naming the owner is a
+     * second thing that can disagree with the first, and this table has no
+     * lifecycle of its own in which it could legitimately differ.
+     */
+    index("idx_product_image_position").on(t.position),
+    check("product_image_position_non_negative", sql`position >= 0`),
   ],
 );
 
 /**
  * The image set a release was published with — MEMBERSHIP AND ORDER, not bytes.
  *
- * A join row per (release, image) carrying the alt, role and position as they
- * stood at publish time. The bytes live once in R2 under
+ * A join row per (release, image) carrying the alt and position as they stood
+ * at publish time. The bytes live once in R2 under
  * `products/{productId}/{imageId}` no matter how many releases include them, so
  * publishing ten times costs ten small rows and zero extra storage.
  *
  * WHAT IT ACTUALLY PROTECTS AGAINST, stated precisely because the distinction
- * matters: reordering media, changing alt text, changing a role, or adding and
- * removing images on the DRAFT leaves published releases untouched. Deleting the
- * underlying image does NOT — the foreign key cascades and every release
- * containing it loses it. That is a deliberate, surfaced choice rather than a
- * silent one: `planProductMediaDeletion` counts the affected releases and warns
- * before an operator confirms.
+ * matters: reordering media, changing alt text, or adding and removing images on
+ * the DRAFT leaves published releases untouched. Deleting the underlying image
+ * does NOT — the foreign key cascades and every release containing it loses it.
+ * That is a deliberate, surfaced choice rather than a silent one:
+ * `planProductMediaDeletion` counts the affected releases and warns before an
+ * operator confirms. The SIZE-GUIDE plate is the deliberate exception and
+ * refuses instead — see {@link productRelease.sizeGuideAssetId}, where the asset
+ * is one shared row rather than a per-release copy of the membership.
  *
  * The composite primary key means an image appears at most once per release.
  */
@@ -271,14 +412,23 @@ export const productReleaseImage = sqliteTable(
     releaseId: text("release_id")
       .notNull()
       .references(() => productRelease.id, { onDelete: "cascade" }),
+    /**
+     * THE ASSET, which is also what `product_image` is keyed by — so a frozen
+     * membership row survives its image losing its ordering row but not its
+     * bytes losing their asset. That is the cascade the warning below describes.
+     */
     imageId: text("image_id")
       .notNull()
-      .references(() => productImage.id, { onDelete: "cascade" }),
+      .references(() => productAsset.id, { onDelete: "cascade" }),
     alt: text("alt").notNull(),
-    role: text("role").notNull(),
     position: integer("position").notNull(),
   },
-  (t) => [primaryKey({ columns: [t.releaseId, t.imageId] })],
+  (t) => [
+    primaryKey({ columns: [t.releaseId, t.imageId] }),
+    /** The storefront reads one release's set in order; this is that scan. */
+    index("idx_product_release_image_order").on(t.releaseId, t.position),
+    check("product_release_image_position_non_negative", sql`position >= 0`),
+  ],
 );
 
 /**

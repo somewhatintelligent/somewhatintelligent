@@ -184,7 +184,6 @@ const publishedProduct = (url: string, slug: string, priceCents = 4500) =>
         bytesBase64: PIXEL_PNG,
         contentType: "image/png",
         alt: "cover",
-        role: "cover",
       });
       const variant = yield* client.putVariant({
         commandId: cmd("variant"),
@@ -278,7 +277,6 @@ test(
         bytesBase64: PIXEL_PNG,
         contentType: "image/png",
         alt: "cover",
-        role: "cover",
       }),
     );
     const noVariant = yield* withClient(edgeUrl, (client) =>

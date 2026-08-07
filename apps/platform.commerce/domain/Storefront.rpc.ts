@@ -46,8 +46,6 @@ export class OrderNotFound extends Schema.TaggedErrorClass<OrderNotFound>()("Ord
  */
 const Market = Schema.Literals(["CA", "US"]);
 
-const MediaRole = Schema.Literals(["cover", "gallery", "evidence"]);
-
 /**
  * The storefront READS, declared rather than served as loose JSON.
  *
@@ -68,15 +66,41 @@ export const ProductCard = Schema.Struct({
   coverHref: Schema.NullOr(Schema.String),
 });
 
+/**
+ * THE SIZE-FIT PANEL, whole or absent. Present means the release froze a plate,
+ * so `Size & fit` opens onto that image and these comments; `null` means the
+ * product has no measurements published and the accordion is not rendered at
+ * all — not rendered empty, and not rendered with a placeholder.
+ */
+const SizeGuide = Schema.Struct({
+  href: Schema.String,
+  /**
+   * REQUIRED, and it is a description of the MEASUREMENTS rather than of the
+   * picture. The chart carries every number a shopper needs to decide a size,
+   * and "sizing chart" as alt text withholds all of them.
+   */
+  alt: Schema.String,
+  notesMarkdown: Schema.NullOr(Schema.String),
+});
+
 export const StorefrontProduct = Schema.Struct({
   slug: Schema.String,
   title: Schema.String,
   descriptionMarkdown: Schema.NullOr(Schema.String),
+  /** `null` means the product has no `Product details` panel. */
+  detailsMarkdown: Schema.NullOr(Schema.String),
+  sizeGuide: Schema.NullOr(SizeGuide),
   /** Minor units of `currency` — the price in the market that was asked for. */
   priceCents: Schema.Number,
   currency: Schema.String,
   version: Schema.String,
-  media: Schema.Array(Schema.Struct({ href: Schema.String, alt: Schema.String, role: MediaRole })),
+  /**
+   * ORDERED, and the order is the whole presentation model: index 0 is the
+   * listing cover and the shot the page opens on, and the filmstrip numbers the
+   * rest from there. Frozen at publish time, so a draft reorder never rewrites
+   * what a published release shows.
+   */
+  media: Schema.Array(Schema.Struct({ href: Schema.String, alt: Schema.String })),
   /** `available` is DERIVED server-side from live stock and the pre-order run. */
   variants: Schema.Array(
     Schema.Struct({ id: Schema.String, size: Schema.String, available: Schema.Boolean }),

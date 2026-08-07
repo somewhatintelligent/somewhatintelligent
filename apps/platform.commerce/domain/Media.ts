@@ -15,7 +15,7 @@
  * fails, an unreferenced object is left behind — the same benign leak the
  * deletion path accepts, and far better than a row pointing at nothing.
  */
-import { and, count, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import * as Effect from "effect/Effect";
 
 import type { CoreOutcome } from "../services/Audit.ts";
@@ -28,11 +28,22 @@ import {
   type IngestProductMediaInput,
   type MediaMutationError,
   type ProductMediaDTO,
-  type ProductMediaRole,
+  type PutProductSizeGuideInput,
 } from "./Contracts.ts";
-import { product, productImage } from "./Schema.ts";
+import { product, productAsset, productDraft, productImage, productRelease } from "./Schema.ts";
 
-/** What the storefront and the operator console can actually display. */
+/**
+ * What the storefront and the operator console can actually display.
+ *
+ * ONE ALLOWLIST FOR EVERY IMAGE THIS STORE HOLDS — product photography and the
+ * size-guide plate alike. The plate briefly had a narrower one of its own,
+ * PNG-only, on the reasoning that it is composited over a background and so
+ * "needs" an alpha channel. That was a rendering preference dressed up as a
+ * validation rule: an opaque chart is a perfectly good chart, `object-fit:
+ * contain` handles either, and an operator who wants to use a WebP they already
+ * have is not making a mistake. The only thing a store may legitimately refuse
+ * is a format a browser will not render.
+ */
 const ALLOWED_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 
 /** 10 MB. Large enough for a product photograph, small enough to bound a Worker's memory. */
@@ -57,14 +68,25 @@ export const ingestProductMedia = Effect.fn("Media.ingestProductMedia")(function
     return { failure: err("invalid_size", `${size} bytes`) };
   }
 
+  /**
+   * APPENDED AT THE END, and it is `max(position) + 1` rather than a COUNT.
+   *
+   * A count is only the next free position while the sequence is dense from
+   * zero, and nothing guarantees that — positions are not unique and a deleted
+   * image leaves a gap behind it. Counting after a delete therefore hands the
+   * new image a position an existing one already holds, and the newcomer lands
+   * in the middle of the strip instead of at its end. `reorderProductMedia`
+   * remains the only way to change the order deliberately.
+   */
   const owners = yield* query(() =>
     db
-      .select({ total: count() })
+      .select({ highest: sql<number | null>`max(${productImage.position})` })
       .from(productImage)
-      .where(eq(productImage.productId, input.productId)),
+      .innerJoin(productAsset, eq(productAsset.id, productImage.assetId))
+      .where(eq(productAsset.productId, input.productId)),
   );
-  // Appended at the end; `reorderProductMedia` is the only way to change order.
-  const position = owners[0]?.total ?? 0;
+  const highest = owners[0]?.highest;
+  const position = highest === null || highest === undefined ? 0 : highest + 1;
 
   const blobs = yield* Blobs;
   const storageKey = productMediaKey(input.productId, imageId);
@@ -87,7 +109,6 @@ export const ingestProductMedia = Effect.fn("Media.ingestProductMedia")(function
     id: imageId,
     productId: input.productId,
     alt: input.alt,
-    role: input.role,
     position,
     href: mediaHref(imageId),
     contentType: input.contentType,
@@ -96,52 +117,90 @@ export const ingestProductMedia = Effect.fn("Media.ingestProductMedia")(function
   };
 
   return {
+    /**
+     * THE BYTES, THEN THE USE. An asset row is the media identity; the
+     * `product_image` row beside it is what makes this asset ordered product
+     * photography rather than, say, the size-guide plate. Same batch, so an
+     * asset with no use is unrepresentable.
+     */
     statements: [
-      db.insert(productImage).values({
+      db.insert(productAsset).values({
         id: imageId,
         productId: input.productId,
         storageKey,
         contentSha256: sha256,
         contentType: input.contentType,
         sizeBytes: size,
-        alt: input.alt,
-        role: input.role,
-        position,
         createdAt: now,
+      }) as unknown as DbStatement,
+      db.insert(productImage).values({
+        assetId: imageId,
+        alt: input.alt,
+        position,
       }) as unknown as DbStatement,
     ],
     response: ok(dto),
     facts: {
       targetType: "media",
       targetId: imageId,
-      detail: { productId: input.productId, size, role: input.role },
+      detail: { productId: input.productId, size, position },
     },
   };
+});
+
+/**
+ * WHAT A MEDIA ID NAMES — one indexed lookup, because there is one table.
+ *
+ * `/media/<id>` names a `product_asset` row and nothing else. Whether that
+ * asset is ordered product photography or the size-guide plate is a question
+ * about who REFERENCES it, and this route does not care: it wants the bytes and
+ * the type to serve them with.
+ *
+ * This is what the byte/use split bought. While the plate had a table of its
+ * own, three call sites hand-wrote the same "try `product_image`, else
+ * `product_size_guide`" probe, and the public route — unauthenticated, and the
+ * highest-volume path in this app — paid two round trips on every MISS. Misses
+ * are the common case out here: a bad id, a stale link, a withdrawn product,
+ * all answered by `workers/Media.ts` with a 404 that carries no
+ * `cache-control` and so is never absorbed by a CDN.
+ *
+ * `requireActive` is that route's fail-closed gate. `unavailable` is a
+ * published product PULLED FROM SALE — the whole reason the status domain has
+ * four values — so a withdrawn product's chart stops being served at the same
+ * instant its photographs do. The console passes `false`, because a draft is by
+ * definition not active and that window is precisely when an operator most
+ * needs to see what they just uploaded.
+ */
+const resolveMediaObject = Effect.fn("Media.resolveMediaObject")(function* (
+  db: ClassicDb,
+  mediaId: string,
+  requireActive: boolean,
+) {
+  const rows = yield* query(() =>
+    db
+      .select({ storageKey: productAsset.storageKey, contentType: productAsset.contentType })
+      .from(productAsset)
+      .innerJoin(product, eq(product.id, productAsset.productId))
+      .where(
+        requireActive
+          ? and(eq(productAsset.id, mediaId), eq(product.status, "active"))
+          : eq(productAsset.id, mediaId),
+      )
+      .limit(1),
+  );
+  return rows[0] ?? null;
 });
 
 /**
  * Resolve a media id to its bytes, for the public `/media/:id` route.
  *
  * GATED ON THE PRODUCT BEING ACTIVE, joined rather than checked afterwards.
- * `unavailable` is a published product PULLED FROM SALE — the whole reason the
- * status domain has four values — and the listing and product page both honour
- * it. Serving the image regardless meant a link anyone already had kept working
+ * Serving the image regardless meant a link anyone already had kept working
  * after the product was withdrawn, which is the one thing withdrawing it was
- * supposed to stop.
- *
- * INNER JOIN, so a missing or non-active product yields no row and the route
- * 404s. Fail-closed, matching `Storefront.listActiveProducts`.
+ * supposed to stop. Fail-closed, matching `Storefront.listActiveProducts`.
  */
 export const openMedia = Effect.fn("Media.openMedia")(function* (db: ClassicDb, mediaId: string) {
-  const rows = yield* query(() =>
-    db
-      .select({ storageKey: productImage.storageKey, contentType: productImage.contentType })
-      .from(productImage)
-      .innerJoin(product, eq(product.id, productImage.productId))
-      .where(and(eq(productImage.id, mediaId), eq(product.status, "active")))
-      .limit(1),
-  );
-  const row = rows[0];
+  const row = yield* resolveMediaObject(db, mediaId, true);
   if (!row) return null;
 
   const blobs = yield* Blobs;
@@ -176,14 +235,7 @@ export const openOperatorMedia = Effect.fn("Media.openOperatorMedia")(function* 
   db: ClassicDb,
   mediaId: string,
 ) {
-  const rows = yield* query(() =>
-    db
-      .select({ storageKey: productImage.storageKey })
-      .from(productImage)
-      .where(eq(productImage.id, mediaId))
-      .limit(1),
-  );
-  const row = rows[0];
+  const row = yield* resolveMediaObject(db, mediaId, false);
   if (!row) return null;
 
   const blobs = yield* Blobs;
@@ -208,63 +260,230 @@ export const operatorMediaContentType = Effect.fn("Media.operatorMediaContentTyp
   db: ClassicDb,
   mediaId: string,
 ) {
+  return (yield* resolveMediaObject(db, mediaId, false))?.contentType ?? null;
+});
+
+// ── The size-guide plate ─────────────────────────────────────────────────────
+
+/**
+ * RETIRE THE PLATE A DRAFT IS LETTING GO OF — the retain rule, in one place,
+ * because replace and remove make exactly the same decision about it.
+ *
+ * If no published release names the outgoing plate it is deleted outright, row
+ * and bytes, because an orphan chart nobody can reach is pure cost. If a
+ * release DOES name it, both stay exactly where they are and only the draft's
+ * reference moves — a published product page keeps rendering the chart it was
+ * published with. `retained` is returned rather than hidden so the console can
+ * say which of the two happened.
+ *
+ * ONE QUERY, not two. The count and the storage key are facts about the same
+ * row; asking for them separately was two D1 round trips on an operator action
+ * that has already paid for an R2 upload. A correlated subquery gets both.
+ *
+ * `ne(releaseId, ...)` has no place in that count: every release counts,
+ * including the active one, because "still on a live product page" is the
+ * strongest form of "still in use".
+ */
+const retirePlate = Effect.fn("Media.retirePlate")(function* (
+  db: ClassicDb,
+  plateId: string | null,
+) {
+  if (plateId === null)
+    return { retained: 0, statements: [] as DbStatement[], keys: [] as string[] };
+
   const rows = yield* query(() =>
     db
-      .select({ contentType: productImage.contentType })
-      .from(productImage)
-      .where(eq(productImage.id, mediaId))
+      .select({
+        storageKey: productAsset.storageKey,
+        retained: sql<number>`(select count(*) from ${productRelease} where ${productRelease.sizeGuideAssetId} = ${plateId})`,
+      })
+      .from(productAsset)
+      .where(eq(productAsset.id, plateId))
       .limit(1),
   );
-  return rows[0]?.contentType ?? null;
+  const row = rows[0];
+  const retained = row?.retained ?? 0;
+  if (!row || retained > 0)
+    return { retained, statements: [] as DbStatement[], keys: [] as string[] };
+
+  return {
+    retained,
+    statements: [
+      db.delete(productAsset).where(eq(productAsset.id, plateId)) as unknown as DbStatement,
+    ],
+    keys: [row.storageKey],
+  };
 });
 
 /**
- * WHICH IMAGE IS THE COVER, decided after looking at them.
+ * UPLOAD OR REPLACE the size-guide plate. One per product, so this is an upsert
+ * of a reference rather than an append to a list.
  *
- * `ingestProductMedia` takes a role at upload, and until now that was the only
- * time it could be set — so an operator who uploaded three photographs and then
- * decided which one should lead had to delete and re-upload. The cover is what
- * a listing shows, so that is not a cosmetic gap.
+ * WHAT HAPPENS TO THE OUTGOING PLATE is the whole of this function's care. If
+ * no release names it, it is deleted outright — row and bytes — because an
+ * orphan chart nobody can reach is pure cost. If a release DOES name it, the
+ * row and the bytes stay exactly where they are and only the draft's reference
+ * moves. A published product page keeps rendering the chart it was published
+ * with, which is the point: replacing a draft asset is an edit to the draft,
+ * and an edit to the draft has never been allowed to reach a release.
  *
- * Scoped by BOTH ids. `mediaId` alone would let a caller re-role an image
- * belonging to another product by guessing an id; requiring the pair means the
- * caller must already know what they are editing.
- *
- * No uniqueness rule on `cover`. Several covers is a display question the
- * storefront answers by taking the first, and enforcing one here would mean a
- * second write to demote the incumbent — two statements that can disagree, to
- * prevent something harmless.
+ * NOT REVISION-GUARDED, deliberately, and it is the same call the console makes
+ * from a file picker. It writes exactly one draft column — the reference — and
+ * touches no copy, so there is nothing for a concurrent `saveProductDraft` to
+ * lose. Making it take `expectedRevision` would mean a dropped upload every
+ * time an operator typed in the description field first.
  */
-export const setProductMediaRole = Effect.fn("Media.setProductMediaRole")(function* (
+export const putProductSizeGuide = Effect.fn("Media.putProductSizeGuide")(function* (
   db: ClassicDb,
-  input: { productId: string; mediaId: string; role: ProductMediaRole },
+  input: PutProductSizeGuideInput,
   now: number,
-): Effect.fn.Return<CoreOutcome<{ mediaId: string; role: ProductMediaRole }, MediaMutationError>> {
-  const rows = yield* query(() =>
+  sizeGuideId: string,
+): Effect.fn.Return<
+  CoreOutcome<{ sizeGuideAssetId: string; href: string }, MediaMutationError>,
+  never,
+  Blobs
+> {
+  if (!ALLOWED_CONTENT_TYPES.has(input.contentType)) {
+    return { failure: err("unsupported_type", input.contentType) };
+  }
+  const size = input.bytes.byteLength;
+  if (size === 0 || size > MAX_MEDIA_BYTES) {
+    return { failure: err("invalid_size", `${size} bytes`) };
+  }
+
+  const drafts = yield* query(() =>
     db
-      .select({ id: productImage.id })
-      .from(productImage)
-      .where(and(eq(productImage.id, input.mediaId), eq(productImage.productId, input.productId)))
+      .select({ current: productDraft.sizeGuideAssetId })
+      .from(productDraft)
+      .where(eq(productDraft.productId, input.productId))
       .limit(1),
   );
-  if (!rows[0]) return { failure: err("not_found") };
+  const draft = drafts[0];
+  if (!draft) return { failure: err("not_found") };
+
+  const blobs = yield* Blobs;
+  const storageKey = productMediaKey(input.productId, sizeGuideId);
+  const sha256 = yield* sha256Hex(input.bytes);
+
+  /** Bytes before row, exactly as for product photography — see the file header. */
+  const stored = yield* blobs.put(storageKey, input.bytes, input.contentType).pipe(
+    Effect.map(() => null),
+    Effect.catchTag("BlobFailed", (error) =>
+      Effect.succeed({ failure: err("storage_unavailable", error.message) } as const),
+    ),
+  );
+  if (stored !== null) return stored;
+
+  const outgoing = yield* retirePlate(db, draft.current);
 
   return {
     statements: [
+      /**
+       * AN ASSET WITH NO `product_image` ROW BESIDE IT — which is exactly what
+       * makes it the plate rather than a photograph. The use is the draft's
+       * reference below, not a kind column here.
+       */
+      db.insert(productAsset).values({
+        id: sizeGuideId,
+        productId: input.productId,
+        storageKey,
+        contentSha256: sha256,
+        contentType: input.contentType,
+        sizeBytes: size,
+        createdAt: now,
+      }) as unknown as DbStatement,
       db
-        .update(productImage)
-        .set({ role: input.role })
-        .where(eq(productImage.id, input.mediaId)) as unknown as DbStatement,
+        .update(productDraft)
+        .set({ sizeGuideAssetId: sizeGuideId, updatedAt: now })
+        .where(eq(productDraft.productId, input.productId)) as unknown as DbStatement,
+      /**
+       * POINTED AWAY FIRST, DELETED SECOND. The draft's foreign key still names
+       * the outgoing row while this batch runs, so deleting it before the
+       * update above would be a live reference at the moment of the delete.
+       */
+      ...outgoing.statements,
       db
         .update(product)
         .set({ updatedAt: now })
         .where(eq(product.id, input.productId)) as unknown as DbStatement,
     ],
-    response: ok({ mediaId: input.mediaId, role: input.role }),
+    response: ok({ sizeGuideAssetId: sizeGuideId, href: mediaHref(sizeGuideId) }),
     facts: {
-      targetType: "media",
-      targetId: input.mediaId,
-      detail: { productId: input.productId, role: input.role },
+      targetType: "size_guide",
+      targetId: sizeGuideId,
+      detail: {
+        productId: input.productId,
+        size,
+        replaced: draft.current,
+        retainedForReleases: outgoing.retained,
+      },
     },
+    /** Bytes last, and allowed to fail — see `CoreOutcome.onCommitted`. */
+    onCommitted: blobs.delete(outgoing.keys),
+  };
+});
+
+/**
+ * TAKE THE PLATE OFF THE DRAFT.
+ *
+ * The reference, the alt text and the fit comments all clear together, because
+ * `Size & fit` is one panel and half of one is not a state worth being able to
+ * reach. Whether the ASSET goes with them is the released-content question
+ * again, answered the same way as in {@link putProductSizeGuide}: unreferenced
+ * means deleted, referenced means retained. `retainedForReleases` is returned
+ * rather than hidden so the console can say which of the two happened —
+ * "removed from the draft; N published release(s) keep it" is a different fact
+ * from "deleted", and an operator is entitled to both.
+ *
+ * Removing when there is nothing to remove is `not_found` rather than a silent
+ * success: the caller believed there was a plate, and there was not.
+ */
+export const removeProductSizeGuide = Effect.fn("Media.removeProductSizeGuide")(function* (
+  db: ClassicDb,
+  productId: string,
+  now: number,
+): Effect.fn.Return<
+  CoreOutcome<{ removed: true; retainedForReleases: number }, "not_found">,
+  never,
+  Blobs
+> {
+  const drafts = yield* query(() =>
+    db
+      .select({ current: productDraft.sizeGuideAssetId })
+      .from(productDraft)
+      .where(eq(productDraft.productId, productId))
+      .limit(1),
+  );
+  const current = drafts[0]?.current;
+  if (current === undefined || current === null) return { failure: err("not_found") };
+
+  const blobs = yield* Blobs;
+  const outgoing = yield* retirePlate(db, current);
+
+  return {
+    statements: [
+      db
+        .update(productDraft)
+        .set({
+          sizeGuideAssetId: null,
+          sizeGuideAlt: null,
+          sizeGuideNotesMarkdown: null,
+          updatedAt: now,
+        })
+        .where(eq(productDraft.productId, productId)) as unknown as DbStatement,
+      /** Pointed away first, deleted second — same ordering as the replace path. */
+      ...outgoing.statements,
+      db
+        .update(product)
+        .set({ updatedAt: now })
+        .where(eq(product.id, productId)) as unknown as DbStatement,
+    ],
+    response: ok({ removed: true as const, retainedForReleases: outgoing.retained }),
+    facts: {
+      targetType: "size_guide",
+      targetId: current,
+      detail: { productId, retainedForReleases: outgoing.retained },
+    },
+    onCommitted: blobs.delete(outgoing.keys),
   };
 });

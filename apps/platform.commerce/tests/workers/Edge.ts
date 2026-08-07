@@ -84,6 +84,18 @@ const envelope = <T>(action: string, commandId: string, input: T): OperatorCall<
 const readEnvelope = <T>(action: string, input: T): OperatorCall<T> =>
   envelope(action, `read:${action}`, input);
 
+/**
+ * Bytes arrive base64 because the RPC wire has no binary frame — the schema says
+ * so explicitly rather than leaving it to a convention. Both media uploads take
+ * the same route in, so they decode the same way.
+ */
+const decodeBytes = (bytesBase64: string): ArrayBuffer => {
+  const binary = atob(bytesBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+};
+
 export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
   "Edge",
   { main: import.meta.url },
@@ -201,12 +213,7 @@ export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
        */
       ingestProductMedia: ({ commandId, bytesBase64, ...rest }) =>
         Effect.flatMap(
-          Effect.sync(() => {
-            const binary = atob(bytesBase64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-            return bytes.buffer;
-          }),
+          Effect.sync(() => decodeBytes(bytesBase64)),
           (buffer) =>
             Effect.flatMap(
               commerce.ingestProductMedia(
@@ -221,15 +228,28 @@ export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
             ),
         ),
 
-      setProductMediaRole: ({ commandId, ...input }) =>
+      /** Base64 for the same reason as `ingestProductMedia`, decoded the same way. */
+      putProductSizeGuide: ({ commandId, bytesBase64, ...rest }) =>
         Effect.flatMap(
-          commerce.setProductMediaRole(envelope("setProductMediaRole", commandId, input)),
-          (result) =>
-            lift(result, (error) =>
-              error === "not_found"
-                ? new NotFound({ what: "media", id: input.mediaId })
-                : new MediaRefused({ reason: "invalid_role" }),
+          Effect.sync(() => decodeBytes(bytesBase64)),
+          (buffer) =>
+            Effect.flatMap(
+              commerce.putProductSizeGuide(
+                envelope("putProductSizeGuide", commandId, { ...rest, bytes: buffer }),
+              ),
+              (result) =>
+                lift(result, (error, detail) =>
+                  error === "not_found"
+                    ? new NotFound({ what: "product", id: rest.productId })
+                    : new MediaRefused({ reason: error, detail }),
+                ),
             ),
+        ),
+
+      removeProductSizeGuide: ({ commandId, ...input }) =>
+        Effect.flatMap(
+          commerce.removeProductSizeGuide(envelope("removeProductSizeGuide", commandId, input)),
+          (result) => lift(result, notFound("size_guide", input.productId)),
         ),
 
       reorderProductMedia: ({ commandId, ...input }) =>

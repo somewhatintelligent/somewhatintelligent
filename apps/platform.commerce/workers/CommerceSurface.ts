@@ -1,5 +1,5 @@
 /**
- * THE COMMERCE SURFACE — the 30 methods, and nothing about how they are hosted.
+ * THE COMMERCE SURFACE — the 31 methods, and nothing about how they are hosted.
  *
  * Split out of `Commerce.ts` so the worker that serves it can be declared TWICE
  * with two different payment providers behind it:
@@ -31,9 +31,9 @@ import type {
   OperatorCall,
   OrderListInput,
   PlanProductReleaseDeletionInput,
-  ProductMediaRole,
   ProductStatus,
   PublishProductInput,
+  PutProductSizeGuideInput,
   PutVariantInput,
   ReorderProductMediaInput,
   SaveProductDraftInput,
@@ -263,19 +263,36 @@ export const commerceSurface = Effect.fn("commerceSurface")(function* (provider:
         return yield* Media.operatorMediaContentType(database.db, mediaId);
       }).pipe(Effect.provide(layer)),
 
-    /** Which image leads. Decided after looking at them, not at upload. */
-    setProductMediaRole: (
-      call: OperatorCall<{ productId: string; mediaId: string; role: ProductMediaRole }>,
-    ) =>
+    /**
+     * THE SIZE-GUIDE PLATE. Upload or replace; the outgoing asset is dropped
+     * only when no published release still names it — see `domain/Media.ts`.
+     */
+    putProductSizeGuide: (call: OperatorCall<PutProductSizeGuideInput>) =>
+      Effect.gen(function* () {
+        const audit = yield* Audit;
+        const database = yield* Database;
+        const ids = yield* Ids;
+        return yield* audit.command(
+          "putProductSizeGuide",
+          call,
+          Effect.gen(function* () {
+            const now = yield* Effect.clockWith((clock) => clock.currentTimeMillis);
+            const sizeGuideId = yield* ids.next();
+            return yield* Media.putProductSizeGuide(database.db, call.input, now, sizeGuideId);
+          }),
+        );
+      }).pipe(Effect.provide(layer)),
+
+    removeProductSizeGuide: (call: OperatorCall<{ productId: string }>) =>
       Effect.gen(function* () {
         const audit = yield* Audit;
         const database = yield* Database;
         return yield* audit.command(
-          "setProductMediaRole",
+          "removeProductSizeGuide",
           call,
           Effect.gen(function* () {
             const now = yield* Effect.clockWith((clock) => clock.currentTimeMillis);
-            return yield* Media.setProductMediaRole(database.db, call.input, now);
+            return yield* Media.removeProductSizeGuide(database.db, call.input.productId, now);
           }),
         );
       }).pipe(Effect.provide(layer)),

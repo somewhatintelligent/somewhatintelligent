@@ -29,6 +29,11 @@ const draft: ProductDraftDTO = {
   revision: 3,
   title: "Field Tee",
   descriptionMarkdown: "Heavyweight cotton.",
+  detailsMarkdown: "240 GSM combed cotton.",
+  sizeGuideAssetId: "01JQ000000000000000000000G",
+  sizeGuideHref: "/media/01JQ000000000000000000000G",
+  sizeGuideAlt: "Pit-to-pit 50 cm at S, 53 at M, 56 at L.",
+  sizeGuideNotesMarkdown: "Relaxed unisex fit.",
   status: "active",
   activeVersion: "1.2.0",
   updatedAt: 1_767_225_600_000,
@@ -48,7 +53,6 @@ const media: ProductMediaDTO = {
   id: "01JQ0000000000000000000002",
   productId: draft.productId,
   alt: "Front view",
-  role: "gallery",
   position: 0,
   href: "/media/01JQ0000000000000000000002",
   contentType: "image/webp",
@@ -167,8 +171,16 @@ describe("the schema rejects what the domain must never emit", () => {
     expect(decode(Rpc.ProductDraft, { ...draft, status: "retired" })).toThrow();
   });
 
-  test("an unknown media role", () => {
-    expect(decode(Rpc.ProductMedia, { ...media, role: "thumbnail" })).toThrow();
+  /**
+   * THE REPLACEMENT FOR "an unknown media role", and it pins the opposite
+   * property: media carries no role at all now, so the thing to prove is that
+   * `position` — the one field that decides presentation — cannot go missing.
+   * A media row without it would leave the cover and the filmstrip order
+   * undefined, which is the whole model.
+   */
+  test("media with no position", () => {
+    const { position: _position, ...withoutPosition } = media;
+    expect(decode(Rpc.ProductMedia, withoutPosition)).toThrow();
   });
 
   test("a shipping country outside the two supported", () => {

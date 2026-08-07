@@ -294,7 +294,6 @@ const stockedProduct = (
         bytesBase64: PIXEL_PNG,
         contentType: "image/png",
         alt: "cover",
-        role: "cover",
       });
       const made = yield* client.putVariant({
         commandId: cmd(),
@@ -815,7 +814,6 @@ test.skipIf(!STRIPE_READY)(
           bytesBase64: PIXEL_PNG,
           contentType: "image/png",
           alt: "cover",
-          role: "cover",
         });
         // Each size has generous headroom of its own — only the run binds.
         const m = yield* client.putVariant({

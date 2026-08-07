@@ -37,7 +37,6 @@ import {
   type ProductDraftDTO,
   type ProductListPage,
   type ProductMediaDTO,
-  type ProductMediaRole,
   type ProductStatus,
   type ProductVariantDTO,
   type PublishProductInput,
@@ -53,6 +52,7 @@ import {
   draftMarket,
   product,
   productDraft,
+  productAsset,
   productImage,
   productRelease,
   productReleaseImage,
@@ -68,6 +68,10 @@ const toDraftDTO = (row: {
   revision: number;
   title: string;
   descriptionMarkdown: string | null;
+  detailsMarkdown: string | null;
+  sizeGuideAssetId: string | null;
+  sizeGuideAlt: string | null;
+  sizeGuideNotesMarkdown: string | null;
   status: string;
   activeVersion: string | null;
   updatedAt: number;
@@ -77,6 +81,18 @@ const toDraftDTO = (row: {
   revision: row.revision,
   title: row.title,
   descriptionMarkdown: row.descriptionMarkdown,
+  detailsMarkdown: row.detailsMarkdown,
+  sizeGuideAssetId: row.sizeGuideAssetId,
+  /**
+   * DERIVED from the id rather than stored beside it. The console has to render
+   * the plate before the product is published — `openMedia` is gated on
+   * `status = 'active'`, so the console proxies through
+   * `streamOperatorMedia` — and either way the address is a pure function of
+   * the id. A stored copy is a second thing that can disagree with it.
+   */
+  sizeGuideHref: row.sizeGuideAssetId === null ? null : mediaHref(row.sizeGuideAssetId),
+  sizeGuideAlt: row.sizeGuideAlt,
+  sizeGuideNotesMarkdown: row.sizeGuideNotesMarkdown,
   status: row.status as ProductStatus,
   activeVersion: row.activeVersion,
   updatedAt: row.updatedAt,
@@ -108,6 +124,10 @@ const draftColumns = {
   revision: productDraft.revision,
   title: productDraft.title,
   descriptionMarkdown: productDraft.descriptionMarkdown,
+  detailsMarkdown: productDraft.detailsMarkdown,
+  sizeGuideAssetId: productDraft.sizeGuideAssetId,
+  sizeGuideAlt: productDraft.sizeGuideAlt,
+  sizeGuideNotesMarkdown: productDraft.sizeGuideNotesMarkdown,
 };
 
 /**
@@ -235,12 +255,28 @@ export const getProduct = Effect.fn("Catalog.getProduct")(function* (
       .where(eq(productVariant.productId, productId)),
   );
 
+  /**
+   * `(position, id)` rather than position alone, here and everywhere else that
+   * reads this table. Positions are not unique — see `Schema.ts` for why the
+   * index deliberately is not — so position alone leaves the order of a tie up
+   * to the query planner, and an operator watching two images swap places on
+   * every refresh is watching a bug they cannot fix.
+   */
   const media = yield* query(() =>
     db
-      .select()
+      .select({
+        id: productAsset.id,
+        productId: productAsset.productId,
+        contentType: productAsset.contentType,
+        sizeBytes: productAsset.sizeBytes,
+        contentSha256: productAsset.contentSha256,
+        alt: productImage.alt,
+        position: productImage.position,
+      })
       .from(productImage)
-      .where(eq(productImage.productId, productId))
-      .orderBy(asc(productImage.position)),
+      .innerJoin(productAsset, eq(productAsset.id, productImage.assetId))
+      .where(eq(productAsset.productId, productId))
+      .orderBy(asc(productImage.position), asc(productImage.assetId)),
   );
 
   return {
@@ -279,7 +315,6 @@ export const getProduct = Effect.fn("Catalog.getProduct")(function* (
           id: image.id,
           productId: image.productId,
           alt: image.alt,
-          role: image.role as ProductMediaRole,
           position: image.position,
           href: mediaHref(image.id),
           contentType: image.contentType,
@@ -391,9 +426,21 @@ export const saveProductDraft = Effect.fn("Catalog.saveProductDraft")(function* 
     updatedBySub: actorSub,
     updatedAt: now,
   };
+  /**
+   * NAMED MEANS WRITTEN, OMITTED MEANS UNTOUCHED — including when the value is
+   * `null`, which is how a panel is removed. The editor sends only the fields
+   * its form owns (the copy form does not send markets, the market form does
+   * not send copy), so a patch that wrote every field would have each form
+   * blanking the other's on every save.
+   */
   if (input.title !== undefined) draftPatch.title = input.title;
   if (input.descriptionMarkdown !== undefined) {
     draftPatch.descriptionMarkdown = input.descriptionMarkdown;
+  }
+  if (input.detailsMarkdown !== undefined) draftPatch.detailsMarkdown = input.detailsMarkdown;
+  if (input.sizeGuideAlt !== undefined) draftPatch.sizeGuideAlt = input.sizeGuideAlt;
+  if (input.sizeGuideNotesMarkdown !== undefined) {
+    draftPatch.sizeGuideNotesMarkdown = input.sizeGuideNotesMarkdown;
   }
 
   const statements: DbStatement[] = [
@@ -488,6 +535,18 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
         revision: productDraft.revision,
         title: productDraft.title,
         descriptionMarkdown: productDraft.descriptionMarkdown,
+        /**
+         * FROZEN WITH THE TITLE, for the same reason the title is: the panels
+         * a buyer read are part of what they bought, and a later draft edit
+         * must not rewrite them. The size-guide ASSET is referenced rather than
+         * copied — one row of bytes shared by every release that names it —
+         * which is what `product_release.size_guide_image_id`'s `restrict`
+         * foreign key exists to protect.
+         */
+        detailsMarkdown: productDraft.detailsMarkdown,
+        sizeGuideAssetId: productDraft.sizeGuideAssetId,
+        sizeGuideAlt: productDraft.sizeGuideAlt,
+        sizeGuideNotesMarkdown: productDraft.sizeGuideNotesMarkdown,
       })
       .from(product)
       .innerJoin(productDraft, eq(productDraft.productId, product.id))
@@ -532,14 +591,14 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
   const images = yield* query(() =>
     db
       .select({
-        id: productImage.id,
+        id: productImage.assetId,
         alt: productImage.alt,
-        role: productImage.role,
         position: productImage.position,
       })
       .from(productImage)
-      .where(eq(productImage.productId, input.productId))
-      .orderBy(asc(productImage.position)),
+      .innerJoin(productAsset, eq(productAsset.id, productImage.assetId))
+      .where(eq(productAsset.productId, input.productId))
+      .orderBy(asc(productImage.position), asc(productImage.assetId)),
   );
   if (images.length === 0) return { failure: err("missing_media") };
 
@@ -604,6 +663,10 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
         slug: row.slug,
         title: row.title,
         descriptionMarkdown: row.descriptionMarkdown,
+        detailsMarkdown: row.detailsMarkdown,
+        sizeGuideAssetId: row.sizeGuideAssetId,
+        sizeGuideAlt: row.sizeGuideAlt,
+        sizeGuideNotesMarkdown: row.sizeGuideNotesMarkdown,
         publishedBySub: actorSub,
         publishedAt: now,
       }) as unknown as DbStatement,
@@ -620,14 +683,20 @@ export const publishProduct = Effect.fn("Catalog.publishProduct")(function* (
             active: entry.active,
           }) as unknown as DbStatement,
       ),
+      /**
+       * MEMBERSHIP, ORDER AND ALT — and the positions are RENUMBERED from the
+       * read's order rather than copied. The draft's positions may have gaps or
+       * ties (nothing forbids either, see `Schema.ts`); a release's must be the
+       * dense 0..n-1 sequence the storefront indexes the filmstrip by, so
+       * `01` in the strip is the same image forever.
+       */
       ...images.map(
-        (image) =>
+        (image, index) =>
           db.insert(productReleaseImage).values({
             releaseId,
             imageId: image.id,
             alt: image.alt,
-            role: image.role,
-            position: image.position,
+            position: index,
           }) as unknown as DbStatement,
       ),
       db
@@ -1025,11 +1094,22 @@ export const adjustStock = Effect.fn("Catalog.adjustStock")(function* (
 });
 
 /**
- * Reorder a product's media.
+ * Reorder a product's media — WHICH IS THE ONLY PRESENTATION DECISION THERE IS.
+ *
+ * Position zero becomes the listing cover and the shot a product page opens on;
+ * everything after it is the filmstrip, in this order. There is no second
+ * control to keep in step, because there is no role.
  *
  * The supplied list must be the EXACT set of the product's media ids — same
  * members, no duplicates. A partial list would silently leave the omitted
  * images at stale positions, which reads as data loss to an operator.
+ *
+ * WRITES 0..n-1 IN ONE BATCH, WHICH IS WHY `(product_id, position)` IS NOT
+ * UNIQUE. SQLite enforces a unique index after each statement rather than at
+ * commit, so a plain swap collides on the intermediate state and aborts the
+ * whole batch — the constraint would break the ordinary gesture. See the index
+ * comment in `Schema.ts`; the deterministic `(position, id)` tiebreak on every
+ * read is what makes a transient duplicate harmless rather than merely rare.
  */
 export const reorderProductMedia = Effect.fn("Catalog.reorderProductMedia")(function* (
   db: ClassicDb,
@@ -1038,9 +1118,10 @@ export const reorderProductMedia = Effect.fn("Catalog.reorderProductMedia")(func
 ): Effect.fn.Return<CoreOutcome<{ ok: true }, "not_found" | "invalid_order">> {
   const images = yield* query(() =>
     db
-      .select({ id: productImage.id })
+      .select({ id: productImage.assetId })
       .from(productImage)
-      .where(eq(productImage.productId, input.productId)),
+      .innerJoin(productAsset, eq(productAsset.id, productImage.assetId))
+      .where(eq(productAsset.productId, input.productId)),
   );
   if (images.length === 0) return { failure: err("not_found") };
 
@@ -1061,7 +1142,7 @@ export const reorderProductMedia = Effect.fn("Catalog.reorderProductMedia")(func
           db
             .update(productImage)
             .set({ position: index })
-            .where(eq(productImage.id, id)) as unknown as DbStatement,
+            .where(eq(productImage.assetId, id)) as unknown as DbStatement,
       ),
       db
         .update(product)

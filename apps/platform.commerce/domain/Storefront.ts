@@ -19,12 +19,7 @@ import { and, asc, eq } from "drizzle-orm";
 import * as Effect from "effect/Effect";
 
 import { query, type ClassicDb } from "../services/Database.ts";
-import {
-  mediaHref,
-  type ProductCardDTO,
-  type ProductMediaRole,
-  type StorefrontProductDTO,
-} from "./Contracts.ts";
+import { mediaHref, type ProductCardDTO, type StorefrontProductDTO } from "./Contracts.ts";
 import { isAvailable } from "../core/availability.ts";
 import { MARKETS, type MarketCode } from "../core/markets.ts";
 import { sortBySize } from "../core/money.ts";
@@ -93,25 +88,28 @@ export const listActiveProducts = Effect.fn("Storefront.listActiveProducts")(fun
       .select({
         releaseId: productReleaseImage.releaseId,
         imageId: productReleaseImage.imageId,
-        role: productReleaseImage.role,
         position: productReleaseImage.position,
       })
       .from(productReleaseImage)
       .innerJoin(product, eq(product.activeReleaseId, productReleaseImage.releaseId))
       .where(eq(product.status, "active"))
-      .orderBy(asc(productReleaseImage.position)),
+      .orderBy(asc(productReleaseImage.position), asc(productReleaseImage.imageId)),
   );
 
   /**
-   * The cover is the first image with role `cover`, falling back to the
-   * lowest-positioned image. A product whose operator never marked a cover
-   * still shows something rather than a blank card.
+   * THE COVER IS POSITION ZERO. Not "the image marked cover, falling back to
+   * the lowest position" — that rule had two sources of truth for one question,
+   * and they could disagree: an operator who dragged a new photograph to the
+   * front still saw the old one on the listing, because the old one still wore
+   * the label. The order an operator arranged IS the answer, and the first row
+   * of an ordered scan is it.
+   *
+   * `(position, imageId)` so a tie resolves the same way on every read — the
+   * position index is not unique, by design.
    */
   const coverByRelease = new Map<string, string>();
   for (const image of covers) {
-    const existing = coverByRelease.get(image.releaseId);
-    if (!existing) coverByRelease.set(image.releaseId, image.imageId);
-    else if (image.role === "cover") coverByRelease.set(image.releaseId, image.imageId);
+    if (!coverByRelease.has(image.releaseId)) coverByRelease.set(image.releaseId, image.imageId);
   }
 
   return rows.map(
@@ -147,6 +145,15 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
         slug: productRelease.slug,
         title: productRelease.title,
         descriptionMarkdown: productRelease.descriptionMarkdown,
+        /**
+         * The two optional panels, read from the RELEASE like everything else
+         * on this page. A null here is the whole reason the storefront renders
+         * no accordion rather than an empty one.
+         */
+        detailsMarkdown: productRelease.detailsMarkdown,
+        sizeGuideAssetId: productRelease.sizeGuideAssetId,
+        sizeGuideAlt: productRelease.sizeGuideAlt,
+        sizeGuideNotesMarkdown: productRelease.sizeGuideNotesMarkdown,
         priceCents: releaseMarket.priceCents,
         version: productRelease.version,
         /** The run, because `available` below is a claim about BOTH counters. */
@@ -171,16 +178,22 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
   const row = rows[0];
   if (!row) return null;
 
+  /**
+   * ORDER IS THE ONLY THING THAT DECIDES PRESENTATION, so this scan IS the
+   * gallery: index 0 is what the page opens on, and the filmstrip numbers the
+   * rest `01`, `02`, `03` from there. No role travels, because there is none —
+   * the storefront receives a list and renders it in order rather than
+   * branching on labels at render time.
+   */
   const media = yield* query(() =>
     db
       .select({
         imageId: productReleaseImage.imageId,
         alt: productReleaseImage.alt,
-        role: productReleaseImage.role,
       })
       .from(productReleaseImage)
       .where(eq(productReleaseImage.releaseId, row.releaseId))
-      .orderBy(asc(productReleaseImage.position)),
+      .orderBy(asc(productReleaseImage.position), asc(productReleaseImage.imageId)),
   );
 
   /**
@@ -205,13 +218,31 @@ export const getActiveProductBySlug = Effect.fn("Storefront.getActiveProductBySl
     slug: row.slug,
     title: row.title,
     descriptionMarkdown: row.descriptionMarkdown,
+    detailsMarkdown: row.detailsMarkdown,
+    /**
+     * WHOLE OR ABSENT. The asset reference is what decides — alt text and fit
+     * comments with no chart to caption are not a `Size & fit` panel, they are
+     * leftovers from one, and rendering an accordion for them would put an
+     * empty drawer on a live product page.
+     *
+     * The alt falls back to a plain description of what the plate IS rather
+     * than to an empty string: a missing alt on a chart carrying every
+     * measurement a shopper needs is the one place this page cannot be silent.
+     */
+    sizeGuide:
+      row.sizeGuideAssetId === null
+        ? null
+        : {
+            href: mediaHref(row.sizeGuideAssetId),
+            alt: row.sizeGuideAlt ?? `Measurement chart for ${row.title}`,
+            notesMarkdown: row.sizeGuideNotesMarkdown,
+          },
     priceCents: row.priceCents,
     currency: MARKETS[market].currency,
     version: row.version,
     media: media.map((image) => ({
       href: mediaHref(image.imageId),
       alt: image.alt,
-      role: image.role as ProductMediaRole,
     })),
     variants: sortBySize(variants).map((variant) => ({
       id: variant.id,

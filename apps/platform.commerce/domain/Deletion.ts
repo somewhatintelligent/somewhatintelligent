@@ -48,6 +48,7 @@ import {
   deletionIntent,
   orderItem,
   product,
+  productAsset,
   productDraft,
   productImage,
   productRelease,
@@ -239,27 +240,36 @@ const deriveProductImpact = Effect.fn("Deletion.deriveProductImpact")(function* 
   const owner = products[0];
   if (!owner) return null;
 
-  const [releases, variants, images] = [
-    yield* query(() =>
-      db
-        .select({ total: count() })
-        .from(productRelease)
-        .where(eq(productRelease.productId, subject.productId)),
-    ),
-    yield* query(() =>
-      db
-        .select({ total: count() })
-        .from(productVariant)
-        .where(eq(productVariant.productId, subject.productId)),
-    ),
-    yield* query(() =>
-      db
-        .select({ id: productImage.id, storageKey: productImage.storageKey })
-        .from(productImage)
-        .where(eq(productImage.productId, subject.productId)),
-    ),
-  ];
-
+  /**
+   * FOUR SEQUENTIAL READS, and spelled as such. An array literal of `yield*`
+   * reads as though the queries run together; a generator evaluates its
+   * elements in order, so it never did. Naming them one per line stops the
+   * shape from claiming a concurrency it does not have.
+   */
+  const releases = yield* query(() =>
+    db
+      .select({ total: count() })
+      .from(productRelease)
+      .where(eq(productRelease.productId, subject.productId)),
+  );
+  const variants = yield* query(() =>
+    db
+      .select({ total: count() })
+      .from(productVariant)
+      .where(eq(productVariant.productId, subject.productId)),
+  );
+  /**
+   * ONE SWEEP FOR EVERY BYTE THIS PRODUCT OWNS — photographs and the size-guide
+   * plate alike, because they are one table. This used to be two queries and
+   * two key lists that both had to be remembered; forgetting the second orphaned
+   * R2 objects, which is a leak you only notice on the storage bill.
+   */
+  const assets = yield* query(() =>
+    db
+      .select({ id: productAsset.id, storageKey: productAsset.storageKey })
+      .from(productAsset)
+      .where(eq(productAsset.productId, subject.productId)),
+  );
   const retainedOrders = yield* ordersReferencingProduct(db, subject.productId);
 
   const warnings: string[] = ["The product, its draft, releases, variants and media all go."];
@@ -280,12 +290,12 @@ const deriveProductImpact = Effect.fn("Deletion.deriveProductImpact")(function* 
       product_draft: 1,
       product_release: releases[0]?.total ?? 0,
       product_variant: variants[0]?.total ?? 0,
-      product_image: images.length,
+      product_asset: assets.length,
     },
     retainedCounts: { customer_order: retainedOrders },
     warnings,
   };
-  return { impact, storageKeys: images.map((image) => image.storageKey) };
+  return { impact, storageKeys: assets.map((asset) => asset.storageKey) };
 });
 
 const deriveVariantImpact = Effect.fn("Deletion.deriveVariantImpact")(function* (
@@ -332,13 +342,17 @@ const deriveMediaImpact = Effect.fn("Deletion.deriveMediaImpact")(function* (
   const images = yield* query(() =>
     db
       .select({
-        id: productImage.id,
+        id: productImage.assetId,
         alt: productImage.alt,
-        storageKey: productImage.storageKey,
+        storageKey: productAsset.storageKey,
       })
       .from(productImage)
+      .innerJoin(productAsset, eq(productAsset.id, productImage.assetId))
       .where(
-        and(eq(productImage.id, subject.mediaId), eq(productImage.productId, subject.productId)),
+        and(
+          eq(productImage.assetId, subject.mediaId),
+          eq(productAsset.productId, subject.productId),
+        ),
       )
       .limit(1),
   );
@@ -356,7 +370,8 @@ const deriveMediaImpact = Effect.fn("Deletion.deriveMediaImpact")(function* (
     db
       .select({ total: count() })
       .from(productImage)
-      .where(eq(productImage.productId, subject.productId)),
+      .innerJoin(productAsset, eq(productAsset.id, productImage.assetId))
+      .where(eq(productAsset.productId, subject.productId)),
   );
   const lastImage = (remaining[0]?.total ?? 0) <= 1;
 
@@ -375,7 +390,7 @@ const deriveMediaImpact = Effect.fn("Deletion.deriveMediaImpact")(function* (
     targetId: subject.mediaId,
     label: image.alt || subject.mediaId,
     activeReleaseAffected: (frozen[0]?.total ?? 0) > 0,
-    deleteCounts: { product_image: 1, product_release_image: frozen[0]?.total ?? 0 },
+    deleteCounts: { product_asset: 1, product_release_image: frozen[0]?.total ?? 0 },
     retainedCounts: {},
     warnings,
   };
@@ -628,6 +643,17 @@ export const deleteProductRelease = Effect.fn("Deletion.deleteProductRelease")(f
   const { productId, releaseId, replacementReleaseId } = resolved.subject;
 
   /**
+   * NO SIZE-GUIDE STATEMENT HERE, and the omission is deliberate rather than
+   * missed. Deleting a release drops its REFERENCE to a plate; the plate row
+   * and its bytes stay, because the draft or another release may still name
+   * them, and the one thing this schema will not do is let a chart vanish out
+   * of published content. When neither does, what is left behind is one small
+   * row and one R2 object nothing can reach — the same benign leak the rest of
+   * this path accepts, and strictly the safer side of the trade. A product
+   * delete does collect them: see `deriveProductImpact`.
+   */
+
+  /**
    * If the deleted release was live, the product either moves to the
    * replacement or is pulled from sale. It is NEVER left pointing at a deleted
    * release — `unavailable` is the honest state for a product with no live
@@ -726,9 +752,18 @@ export const deleteProduct = Effect.fn("Deletion.deleteProduct")(function* (
       db
         .delete(productRelease)
         .where(eq(productRelease.productId, productId)) as unknown as DbStatement,
+      /**
+       * ONE STATEMENT FOR EVERY BYTE, and it must come AFTER the releases.
+       * `product_release.size_guide_asset_id` is `RESTRICT` — its whole job is
+       * refusing to let a plate vanish out of published content — so an asset
+       * deleted while any release still named it would abort this batch on a
+       * constraint violation and surface as a 500. The releases are gone by the
+       * time this runs, so nothing names it. `product_image` cascades from
+       * here, which is why it needs no statement of its own.
+       */
       db
-        .delete(productImage)
-        .where(eq(productImage.productId, productId)) as unknown as DbStatement,
+        .delete(productAsset)
+        .where(eq(productAsset.productId, productId)) as unknown as DbStatement,
       db
         .delete(productVariant)
         .where(eq(productVariant.productId, productId)) as unknown as DbStatement,
@@ -825,9 +860,10 @@ export const deleteProductMedia = Effect.fn("Deletion.deleteProductMedia")(funct
       db
         .delete(productReleaseImage)
         .where(eq(productReleaseImage.imageId, resolved.subject.mediaId)) as unknown as DbStatement,
+      /** The asset IS the image; its `product_image` row cascades away with it. */
       db
-        .delete(productImage)
-        .where(eq(productImage.id, resolved.subject.mediaId)) as unknown as DbStatement,
+        .delete(productAsset)
+        .where(eq(productAsset.id, resolved.subject.mediaId)) as unknown as DbStatement,
       db
         .update(product)
         .set({ updatedAt: now })

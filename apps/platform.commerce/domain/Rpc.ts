@@ -25,20 +25,6 @@ import { Rpc, RpcGroup } from "effect/unstable/rpc";
 
 export const ProductStatus = Schema.Literals(["draft", "active", "unavailable", "archived"]);
 
-/**
- * All three roles are PUBLIC, and that is the policy rather than an oversight.
- *
- * `evidence` is a display role — condition, provenance, authenticity — so it is
- * copied into a release and served to anonymous shoppers exactly like `gallery`.
- * Recorded here because the premise was previously unwritten anywhere in the
- * tree, which is enough for a reader to conclude the opposite and file it as a
- * leak of internal QA photography.
- *
- * The role travels all the way to the client on purpose: the storefront is
- * expected to branch on it at render time, not to receive a pre-filtered list.
- */
-export const MediaRole = Schema.Literals(["cover", "gallery", "evidence"]);
-
 export const OrderStatus = Schema.Literals([
   "pending",
   "paid",
@@ -59,7 +45,22 @@ export const ProductDraft = Schema.Struct({
   slug: Schema.String,
   revision: Schema.Number,
   title: Schema.String,
+  /** Always visible on the product page, directly under the title. */
   descriptionMarkdown: Schema.NullOr(Schema.String),
+  /** The optional `Product details` panel. `null` means there is no panel. */
+  detailsMarkdown: Schema.NullOr(Schema.String),
+  /**
+   * THE SIZE-GUIDE PLATE, flat rather than nested, because these four columns
+   * are what an operator edits and any of them can be set while the others are
+   * not. The RULE that binds them is one line and lives in the renderer: no
+   * `sizeGuideAssetId`, no `Size & fit` accordion — alt text and fit comments
+   * with nothing to caption are not a panel.
+   */
+  sizeGuideAssetId: Schema.NullOr(Schema.String),
+  /** Derived from the id — the console renders the plate before publishing. */
+  sizeGuideHref: Schema.NullOr(Schema.String),
+  sizeGuideAlt: Schema.NullOr(Schema.String),
+  sizeGuideNotesMarkdown: Schema.NullOr(Schema.String),
   status: ProductStatus,
   activeVersion: Schema.NullOr(Schema.String),
   updatedAt: Schema.Number,
@@ -95,11 +96,16 @@ export const ProductVariant = Schema.Struct({
   available: Schema.Boolean,
 });
 
+/**
+ * One product photograph. `position` is the ONLY presentation field — zero is
+ * the listing cover and the shot the page opens on, the rest follow it in a
+ * numbered filmstrip. There is no role, and adding one back would restore the
+ * two-sources-of-truth problem `Schema.ts` describes.
+ */
 export const ProductMedia = Schema.Struct({
   id: Schema.String,
   productId: Schema.String,
   alt: Schema.String,
-  role: MediaRole,
   position: Schema.Number,
   href: Schema.String,
   contentType: Schema.String,
@@ -301,9 +307,13 @@ export class PreorderRefused extends Schema.TaggedErrorClass<PreorderRefused>()(
 
 export class MediaRefused extends Schema.TaggedErrorClass<MediaRefused>()("MediaRefused", {
   reason: Schema.Literals([
+    /**
+     * Outside the display allowlist — the same one for every image this store
+     * holds, photography and size guides alike. The only thing refused is a
+     * format a browser will not render.
+     */
     "unsupported_type",
     "invalid_size",
-    "invalid_role",
     "storage_unavailable",
     "invalid_order",
   ]),
@@ -397,7 +407,7 @@ const call = <F extends Schema.Struct.Fields>(fields: F) => ({
 });
 
 /**
- * Twenty-seven procedures. Reads take no `commandId` — they have nothing to
+ * Twenty-nine procedures. Reads take no `commandId` — they have nothing to
  * replay — which is itself part of the contract rather than a convention.
  */
 export class OperatorRpcs extends RpcGroup.make(
@@ -433,6 +443,16 @@ export class OperatorRpcs extends RpcGroup.make(
       expectedRevision: Schema.Int,
       title: Schema.optional(Schema.String),
       descriptionMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
+      /**
+       * The `Product details` panel's copy. `null` REMOVES the panel; omitting
+       * the field leaves it alone. That distinction is the whole reason these
+       * are `optional(NullOr(...))` rather than `optional(String)` — an editor
+       * clearing a textarea and an editor not touching it are different edits.
+       */
+      detailsMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
+      /** The plate's alt text and fit comments. The ASSET moves through its own call. */
+      sizeGuideAlt: Schema.optional(Schema.NullOr(Schema.String)),
+      sizeGuideNotesMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
       slug: Schema.optional(Schema.String),
       /**
        * Upserted per (product, market) under the same revision guard as the
@@ -531,6 +551,7 @@ export class OperatorRpcs extends RpcGroup.make(
   }),
 
   // Media
+  /** APPENDED at the end of the order. `reorderProductMedia` is the only mover. */
   Rpc.make("ingestProductMedia", {
     payload: call({
       productId: Schema.String,
@@ -538,18 +559,8 @@ export class OperatorRpcs extends RpcGroup.make(
       bytesBase64: Schema.String,
       contentType: Schema.String,
       alt: Schema.String,
-      role: MediaRole,
     }),
     success: ProductMedia,
-    error: Schema.Union([NotFound, MediaRefused]),
-  }),
-  Rpc.make("setProductMediaRole", {
-    payload: call({
-      productId: Schema.String,
-      mediaId: Schema.String,
-      role: MediaRole,
-    }),
-    success: Schema.Struct({ mediaId: Schema.String, role: MediaRole }),
     error: Schema.Union([NotFound, MediaRefused]),
   }),
 
@@ -557,6 +568,43 @@ export class OperatorRpcs extends RpcGroup.make(
     payload: call({ productId: Schema.String, mediaIds: Schema.Array(Schema.String) }),
     success: Schema.Struct({ ok: Schema.Boolean }),
     error: Schema.Union([NotFound, MediaRefused]),
+  }),
+
+  /**
+   * THE SIZE-GUIDE PLATE — upload or replace, one per product.
+   *
+   * Its own pair of calls rather than a flag on `ingestProductMedia`, because
+   * it is not a photograph of the object: it never joins the ordered set, is
+   * never the cover, and is served only behind `Size & fit`. It also carries no
+   * `position` to append at and no alt of its own — the alt and the fit
+   * comments are draft copy that `publishProduct` freezes, and move through
+   * `saveProductDraft`.
+   */
+  Rpc.make("putProductSizeGuide", {
+    payload: call({
+      productId: Schema.String,
+      /** Base64, like product media, and the same display allowlist. */
+      bytesBase64: Schema.String,
+      contentType: Schema.String,
+    }),
+    success: Schema.Struct({ sizeGuideAssetId: Schema.String, href: Schema.String }),
+    error: Schema.Union([NotFound, MediaRefused]),
+  }),
+
+  /**
+   * Take the plate off the DRAFT. The asset row and its bytes go too — UNLESS a
+   * published release still names them, in which case they are RETAINED and
+   * `retainedForReleases` says how many. A chart must never disappear out of
+   * what a buyer was shown, so the alternative to retaining is refusing, and
+   * refusing would leave an operator unable to edit their own draft.
+   */
+  Rpc.make("removeProductSizeGuide", {
+    payload: call({ productId: Schema.String }),
+    success: Schema.Struct({
+      removed: Schema.Boolean,
+      retainedForReleases: Schema.Number,
+    }),
+    error: NotFound,
   }),
 
   // Orders

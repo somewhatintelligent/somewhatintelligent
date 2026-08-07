@@ -299,7 +299,6 @@ test(
           bytesBase64: PIXEL_PNG,
           contentType: "image/png",
           alt: "cover",
-          role: "cover",
         });
         const variant = yield* client.putVariant({
           commandId: cmd("variant"),
@@ -402,7 +401,6 @@ test(
           bytesBase64: PIXEL_PNG,
           contentType: "image/png",
           alt: "cover",
-          role: "cover",
         });
         const variant = yield* client.putVariant({
           commandId: cmd("variant"),
@@ -498,7 +496,6 @@ test(
           bytesBase64: PIXEL_PNG,
           contentType: "image/png",
           alt: "cover",
-          role: "cover",
         });
         const variant = yield* client.putVariant({
           commandId: cmd("variant"),
@@ -602,7 +599,6 @@ test(
           bytesBase64: PIXEL_PNG,
           contentType: "image/png",
           alt: "cover",
-          role: "cover",
         });
         const variant = yield* client.putVariant({
           commandId: cmd("variant"),
@@ -696,7 +692,6 @@ test(
           bytesBase64: PIXEL_PNG,
           contentType: "image/png",
           alt: "cover",
-          role: "cover",
         });
         const variant = yield* client.putVariant({
           commandId: cmd("variant"),

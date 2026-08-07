@@ -104,17 +104,24 @@ export type ProductStatus = typeof Rpc.ProductStatus.Type;
 export type ProductDraftDTO = typeof Rpc.ProductDraft.Type;
 export type MarketPriceDTO = typeof Rpc.MarketPrice.Type;
 export type ProductVariantDTO = typeof Rpc.ProductVariant.Type;
-export type ProductMediaRole = typeof Rpc.MediaRole.Type;
 export type ProductMediaDTO = typeof Rpc.ProductMedia.Type;
 
 export type MediaMutationError =
   | "not_found"
   | "unsupported_type"
   | "invalid_size"
-  | "invalid_role"
   | "storage_unavailable";
 
-/** The public path a media id is served under. One spelling, used everywhere. */
+/**
+ * The public path a media id is served under. One spelling, used everywhere.
+ *
+ * SIZE-GUIDE PLATES SHARE IT. They are a different table with a different
+ * lifecycle, but they are still bytes behind an opaque id served by the same
+ * worker under the same immutable cache policy — `Media.openMedia` resolves an
+ * id against both. A second address shape would buy nothing and would have to
+ * be threaded through the site's `/media/[id]` route and the console's proxy
+ * twice.
+ */
 export const mediaHref = (mediaId: string): string => `/media/${mediaId}`;
 
 // ── Order DTOs ───────────────────────────────────────────────────────────────
@@ -177,6 +184,14 @@ export interface SaveProductDraftInput {
   expectedRevision: number;
   title?: string;
   descriptionMarkdown?: string | null;
+  /**
+   * The optional panels' copy. `null` removes a panel; OMITTING the field
+   * leaves it untouched — a distinction every caller depends on, because the
+   * editor saves the copy fields and the market fields through the same call.
+   */
+  detailsMarkdown?: string | null;
+  sizeGuideAlt?: string | null;
+  sizeGuideNotesMarkdown?: string | null;
   slug?: string;
   /**
    * Per-market price and switch, upserted under the same revision guard as
@@ -264,7 +279,17 @@ export interface IngestProductMediaInput {
   bytes: ArrayBuffer;
   contentType: string;
   alt: string;
-  role: ProductMediaRole;
+}
+
+/**
+ * The size-guide plate's BYTES. Alt text and fit comments are draft copy and
+ * travel through {@link SaveProductDraftInput}, because they are what a release
+ * freezes — the asset is shared between releases, the words are not.
+ */
+export interface PutProductSizeGuideInput {
+  productId: string;
+  bytes: ArrayBuffer;
+  contentType: string;
 }
 
 // ── Storefront DTOs ──────────────────────────────────────────────────────────
