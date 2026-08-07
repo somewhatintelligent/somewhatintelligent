@@ -174,8 +174,60 @@ a:focus-visible {
   transform: translateX(-50%);
 }
 
-.site-footer nav {
+/*
+ * TWO NAVS NOW, so neither is addressed as `.site-footer nav` any more — the
+ * bare element selector would have given the social links the legal rail's
+ * `margin-left: auto` and pushed both groups to the right edge, on top of each
+ * other. A class each, and the `auto` margin belongs only to the one that is
+ * meant to be pushed.
+ */
+.site-social,
+.site-legal {
   display: flex;
+}
+
+/*
+ * MARKS, so this rail is measured in icons rather than words: a tighter gap
+ * than the legal links, and a hit area larger than the 15px glyph. The negative
+ * margin keeps that padding from pushing the marks off the footer's own 26px
+ * left edge — the icon stays optically aligned with the copy above it while the
+ * tappable box extends past it.
+ */
+.site-social {
+  gap: 4px;
+  margin-left: -8px;
+}
+
+.site-social a {
+  display: flex;
+  padding: 8px;
+  color: inherit;
+  opacity: 0.72;
+}
+
+.site-social svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+.site-social a:hover,
+.site-social a:focus-visible {
+  opacity: 1;
+}
+
+.site-social a:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .site-social a {
+    transition: opacity 160ms ease;
+  }
+}
+
+.site-legal {
   gap: 34px;
   margin-left: auto;
 }
@@ -238,8 +290,16 @@ a:focus-visible {
     min-height: 54px;
   }
 
+  /*
+   * THE SOCIAL LINKS SURVIVE DOWN HERE and the legal rail does not. There is
+   * room for one thing in a 54px bar, and of the three the elsewhere-links are
+   * the only ones a phone visitor is plausibly reaching for — shipping and
+   * refunds are reachable from any page that raises them, and the copyright
+   * line is not information. This rule used to hide every `nav` in the footer,
+   * which would have taken the social links with it.
+   */
   .site-footer > span:nth-child(2),
-  .site-footer nav {
+  .site-legal {
     display: none;
   }
 }
