@@ -5,7 +5,12 @@
 import SiteFooter from "../SiteFooter.astro";
 import SiteHeader from "../SiteHeader.astro";
 import type { HomeDocument } from "../../lib/home-document.ts";
-import heroImage from "../../assets/01-friend-elevator-incident.png";
+// THE FILENAME IS THE PROVENANCE, kept verbatim from the product-image concept
+// set it was generated in — the same rule the other two assets here follow,
+// which carry their `brand-study/reference-images/` names unchanged. A file
+// renamed on the way in is a file nobody can trace back to the note explaining
+// what it is or why it was chosen.
+import heroImage from "../../assets/01-virginia-data-center-alley-size-s-4x3.png";
 
 interface Props {
   document: HomeDocument;
@@ -46,7 +51,10 @@ const records = [
         <p class="publishing-scope">{doc.tagline}</p>
       </div>
       <figure class="hero-image">
-        <img src={heroImage.src} alt="Friend 001 garment photographed in an elevator" />
+        <img
+          src={heroImage.src}
+          alt="Friend 001 worn beside a red car at the edge of a data centre, with an open laptop carrying the somewhatintelligent wordmark"
+        />
       </figure>
     </section>
 
