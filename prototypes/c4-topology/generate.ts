@@ -194,6 +194,7 @@ const codegraphPath = path.join(dir, "codegraph.json");
 const codegraph = fs.existsSync(codegraphPath)
   ? (JSON.parse(fs.readFileSync(codegraphPath, "utf8")) as {
       generator?: string;
+      deadCodeSource?: string;
       files: CgFile[];
       edges: [number, number, number][];
       zones: { name: string; files: number }[];
@@ -217,6 +218,7 @@ interface CodeContainer {
 
 const code: {
   generator: string;
+  deadCodeSource?: string;
   files: CgFile[];
   edges: [number, number, number][];
   containers: Record<string, CodeContainer>;
@@ -231,6 +233,7 @@ const code: {
 
 if (codegraph) {
   if (codegraph.generator) code.generator = codegraph.generator;
+  if (codegraph.deadCodeSource) code.deadCodeSource = codegraph.deadCodeSource;
   const cgFiles = codegraph.files;
   const byPath = new Map(cgFiles.map((f, i) => [f.path, i]));
   const outEdges = new Map<number, number[]>();
@@ -381,7 +384,8 @@ const viewmodel = {
 const css = fs.readFileSync(path.join(dir, "viewer.css"), "utf8");
 const js = fs.readFileSync(path.join(dir, "viewer.js"), "utf8");
 
-const html = `<title>somewhatintelligent — C4 topology</title>
+const html = `<meta charset="utf-8" />
+<title>somewhatintelligent — C4 topology</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
 ${css}

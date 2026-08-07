@@ -17,6 +17,7 @@
  * Cognitive complexity is a nesting-weighted approximation of fallow's
  * (sonar-style) metric — close, not identical.
  */
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseSync } from "oxc-parser";
@@ -612,6 +613,67 @@ const violations = [...edgeMap.values()]
     specifier: e.specifier,
   }));
 
+// ── enrichment: fallow's checker-grade dead-code analysis ──────────────────
+//
+// The import graph above is ours and exact. Unused exports are NOT a graph
+// question — proving an export unused means resolving re-export chains through
+// barrels and seeing type-position uses, which needs a type checker. fallow
+// has one; we don't. So we ask it, and fall back to our syntactic candidates
+// (labelled as such in the UI) when it isn't available.
+
+interface DeadCode {
+  unusedExports: Map<string, string[]>;
+  unusedFiles: Set<string>;
+  authoritative: boolean;
+}
+
+const askFallow = (): DeadCode => {
+  const empty: DeadCode = {
+    unusedExports: new Map(),
+    unusedFiles: new Set(),
+    authoritative: false,
+  };
+  let raw: string | undefined;
+  try {
+    raw = execFileSync("bunx", ["fallow", "dead-code", "--format", "json", "-q"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch (error) {
+    // fallow exits non-zero when it finds issues — a successful run with
+    // findings on stdout, not a failure.
+    raw = (error as { stdout?: string }).stdout;
+  }
+  if (!raw) {
+    console.warn("! fallow dead-code unavailable — using syntactic unused-export candidates");
+    return empty;
+  }
+  let report: {
+    unused_exports?: { path: string; export_name: string }[];
+    unused_files?: { path: string }[];
+  };
+  try {
+    report = JSON.parse(raw);
+  } catch {
+    console.warn("! fallow dead-code output unparseable — using syntactic candidates");
+    return empty;
+  }
+  const unusedExports = new Map<string, string[]>();
+  for (const finding of report.unused_exports ?? []) {
+    if (!unusedExports.has(finding.path)) unusedExports.set(finding.path, []);
+    unusedExports.get(finding.path)!.push(finding.export_name);
+  }
+  return {
+    unusedExports,
+    unusedFiles: new Set((report.unused_files ?? []).map((f) => f.path)),
+    authoritative: true,
+  };
+};
+
+const deadCode = askFallow();
+
 // per-file rollup
 const importerCount = new Map<number, number>();
 const importCount = new Map<number, number>();
@@ -623,26 +685,30 @@ for (const e of edgeMap.values()) {
 const outFiles = paths.map((p, i) => {
   const f = parsed.get(p)!;
   const entry = isEntry(p);
-  // Value exports only: distinguishing a genuinely-unused TYPE from one used
-  // in type positions needs checker-grade reference tracking (fallow has it,
-  // this pass doesn't) — so types are excluded rather than over-claimed.
-  const unusedExports = namespaceConsumed.has(p)
-    ? []
-    : f.exports.filter((e) => !e.typeOnly && !consumed.has(`${p}#${e.name}`)).map((e) => e.name);
-  const orphan = !entry && (importerCount.get(i) ?? 0) === 0;
+  // Syntactic fallback only: value exports nothing imports by name. Types are
+  // excluded because their uses are invisible without a checker — better to
+  // under-report than to claim a live type is dead.
+  const candidates =
+    namespaceConsumed.has(p) || entry
+      ? []
+      : f.exports.filter((e) => !e.typeOnly && !consumed.has(`${p}#${e.name}`)).map((e) => e.name);
+  const unusedExports = deadCode.authoritative ? (deadCode.unusedExports.get(p) ?? []) : candidates;
+  const orphan = deadCode.authoritative
+    ? deadCode.unusedFiles.has(p)
+    : !entry && (importerCount.get(i) ?? 0) === 0;
   return {
     path: p,
     size: f.size,
-    status: entry
-      ? "entryPoint"
-      : orphan
-        ? "unused"
-        : unusedExports.length > 0
-          ? "hasUnusedExports"
+    status: orphan
+      ? "unused"
+      : unusedExports.length > 0
+        ? "hasUnusedExports"
+        : entry
+          ? "entryPoint"
           : "clean",
     export_count: f.exports.length,
-    unused_export_count: entry ? 0 : unusedExports.length,
-    unused_exports: entry ? [] : unusedExports,
+    unused_export_count: unusedExports.length,
+    unused_exports: unusedExports,
     is_entry: entry,
     importer_count: importerCount.get(i) ?? 0,
     import_count: importCount.get(i) ?? 0,
@@ -657,7 +723,10 @@ const outFiles = paths.map((p, i) => {
 
 const codegraph = {
   generatedAt: new Date().toISOString(),
-  generator: "oxgraph (oxc-parser + oxc-resolver, no fallow subprocess)",
+  generator: "oxgraph (oxc-parser + oxc-resolver)",
+  deadCodeSource: deadCode.authoritative
+    ? "fallow dead-code (checker-grade)"
+    : "syntactic candidates (fallow unavailable)",
   root: path.basename(repoRoot),
   summary: {
     total_files: outFiles.length,
@@ -676,5 +745,7 @@ const codegraph = {
 fs.writeFileSync(OUT, JSON.stringify(codegraph));
 console.log(
   `✓ oxgraph: ${outFiles.length} files, ${edgeMap.size} edges, ${cycles.length} cycles, ` +
-    `${violations.length} boundary violations → ${OUT}`,
+    `${violations.length} boundary violations, ` +
+    `${outFiles.reduce((n, f) => n + f.unused_export_count, 0)} unused exports ` +
+    `(${deadCode.authoritative ? "fallow-verified" : "syntactic"}) → ${OUT}`,
 );
