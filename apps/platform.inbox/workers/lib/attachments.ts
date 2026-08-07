@@ -2,10 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-/**
- * Shared attachment storage logic.
- * Eliminates the triplicated atob → Uint8Array → R2.put pattern.
- */
+/** Base64 attachments to R2, returning the metadata the DO stores. */
 import type { Env } from "../types";
 
 export interface StoredAttachment {

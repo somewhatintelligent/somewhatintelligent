@@ -13,7 +13,8 @@ import {
 } from "@phosphor-icons/react";
 import EmailAttachmentList from "~/components/EmailAttachmentList";
 import EmailIframe from "~/components/EmailIframe";
-import { formatDetailDate, formatShortDate, rewriteInlineImages, stripHtml } from "~/lib/utils";
+import { formatDetailDate, formatShortDate, rewriteInlineImages } from "~/lib/utils";
+import { stripHtmlToText } from "shared/html";
 import type { Email } from "~/types";
 
 interface ThreadMessageProps {
@@ -92,7 +93,7 @@ export default function ThreadMessage({
               </span>
             </div>
             <p className="text-xs text-kumo-subtle truncate">
-              {stripHtml(email.body || "").slice(0, 80)}
+              {stripHtmlToText(email.body || "").slice(0, 80)}
             </p>
           </div>
           <CaretDownIcon size={14} className="text-kumo-subtle shrink-0" />

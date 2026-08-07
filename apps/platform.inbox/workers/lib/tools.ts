@@ -3,15 +3,10 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 /**
- * Shared tool business logic for the Agent and MCP server.
+ * What the agent's and the MCP server's tools actually do.
  *
- * Each function takes an `env: Env` (or a DO stub) and tool-specific params,
- * performs the business logic (DO calls, data fetching, formatting), and
- * returns a plain object. The Agent and MCP server wrap these results in
- * their own response formats.
- *
- * Functions that already exist in email-helpers.ts (getFullEmail, getFullThread)
- * are reused directly — this module covers the remaining shared operations.
+ * Each takes an `Env` and tool-specific params and returns a plain object;
+ * the two callers wrap those in their own response formats.
  */
 
 import type { EmailFull } from "./schemas";
@@ -19,25 +14,22 @@ import {
   getMailboxStub,
   getFullEmail,
   getFullThread,
-  buildQuotedReplyBlock,
-  textToHtml,
   listMailboxes,
   generateMessageId,
   buildReferencesChain,
   buildThreadingHeaders,
 } from "./email-helpers";
+import { buildQuotedReplyBlock, textToHtml } from "../../shared/html";
 import { verifyDraft } from "./ai";
 import { sendEmail } from "../email-sender";
 import { Folders } from "../../shared/folders";
 import type { Env } from "../types";
+import type { MailboxDO } from "../durableObject";
+import type { Threading } from "./send";
 
 // ── Type casts for DO methods not on the base stub type ────────────
 type MailboxSearchStub = {
   searchEmails: (options: { query: string; folder?: string }) => Promise<unknown>;
-};
-
-type RateLimitStub = {
-  checkSendRateLimit: () => Promise<string | null>;
 };
 
 // ── list_mailboxes ─────────────────────────────────────────────────
@@ -376,141 +368,113 @@ export async function toolDeleteEmail(env: Env, mailboxId: string, emailId: stri
   return { status: "deleted", emailId };
 }
 
-// ── send_reply ─────────────────────────────────────────────────────
+// ── send_reply / send_email ────────────────────────────────────────
+
+type SendResult = { status: "sent"; messageId: string; message: string } | { error: string };
+type SendParams = { to: string; subject: string; bodyHtml: string };
+
+/**
+ * The agent's send, once. `send_reply` and `send_email` differ only in whether
+ * a thread is being answered — which decides the threading headers, the quoted
+ * block, and the noun in the two messages the caller sees.
+ *
+ * DELIVERY COMES BEFORE THE SENT COPY here, unlike the HTTP routes: the tools
+ * answer the model synchronously, so a send that fails must be reported as a
+ * failure rather than left as a SENT row nothing delivered.
+ */
+async function toolSend(
+  env: Env,
+  stub: DurableObjectStub<MailboxDO>,
+  mailboxId: string,
+  params: SendParams,
+  { threading, quote, noun }: { threading: Threading; quote: string; noun: string },
+): Promise<SendResult> {
+  const fromDomain = mailboxId.split("@")[1];
+  if (!fromDomain) throw new Error("Invalid mailbox email address");
+  const { messageId, outgoingMessageId } = generateMessageId(fromDomain);
+
+  const sanitizedBody = await verifyDraft(env.AI, params.bodyHtml);
+  if (!sanitizedBody) {
+    return {
+      error: "Draft verification failed — refusing to send unverified content. Please try again.",
+    };
+  }
+  const html = sanitizedBody + quote;
+  const { inReplyTo, references } = threading;
+
+  try {
+    await sendEmail(env.EMAIL, {
+      to: params.to,
+      from: mailboxId,
+      subject: params.subject,
+      html,
+      ...(inReplyTo ? { headers: buildThreadingHeaders(inReplyTo, references) } : {}),
+    });
+  } catch (e) {
+    console.error("Email send failed:", (e as Error).message);
+    return { error: `Failed to send ${noun}: ${(e as Error).message}` };
+  }
+
+  await stub.createEmail(
+    Folders.SENT,
+    {
+      id: messageId,
+      subject: params.subject,
+      sender: mailboxId.toLowerCase(),
+      recipient: params.to.toLowerCase(),
+      date: new Date().toISOString(),
+      body: html,
+      in_reply_to: inReplyTo,
+      email_references: references.length > 0 ? JSON.stringify(references) : null,
+      thread_id: threading.threadId ?? messageId,
+      message_id: outgoingMessageId,
+    },
+    [],
+  );
+
+  const sent = noun === "reply" ? "Reply" : "Email";
+  return { status: "sent", messageId, message: `${sent} sent to ${params.to}` };
+}
 
 export async function toolSendReply(
   env: Env,
   mailboxId: string,
-  params: {
-    originalEmailId: string;
-    to: string;
-    subject: string;
-    bodyHtml: string;
-  },
-): Promise<{ status: "sent"; messageId: string; message: string } | { error: string }> {
+  params: SendParams & { originalEmailId: string },
+): Promise<SendResult> {
   const stub = getMailboxStub(env, mailboxId);
 
-  // Check send rate limit
-  const rateLimitError = await (stub as unknown as RateLimitStub).checkSendRateLimit();
-  if (rateLimitError) {
-    return { error: rateLimitError };
-  }
+  const rateLimitError = await stub.checkSendRateLimit();
+  if (rateLimitError) return { error: rateLimitError };
 
-  const originalEmail = (await stub.getEmail(params.originalEmailId)) as EmailFull | null;
-  if (!originalEmail) {
-    return { error: "Original email not found" };
-  }
+  const original = (await stub.getEmail(params.originalEmailId)) as EmailFull | null;
+  if (!original) return { error: "Original email not found" };
 
-  const { originalMsgId, references, threadId } = buildReferencesChain(originalEmail);
-  const fromDomain = mailboxId.split("@")[1];
-  if (!fromDomain) throw new Error("Invalid mailbox email address");
-  const { messageId, outgoingMessageId } = generateMessageId(fromDomain);
+  const { originalMsgId, references, threadId } = buildReferencesChain(original);
 
-  // Verify and append quoted original message
-  const sanitizedBody = await verifyDraft(env.AI, params.bodyHtml);
-  if (!sanitizedBody) {
-    return {
-      error: "Draft verification failed — refusing to send unverified content. Please try again.",
-    };
-  }
-  const quotedBlock = buildQuotedReplyBlock({
-    date: originalEmail.date,
-    sender: originalEmail.sender || params.to,
-    body: originalEmail.body ?? undefined,
+  return toolSend(env, stub, mailboxId, params, {
+    threading: { inReplyTo: originalMsgId, references, threadId },
+    quote: buildQuotedReplyBlock({
+      date: original.date,
+      sender: original.sender || params.to,
+      body: original.body ?? undefined,
+    }),
+    noun: "reply",
   });
-  const fullBodyHtml = sanitizedBody + quotedBlock;
-
-  try {
-    await sendEmail(env.EMAIL, {
-      to: params.to,
-      from: mailboxId,
-      subject: params.subject,
-      html: fullBodyHtml,
-      headers: buildThreadingHeaders(originalMsgId, references),
-    });
-  } catch (e) {
-    console.error("Email send failed:", (e as Error).message);
-    return { error: `Failed to send reply: ${(e as Error).message}` };
-  }
-
-  await stub.createEmail(
-    Folders.SENT,
-    {
-      id: messageId,
-      subject: params.subject,
-      sender: mailboxId.toLowerCase(),
-      recipient: params.to.toLowerCase(),
-      date: new Date().toISOString(),
-      body: fullBodyHtml,
-      in_reply_to: originalMsgId,
-      email_references: references.length > 0 ? JSON.stringify(references) : null,
-      thread_id: threadId,
-      message_id: outgoingMessageId,
-    },
-    [],
-  );
-
-  return { status: "sent", messageId, message: `Reply sent to ${params.to}` };
 }
-
-// ── send_email ─────────────────────────────────────────────────────
 
 export async function toolSendEmail(
   env: Env,
   mailboxId: string,
-  params: {
-    to: string;
-    subject: string;
-    bodyHtml: string;
-  },
-): Promise<{ status: "sent"; messageId: string; message: string } | { error: string }> {
+  params: SendParams,
+): Promise<SendResult> {
   const stub = getMailboxStub(env, mailboxId);
 
-  // Check send rate limit
-  const rateLimitError = await (stub as unknown as RateLimitStub).checkSendRateLimit();
-  if (rateLimitError) {
-    return { error: rateLimitError };
-  }
+  const rateLimitError = await stub.checkSendRateLimit();
+  if (rateLimitError) return { error: rateLimitError };
 
-  const fromDomain = mailboxId.split("@")[1];
-  if (!fromDomain) throw new Error("Invalid mailbox email address");
-  const { messageId, outgoingMessageId } = generateMessageId(fromDomain);
-
-  const sanitizedBody = await verifyDraft(env.AI, params.bodyHtml);
-  if (!sanitizedBody) {
-    return {
-      error: "Draft verification failed — refusing to send unverified content. Please try again.",
-    };
-  }
-
-  try {
-    await sendEmail(env.EMAIL, {
-      to: params.to,
-      from: mailboxId,
-      subject: params.subject,
-      html: sanitizedBody,
-    });
-  } catch (e) {
-    console.error("Email send failed:", (e as Error).message);
-    return { error: `Failed to send email: ${(e as Error).message}` };
-  }
-
-  await stub.createEmail(
-    Folders.SENT,
-    {
-      id: messageId,
-      subject: params.subject,
-      sender: mailboxId.toLowerCase(),
-      recipient: params.to.toLowerCase(),
-      date: new Date().toISOString(),
-      body: sanitizedBody,
-      in_reply_to: null,
-      email_references: null,
-      thread_id: messageId,
-      message_id: outgoingMessageId,
-    },
-    [],
-  );
-
-  return { status: "sent", messageId, message: `Email sent to ${params.to}` };
+  return toolSend(env, stub, mailboxId, params, {
+    threading: { inReplyTo: null, references: [], threadId: null },
+    quote: "",
+    noun: "email",
+  });
 }

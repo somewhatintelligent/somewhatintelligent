@@ -43,6 +43,20 @@
     // and fallow would propose deleting the surface the integration suite runs
     // against. Same situation as `apps/platform.inbox/workers/app.ts` above.
     "apps/*/tests/alchemy.run.ts",
+    // The c4-topology prototype's four CLI steps, each run as
+    // `bun prototypes/c4-topology/<step>.ts` (see its README). Nothing imports
+    // them, and `model.ts` is only reachable through them — so without this
+    // line the whole prototype reads as seven dead files, and its security
+    // candidates come back advising deletion rather than verification.
+    "prototypes/c4-topology/extract.ts",
+    "prototypes/c4-topology/oxgraph.ts",
+    "prototypes/c4-topology/codegraph.ts",
+    "prototypes/c4-topology/generate.ts",
+    // Not modules — `generate.ts` INLINES these into `index.html` by
+    // `readFileSync`, so no import graph can reach them. Declared rather than
+    // ignored so the 1,790-line viewer stays under complexity analysis.
+    "prototypes/c4-topology/viewer.js",
+    "prototypes/c4-topology/viewer.css",
   ],
   // `email/preview/**` is the react-email dev harness: default exports the CLI
   // loads by directory scan, never imported, and not shipped.
@@ -104,10 +118,23 @@
       // Account-level infrastructure every app's `alchemy.run.ts` composes
       // against. Replaced `stacks/`, which no longer exists.
       { "name": "infra", "patterns": ["infra/**"] },
+
+      // Prototypes READ this repo, they are not part of it. c4-topology
+      // reaches the stacks by SPAWNING `alchemy.run.ts`, never by importing —
+      // so `allow: []` below is a real seal rather than a formality, and the
+      // day a prototype imports an app is the day that becomes a finding.
+      { "name": "prototype", "patterns": ["prototypes/**"] },
     ],
     "rules": [
-      { "from": "app-core", "allow": [] },
+      // A core states the shape it decides over — `product-view.ts` names
+      // `StorefrontProductDTO`, which platform.commerce owns. `allowTypeOnly`
+      // admits `import type` and nothing else: the import is erased, so it
+      // cannot drag a Worker binding into a module that has to stay runnable
+      // under `bun test`. A VALUE import of the same name is still a finding,
+      // and so is a type import from anywhere but the named zone.
+      { "from": "app-core", "allow": [], "allowTypeOnly": ["platform-app"] },
       { "from": "lib", "allow": [] },
+      { "from": "prototype", "allow": [] },
       { "from": "platform-pkg", "allow": ["lib"] },
       { "from": "infra", "allow": ["platform-pkg", "lib"] },
       { "from": "platform-app", "allow": ["app-core", "infra", "platform-pkg", "lib"] },
@@ -203,6 +230,16 @@
     // pay an install inside a test helper — and fail the test when it returns
     // non-zero.
     "wrangler",
+    // The CLI that DECRYPTS `.env.development` / `.env.production` — both are
+    // dotenvx-encrypted at rest, and a stage is selected by which file the
+    // deploy decrypts. Never imported, so it reads as dead; removing it would
+    // leave the deploy unable to read its own secrets.
+    "@dotenvx/dotenvx",
+    // alchemy's `Website.Astro` loads this by DYNAMIC import
+    // (`@distilled.cloud/astro/source`) and its own docs say it must be
+    // installed in the project. Same shape as `drizzle-kit` above: a provider
+    // resolves it at deploy time, no import graph can see it.
+    "@distilled.cloud/astro",
     "@effect/platform-bun",
     "@effect/platform-node",
     "alchemy",

@@ -43,6 +43,25 @@ function mcpError(message: string) {
 }
 
 /**
+ * A send tool's answer.
+ *
+ * Two errors come back as BARE text rather than inside the JSON envelope — a
+ * delivery failure and a missing original — because that is the shape the MCP
+ * clients already read. `send_email` cannot produce the second, so one rule
+ * covers both tools.
+ */
+function mcpSendResult(result: { error: string } | Record<string, unknown>) {
+  if (!("error" in result) || typeof result.error !== "string") {
+    return mcpText(result);
+  }
+  const bare =
+    result.error.startsWith("Failed to send") || result.error === "Original email not found";
+  return bare
+    ? { content: [{ type: "text" as const, text: result.error }], isError: true as const }
+    : mcpResult(result);
+}
+
+/**
  * Wrap a result that may contain an `error` field into MCP format,
  * automatically setting isError when appropriate.
  */
@@ -326,23 +345,7 @@ export class EmailMCP extends McpAgent<Env> {
           subject,
           bodyHtml,
         });
-        if ("error" in result) {
-          // Preserve the original MCP error format for send failures
-          if (typeof result.error === "string" && result.error.startsWith("Failed to send")) {
-            return {
-              content: [{ type: "text" as const, text: result.error }],
-              isError: true,
-            };
-          }
-          if (result.error === "Original email not found") {
-            return {
-              content: [{ type: "text" as const, text: "Original email not found" }],
-              isError: true,
-            };
-          }
-          return mcpResult(result);
-        }
-        return mcpText(result);
+        return mcpSendResult(result);
       },
     );
 
@@ -366,16 +369,7 @@ export class EmailMCP extends McpAgent<Env> {
           subject,
           bodyHtml,
         });
-        if ("error" in result) {
-          if (typeof result.error === "string" && result.error.startsWith("Failed to send")) {
-            return {
-              content: [{ type: "text" as const, text: result.error }],
-              isError: true,
-            };
-          }
-          return mcpResult(result);
-        }
-        return mcpText(result);
+        return mcpSendResult(result);
       },
     );
 

@@ -8,7 +8,8 @@ import { createWorkersAI } from "workers-ai-provider";
 import { z } from "zod";
 import type { EmailFull, EmailMetadata } from "../lib/schemas";
 import { verifyDraft, isPromptInjection } from "../lib/ai";
-import { getMailboxStub, stripHtmlToText, textToHtml } from "../lib/email-helpers";
+import { getMailboxStub } from "../lib/email-helpers";
+import { stripHtmlToText, textToHtml } from "../../shared/html";
 import {
   toolListEmails,
   toolGetEmail,
@@ -232,6 +233,26 @@ function createEmailTools(env: Env, mailboxId: string) {
   };
 }
 
+/**
+ * The pair of chat messages an auto-triggered run appends: the arrival that
+ * provoked it, and what the agent has to say about it.
+ *
+ * Built three times below — once when the email is refused for prompt
+ * injection, once when the THREAD is, once on success — and identical every
+ * time but for the assistant's line, which is the only argument.
+ */
+function autoTriggerTurn(email: { sender: string; subject: string }, assistantText: string) {
+  const arrival = `[Auto-triggered] New email from ${email.sender}: "${email.subject}"`;
+  const message = (role: "user" | "assistant", text: string) => ({
+    id: crypto.randomUUID(),
+    role,
+    content: text,
+    createdAt: new Date(),
+    parts: [{ type: "text" as const, text }],
+  });
+  return [message("user", arrival), message("assistant", assistantText)];
+}
+
 // Use `any` for the Env generic to avoid type conflicts between the custom
 // SEND_EMAIL binding shape and the AIChatAgent constraint.  The actual env
 // is fully typed inside the tools via the closure.
@@ -315,33 +336,10 @@ export class EmailAgent extends AIChatAgent<any> {
           console.warn("Skipping auto-draft due to detected prompt injection:", emailData.emailId);
 
           // Log to agent chat so the user knows why it skipped
-          const newMessages = [
-            {
-              id: crypto.randomUUID(),
-              role: "user" as const,
-              content: `[Auto-triggered] New email from ${emailData.sender}: "${emailData.subject}"`,
-              createdAt: new Date(),
-              parts: [
-                {
-                  type: "text" as const,
-                  text: `[Auto-triggered] New email from ${emailData.sender}: "${emailData.subject}"`,
-                },
-              ],
-            },
-            {
-              id: crypto.randomUUID(),
-              role: "assistant" as const,
-              content:
-                "⚠️ Blocked auto-draft creation: the email appears to contain prompt injection or malicious instructions.",
-              createdAt: new Date(),
-              parts: [
-                {
-                  type: "text" as const,
-                  text: "⚠️ Blocked auto-draft creation: the email appears to contain prompt injection or malicious instructions.",
-                },
-              ],
-            },
-          ];
+          const newMessages = autoTriggerTurn(
+            emailData,
+            "⚠️ Blocked auto-draft creation: the email appears to contain prompt injection or malicious instructions.",
+          );
           await this.persistMessages([...this.messages, ...newMessages]);
 
           return;
@@ -388,33 +386,10 @@ export class EmailAgent extends AIChatAgent<any> {
               "Skipping auto-draft due to prompt injection in thread context:",
               emailData.threadId,
             );
-            const newMessages = [
-              {
-                id: crypto.randomUUID(),
-                role: "user" as const,
-                content: `[Auto-triggered] New email from ${emailData.sender}: "${emailData.subject}"`,
-                createdAt: new Date(),
-                parts: [
-                  {
-                    type: "text" as const,
-                    text: `[Auto-triggered] New email from ${emailData.sender}: "${emailData.subject}"`,
-                  },
-                ],
-              },
-              {
-                id: crypto.randomUUID(),
-                role: "assistant" as const,
-                content:
-                  "Blocked auto-draft creation: the thread context appears to contain prompt injection or malicious instructions.",
-                createdAt: new Date(),
-                parts: [
-                  {
-                    type: "text" as const,
-                    text: "Blocked auto-draft creation: the thread context appears to contain prompt injection or malicious instructions.",
-                  },
-                ],
-              },
-            ];
+            const newMessages = autoTriggerTurn(
+              emailData,
+              "Blocked auto-draft creation: the thread context appears to contain prompt injection or malicious instructions.",
+            );
             await this.persistMessages([...this.messages, ...newMessages]);
             return;
           }
@@ -518,32 +493,7 @@ Based on the email content and thread context above, draft a reply using draft_r
         ? `Created draft reply to ${emailData.sender}.`
         : result.text;
 
-      const newMessages = [
-        {
-          id: crypto.randomUUID(),
-          role: "user" as const,
-          content: `[Auto-triggered] New email from ${emailData.sender}: "${emailData.subject}"`,
-          createdAt: new Date(),
-          parts: [
-            {
-              type: "text" as const,
-              text: `[Auto-triggered] New email from ${emailData.sender}: "${emailData.subject}"`,
-            },
-          ],
-        },
-        {
-          id: crypto.randomUUID(),
-          role: "assistant" as const,
-          content: assistantText,
-          createdAt: new Date(),
-          parts: [
-            {
-              type: "text" as const,
-              text: assistantText,
-            },
-          ],
-        },
-      ];
+      const newMessages = autoTriggerTurn(emailData, assistantText);
 
       await this.persistMessages([...this.messages, ...newMessages]);
 

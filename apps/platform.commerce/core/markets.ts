@@ -25,7 +25,3 @@ export const MARKETS = {
 
 /** The natural widening of the old `Destination` type, threaded end to end. */
 export type MarketCode = keyof typeof MARKETS;
-
-export const MARKET_CODES = Object.keys(MARKETS) as readonly MarketCode[];
-
-export const isMarketCode = (value: string): value is MarketCode => value in MARKETS;

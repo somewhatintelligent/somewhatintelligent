@@ -15,7 +15,7 @@ export type MarketCode = "CA" | "US";
 
 export const MARKET_COOKIE = "si_market";
 
-export const HOME_MARKET: MarketCode = "CA";
+const HOME_MARKET: MarketCode = "CA";
 
 export const MARKET_LABELS: Record<MarketCode, string> = {
   CA: "Canada · CAD",

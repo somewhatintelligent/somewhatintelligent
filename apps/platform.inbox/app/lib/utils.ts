@@ -3,19 +3,15 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 /**
- * Shared utility functions used across the frontend.
- *
- * Date formatting has been consolidated into `shared/dates.ts`.
- * Re-export for backwards compatibility with existing imports.
+ * Frontend-only helpers: sizes, address lists, attachments, and the two that
+ * need a DOM. Dates live in `shared/dates.ts`, HTML escaping and quoting in
+ * `shared/html.ts` — both are shared with the Worker.
  */
 import DOMPurify from "dompurify";
-import { formatQuotedDate } from "shared/dates";
+import { escapeHtml } from "shared/html";
 import type { Attachment } from "~/types";
 
 export { formatListDate, formatDetailDate, formatShortDate } from "shared/dates";
-
-/** @deprecated Use `formatQuotedDate` from `shared/dates` directly. */
-export const formatComposeDate = formatQuotedDate;
 
 /**
  * Format a byte count as a human-readable file size.
@@ -67,16 +63,6 @@ export function htmlToPlainText(html: string): string {
   return (div.textContent || div.innerText || "").trim();
 }
 
-/**
- * Strip all HTML tags from a string.
- */
-export function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_match: string, code: string) => String.fromCharCode(Number(code)))
@@ -110,20 +96,6 @@ export function getSnippetText(snippet?: string | null, maxLength = 100): string
 }
 
 /**
- * Escape all five OWASP-recommended HTML special characters in plain text.
- * Safe for use in both text content and attribute contexts.
- */
-export function escapeHtml(text: string): string {
-  if (!text) return "";
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-/**
  * Generate the HTML signature block for compose forms.
  */
 export function getSignatureBlock(settings?: {
@@ -138,29 +110,6 @@ export function getSignatureBlock(settings?: {
     return `<div style="border-top: 1px solid #ccc; margin-top: 16px; padding-top: 12px;">${content}</div>`;
   }
   return "";
-}
-
-/**
- * Build a quoted reply block HTML string from original email data.
- */
-export function buildQuotedReplyBlock(
-  dateStr: string | undefined,
-  sender: string,
-  body: string,
-): string {
-  if (!body) return "";
-  const formattedDate = formatComposeDate(dateStr);
-
-  // HTML-escape sender to prevent <john@example.com> from disappearing as a tag
-  const escapedSender = escapeHtml(sender);
-
-  // Sanitize the body to plain text to prevent stored XSS.
-  // The original HTML renders safely in the sandboxed iframe, but quoted
-  // reply blocks are injected into the compose editor where raw HTML would
-  // execute. Convert to escaped plain text instead.
-  const bodyToQuote = escapeHtml(stripHtml(body)).replace(/\n/g, "<br>");
-
-  return `<br><blockquote style="border-left: 2px solid #ccc; margin: 0; padding-left: 1em; color: #666;">On ${formattedDate}, ${escapedSender} wrote:<br><br>${bodyToQuote}</blockquote>`;
 }
 
 /**

@@ -2,13 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-/**
- * Consolidated date formatting utilities.
- *
- * Previously spread across `app/lib/utils.ts` (4 functions) and
- * `workers/lib/html.ts` (`formatEmailDate`). Now one canonical set
- * imported by both the frontend and backend.
- */
+/** Date formatting, shared by the browser and the Worker. */
 
 /** Parse safely — returns null on invalid dates instead of NaN-date. */
 function safeParse(dateStr: string | undefined | null): Date | null {

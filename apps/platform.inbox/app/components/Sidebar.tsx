@@ -162,57 +162,35 @@ export default function Sidebar() {
           />
         ))}
 
-        {/* Custom folders */}
-        {customFolders.length > 0 && (
-          <div className="pt-5">
-            <div className="flex items-center justify-between px-3 mb-1.5">
-              <span className="text-xs uppercase tracking-wider font-semibold text-kumo-subtle">
-                Folders
-              </span>
-              <Tooltip content="New folder" asChild>
-                <Button
-                  variant="ghost"
-                  shape="square"
-                  size="sm"
-                  icon={<PlusIcon size={16} />}
-                  onClick={() => setIsCreateFolderOpen(true)}
-                  aria-label="Create new folder"
-                />
-              </Tooltip>
-            </div>
-            {customFolders.map((folder) => (
-              <FolderLink
-                key={folder.id}
-                to={`/mailbox/${mailboxId}/emails/${folder.id}`}
-                icon={<FolderIcon size={18} />}
-                label={folder.name}
-                unreadCount={folder.unreadCount}
-                onClick={handleNavClick}
+        {/* Custom folders. The heading and its add button are unconditional —
+            an empty list renders nothing, so there is no empty case to branch on. */}
+        <div className="pt-5">
+          <div className="flex items-center justify-between px-3 mb-1.5">
+            <span className="text-xs uppercase tracking-wider font-semibold text-kumo-subtle">
+              Folders
+            </span>
+            <Tooltip content="New folder" asChild>
+              <Button
+                variant="ghost"
+                shape="square"
+                size="sm"
+                icon={<PlusIcon size={16} />}
+                onClick={() => setIsCreateFolderOpen(true)}
+                aria-label="Create new folder"
               />
-            ))}
+            </Tooltip>
           </div>
-        )}
-
-        {/* Add folder button when no custom folders */}
-        {customFolders.length === 0 && (
-          <div className="pt-5">
-            <div className="flex items-center justify-between px-3 mb-1.5">
-              <span className="text-xs uppercase tracking-wider font-semibold text-kumo-subtle">
-                Folders
-              </span>
-              <Tooltip content="New folder" asChild>
-                <Button
-                  variant="ghost"
-                  shape="square"
-                  size="sm"
-                  icon={<PlusIcon size={16} />}
-                  onClick={() => setIsCreateFolderOpen(true)}
-                  aria-label="Create new folder"
-                />
-              </Tooltip>
-            </div>
-          </div>
-        )}
+          {customFolders.map((folder) => (
+            <FolderLink
+              key={folder.id}
+              to={`/mailbox/${mailboxId}/emails/${folder.id}`}
+              icon={<FolderIcon size={18} />}
+              label={folder.name}
+              unreadCount={folder.unreadCount}
+              onClick={handleNavClick}
+            />
+          ))}
+        </div>
       </nav>
 
       {/* App version footer — small and unobtrusive */}

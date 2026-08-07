@@ -3,12 +3,10 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 /**
- * Shared types and Zod schemas for email data.
+ * The shape of an email, and the one request body that is validated.
  *
- * Types (from email-types.ts): used by the agent, MCP server, and route
- * handlers to avoid `as any` casting.
- *
- * Zod schemas: used across route handlers to eliminate duplication.
+ * Only the REQUEST is enforced — the routes hand-build their JSON responses,
+ * and a response schema nothing parses against goes stale silently.
  */
 import { z } from "zod";
 
@@ -78,8 +76,3 @@ export const SendEmailRequestSchema = z
   .refine((data) => data.html || data.text, {
     message: "Either 'html' or 'text' must be provided",
   });
-
-// `ErrorResponseSchema` and `SendEmailResponseSchema` were declared here and never
-// parsed against — the routes hand-build their JSON responses. Only the REQUEST
-// schema above is enforced, which is the direction that matters; a response schema
-// nothing validates is documentation that can silently go stale.

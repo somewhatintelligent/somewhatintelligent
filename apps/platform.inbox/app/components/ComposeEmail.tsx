@@ -2,11 +2,11 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Banner, Button, Dialog, Input, Text } from "@cloudflare/kumo";
-import { FloppyDiskIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
+import { Banner, Dialog, Input, Text } from "@cloudflare/kumo";
 import { useParams } from "react-router";
 import { useComposeForm } from "~/hooks/useComposeForm";
 import RichTextEditor from "./RichTextEditor";
+import { ComposeActions } from "./ComposeActions";
 import { useUIStore } from "~/hooks/useUIStore";
 
 export default function ComposeEmail() {
@@ -105,38 +105,12 @@ export default function ComposeEmail() {
             <RichTextEditor value={body} onChange={setBody} />
           </div>
           <div className="flex justify-between items-center pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={closeComposeModal}
-              disabled={isSending}
-            >
-              Discard
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                loading={isSavingDraft}
-                disabled={isSending}
-                icon={<FloppyDiskIcon size={14} />}
-                onClick={handleSaveDraft}
-              >
-                {isSavingDraft ? "Saving..." : "Save as Draft"}
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-                loading={isSending}
-                disabled={isSavingDraft || isSending}
-                icon={<PaperPlaneTiltIcon size={14} />}
-              >
-                {isSending ? "Sending..." : "Send"}
-              </Button>
-            </div>
+            <ComposeActions
+              onDiscard={closeComposeModal}
+              onSaveDraft={handleSaveDraft}
+              isSending={isSending}
+              isSavingDraft={isSavingDraft}
+            />
           </div>
         </form>
       </Dialog>

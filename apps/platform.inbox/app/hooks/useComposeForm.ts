@@ -4,16 +4,9 @@
 
 import { useKumoToastManager } from "@cloudflare/kumo";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import {
-  buildQuotedReplyBlock,
-  escapeHtml,
-  formatComposeDate,
-  getSignatureBlock,
-  htmlToPlainText,
-  splitEmailList,
-  stripHtml,
-  toEmailListValue,
-} from "~/lib/utils";
+import { getSignatureBlock, htmlToPlainText, splitEmailList, toEmailListValue } from "~/lib/utils";
+import { formatQuotedDate } from "shared/dates";
+import { buildQuotedReplyBlock, escapeHtml, stripHtmlToText } from "shared/html";
 import {
   useDeleteEmail,
   useForwardEmail,
@@ -69,9 +62,9 @@ function buildForwardBody(
 ) {
   const safeSender = escapeHtml(original.sender);
   const safeSubject = escapeHtml(original.subject);
-  const safeBody = escapeHtml(stripHtml(original.body || "")).replace(/\n/g, "<br>");
+  const safeBody = escapeHtml(stripHtmlToText(original.body || "")).replace(/\n/g, "<br>");
 
-  return `<p><br></p>${sigBlock ? `${sigBlock}<br>` : ""}<div style="border: 1px solid #ddd; padding: 1em; background-color: #f9f9f9; margin: 1em 0;"><strong>Forwarded message:</strong><br><strong>From:</strong> ${safeSender}<br><strong>Date:</strong> ${formatComposeDate(original.date)}<br><strong>Subject:</strong> ${safeSubject}<br><br>${safeBody}</div>`;
+  return `<p><br></p>${sigBlock ? `${sigBlock}<br>` : ""}<div style="border: 1px solid #ddd; padding: 1em; background-color: #f9f9f9; margin: 1em 0;"><strong>Forwarded message:</strong><br><strong>From:</strong> ${safeSender}<br><strong>Date:</strong> ${formatQuotedDate(original.date)}<br><strong>Subject:</strong> ${safeSubject}<br><br>${safeBody}</div>`;
 }
 
 function buildReplyAllFields(
@@ -134,7 +127,7 @@ function buildInitialComposeFields(
       ...EMPTY_FIELDS,
       to: original.sender,
       subject: getPrefixedSubject(original.subject, "Re"),
-      body: `<p><br></p>${sigBlock ? `${sigBlock}<br>` : ""}${buildQuotedReplyBlock(original.date, original.sender, original.body || "")}`,
+      body: `<p><br></p>${sigBlock ? `${sigBlock}<br>` : ""}${buildQuotedReplyBlock({ date: original.date, sender: original.sender, body: original.body || "" })}`,
     };
   }
 
@@ -144,7 +137,7 @@ function buildInitialComposeFields(
       ...EMPTY_FIELDS,
       ...recipients,
       subject: getPrefixedSubject(original.subject, "Re"),
-      body: `<p><br></p>${sigBlock ? `${sigBlock}<br>` : ""}${buildQuotedReplyBlock(original.date, original.sender, original.body || "")}`,
+      body: `<p><br></p>${sigBlock ? `${sigBlock}<br>` : ""}${buildQuotedReplyBlock({ date: original.date, sender: original.sender, body: original.body || "" })}`,
     };
   }
 

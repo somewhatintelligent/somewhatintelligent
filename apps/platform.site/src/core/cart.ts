@@ -11,6 +11,12 @@
  *
  * EVERY FUNCTION RETURNS A NEW ARRAY. Nothing here mutates its argument, so a
  * caller can compare before and after to decide whether to persist.
+ *
+ * WHY THE PARSERS BELOW SUPPRESS `complexity`. What they score is CRAP, and
+ * fallow ESTIMATES CRAP from export references rather than reading coverage —
+ * so a tested five-branch guard scores the same as an untested one. Every
+ * branch here is one validation rule and every rule is exercised by `test/`.
+ * Re-evaluate if the gate is ever given `--coverage`.
  */
 
 export const MIN_QUANTITY = 1;
@@ -49,15 +55,7 @@ export const clampQuantity = (quantity: unknown): number => {
 };
 
 /** One stored entry, or `null` if it is not a line at all. */
-/**
- * CRAP, not complexity. Every branch below is one validation rule and the
- * function is pure and covered by `test/`; fallow ESTIMATES CRAP from export
- * references rather than reading coverage, so a tested five-branch guard scores
- * the same as an untested one. Splitting further would fragment a single rule
- * across call sites to satisfy an estimate. Re-evaluate if the gate ever passes
- * `--coverage`.
- */
-// fallow-ignore-next-line complexity
+// fallow-ignore-next-line complexity -- CRAP, not complexity: every branch is one validation rule, the function is pure and covered by `test/`. See the note at the top of this file.
 const parseLine = (entry: unknown): CartLine | null => {
   if (typeof entry !== "object" || entry === null) return null;
   const { variantId, quantity } = entry as Partial<CartLine>;
@@ -70,15 +68,7 @@ const parseLine = (entry: unknown): CartLine | null => {
  * outlives deploys, so a cart valid when written may not be now — and every
  * reader would otherwise need its own guard.
  */
-/**
- * CRAP, not complexity. Every branch below is one validation rule and the
- * function is pure and covered by `test/`; fallow ESTIMATES CRAP from export
- * references rather than reading coverage, so a tested five-branch guard scores
- * the same as an untested one. Splitting further would fragment a single rule
- * across call sites to satisfy an estimate. Re-evaluate if the gate ever passes
- * `--coverage`.
- */
-// fallow-ignore-next-line complexity
+// fallow-ignore-next-line complexity -- CRAP, not complexity: every branch is one validation rule, the function is pure and covered by `test/`. See the note at the top of this file.
 export const normalize = (raw: unknown): CartLine[] => {
   if (!Array.isArray(raw)) return [];
   const summed = new Map<string, number>();

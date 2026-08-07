@@ -16,6 +16,13 @@
  * per query and pricing spends one per variant; it caps the address at 254
  * because that is RFC 5321's limit and the value is persisted twice per order.
  * Restating them here turns a 500 on the public endpoint into a 400.
+ *
+ * WHY THE PARSERS BELOW SUPPRESS `complexity`. What they score is CRAP, and
+ * fallow ESTIMATES CRAP from export references rather than reading coverage —
+ * so a tested five-branch guard scores the same as an untested one. Every
+ * branch here is one validation rule and every rule is exercised by `test/`;
+ * splitting further would fragment a single rule across call sites to satisfy
+ * an estimate. Re-evaluate if the gate is ever given `--coverage`.
  */
 
 const MAX_LINES = 20;
@@ -59,15 +66,7 @@ const parseMarket = (value: unknown): Market | null =>
 const parseCommandId = (value: unknown): string | null =>
   typeof value === "string" && value.length >= MIN_COMMAND_ID ? value : null;
 
-/**
- * CRAP, not complexity. Every branch below is one validation rule and the
- * function is pure and covered by `test/`; fallow ESTIMATES CRAP from export
- * references rather than reading coverage, so a tested five-branch guard scores
- * the same as an untested one. Splitting further would fragment a single rule
- * across call sites to satisfy an estimate. Re-evaluate if the gate ever passes
- * `--coverage`.
- */
-// fallow-ignore-next-line complexity
+// fallow-ignore-next-line complexity -- CRAP, not complexity: every branch is one validation rule, the function is pure and covered by `test/`. See the note at the top of this file.
 const parseLine = (value: unknown): CheckoutLine | null => {
   if (typeof value !== "object" || value === null) return null;
   const { variantId, quantity } = value as { variantId?: unknown; quantity?: unknown };
@@ -77,15 +76,7 @@ const parseLine = (value: unknown): CheckoutLine | null => {
   return { variantId, quantity: n };
 };
 
-/**
- * CRAP, not complexity. Every branch below is one validation rule and the
- * function is pure and covered by `test/`; fallow ESTIMATES CRAP from export
- * references rather than reading coverage, so a tested five-branch guard scores
- * the same as an untested one. Splitting further would fragment a single rule
- * across call sites to satisfy an estimate. Re-evaluate if the gate ever passes
- * `--coverage`.
- */
-// fallow-ignore-next-line complexity
+// fallow-ignore-next-line complexity -- CRAP, not complexity: every branch is one validation rule, the function is pure and covered by `test/`. See the note at the top of this file.
 const parseItems = (value: unknown): readonly CheckoutLine[] | null => {
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_LINES) return null;
   const lines: CheckoutLine[] = [];
@@ -107,15 +98,7 @@ type CheckoutParse =
   | { readonly ok: true; readonly value: CheckoutInput }
   | { readonly ok: false; readonly error: string };
 
-/**
- * CRAP, not complexity. Every branch below is one validation rule and the
- * function is pure and covered by `test/`; fallow ESTIMATES CRAP from export
- * references rather than reading coverage, so a tested five-branch guard scores
- * the same as an untested one. Splitting further would fragment a single rule
- * across call sites to satisfy an estimate. Re-evaluate if the gate ever passes
- * `--coverage`.
- */
-// fallow-ignore-next-line complexity
+// fallow-ignore-next-line complexity -- CRAP, not complexity: every branch is one validation rule, the function is pure and covered by `test/`. See the note at the top of this file.
 export const parseCheckout = (body: unknown): CheckoutParse => {
   const { email, market, commandId, items } = (body ?? {}) as Record<string, unknown>;
 
@@ -143,15 +126,7 @@ export const parseCheckout = (body: unknown): CheckoutParse => {
 };
 
 /** The order lookup's body: a number and the address it was placed with. */
-/**
- * CRAP, not complexity. Every branch below is one validation rule and the
- * function is pure and covered by `test/`; fallow ESTIMATES CRAP from export
- * references rather than reading coverage, so a tested five-branch guard scores
- * the same as an untested one. Splitting further would fragment a single rule
- * across call sites to satisfy an estimate. Re-evaluate if the gate ever passes
- * `--coverage`.
- */
-// fallow-ignore-next-line complexity
+// fallow-ignore-next-line complexity -- CRAP, not complexity: every branch is one validation rule, the function is pure and covered by `test/`. See the note at the top of this file.
 export const parseOrderLookup = (
   body: unknown,
 ): { readonly orderNumber: string; readonly email: string } | null => {

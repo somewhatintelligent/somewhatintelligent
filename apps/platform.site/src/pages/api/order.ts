@@ -24,12 +24,7 @@ const json = (payload: unknown, status: number, cache = "no-store"): Response =>
     headers: { "content-type": "application/json", "cache-control": cache },
   });
 
-/**
- * CRAP, not complexity — the branches are two `try`/`catch` pairs and a null
- * check, and every field rule they delegate to is pure and tested. See the note
- * in `src/core/checkout-input.ts`.
- */
-// fallow-ignore-next-line complexity
+// fallow-ignore-next-line complexity -- CRAP, not complexity: the branches are two `try`/`catch` pairs and a null check, and every field rule they delegate to is pure and tested. See the note in `src/core/checkout-input.ts`.
 export const POST: APIRoute = async ({ request }) => {
   let body: unknown;
   try {

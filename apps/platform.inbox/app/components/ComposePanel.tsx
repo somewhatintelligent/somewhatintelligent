@@ -3,10 +3,11 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { Banner, Button, Input } from "@cloudflare/kumo";
-import { FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { useParams } from "react-router";
 import { useComposeForm } from "~/hooks/useComposeForm";
 import RichTextEditor from "./RichTextEditor";
+import { ComposeActions } from "./ComposeActions";
 
 export default function ComposePanel() {
   const { mailboxId, folder } = useParams<{
@@ -138,38 +139,12 @@ export default function ComposePanel() {
         {/* Footer actions */}
         <div className="mt-auto px-4 py-3 border-t border-kumo-line bg-kumo-fill/30 shrink-0 md:px-6">
           <div className="flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={closeCompose}
-              disabled={isSending}
-            >
-              Discard
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                loading={isSavingDraft}
-                disabled={isSending}
-                icon={<FloppyDiskIcon size={14} />}
-                onClick={handleSaveDraft}
-              >
-                {isSavingDraft ? "Saving..." : "Save as Draft"}
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-                loading={isSending}
-                disabled={isSavingDraft || isSending}
-                icon={<PaperPlaneTiltIcon size={14} />}
-              >
-                {isSending ? "Sending..." : "Send"}
-              </Button>
-            </div>
+            <ComposeActions
+              onDiscard={closeCompose}
+              onSaveDraft={handleSaveDraft}
+              isSending={isSending}
+              isSavingDraft={isSavingDraft}
+            />
           </div>
         </div>
       </form>
