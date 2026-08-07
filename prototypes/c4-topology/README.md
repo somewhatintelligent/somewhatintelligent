@@ -19,6 +19,33 @@ bun prototypes/c4-topology/generate.ts
 open prototypes/c4-topology/index.html   # deep links: #view=…&select=…&theme=dark
 ```
 
+## What is machine-true, and what is not
+
+The graph is extracted. **The prose is not.** 549 lines of `model.ts` — every
+system and resource name, every description, the actors, the hand-drawn
+hexagonal interior — were written by a model that read the code once and then
+frozen into a TypeScript file. That is why the diagram reads clean, and it is
+also the part that does not repeat: point this at another repo and you get a
+correct graph labelled `AuthWorker` / `Cloudflare.Worker` with no descriptions
+at all.
+
+| extracted (repeats, per stage)       | asserted (written once, by an LLM)   |
+| ------------------------------------ | ------------------------------------ |
+| 24 resources, 40 IaC edges           | 7 system descriptions                |
+| 535 files, 1489 imports              | 28 resource names + descriptions     |
+| 1881 functions with complexity       | 3 actors                             |
+| 4 dead exports, 1 boundary violation | 18 runtime edges (each cites a file) |
+
+Edges carry their provenance into the UI — solid is extracted, dashed is
+asserted — but names and descriptions currently carry none, so a reader cannot
+tell a proven fact from a plausible sentence. **[PIPELINE.md](./PIPELINE.md)**
+is the design note for closing that gap: a script emits a structure with holes,
+an agent fills only the holes and must cite evidence, a human confirms, and the
+result is stored as content-addressed data so it goes _stale_ rather than
+silently wrong. It also lists which of my assertions are actually derivable and
+should become extractors instead. None of it is built — the spike stops at
+proving the picture is worth having.
+
 ## Files
 
 | file              | role                                                                                                                                  |
