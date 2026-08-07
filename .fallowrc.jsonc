@@ -230,10 +230,13 @@
     // pay an install inside a test helper — and fail the test when it returns
     // non-zero.
     "wrangler",
-    // The CLI that DECRYPTS `.env.development` / `.env.production` — both are
-    // dotenvx-encrypted at rest, and a stage is selected by which file the
-    // deploy decrypts. Never imported, so it reads as dead; removing it would
-    // leave the deploy unable to read its own secrets.
+    // IN USE, and invisible to every import graph: the deploy is RUN THROUGH
+    // it (`dotenvx run -f .env.<stage> -- …`), which decrypts the stage's file
+    // and puts the secrets in the environment before any module loads — see
+    // `services/StripeConfig.ts` and `infrastructure/StripeDev.ts`, both of
+    // which describe reading what dotenvx put there. Nothing in this repo
+    // spawns it, so no analysis can find it; it is declared for the same
+    // reason as `wrangler` above, so a fresh checkout has the binary.
     "@dotenvx/dotenvx",
     // alchemy's `Website.Astro` loads this by DYNAMIC import
     // (`@distilled.cloud/astro/source`) and its own docs say it must be
