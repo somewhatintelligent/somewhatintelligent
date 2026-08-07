@@ -1,4 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="432" viewBox="0 0 1140 432">
+  <!--
+    SIZED FOR THE PANEL IT RENDERS IN, which is the whole reason this was
+    redrawn. It was 1600x900 and carried its own `SIZE & FIT` title; inside the
+    `Size & fit` drawer that title sat directly under the drawer's own summary
+    saying the same words, and the 16:9 canvas letterboxed inside a 4:3 box, so
+    the measurements ended up around four pixels tall. Nothing was wrong with
+    the artwork — it was drawn for a slide, and it is not on a slide.
+
+    WHAT IS LEFT IS A DIAGRAM AND A TABLE, and that is the whole editorial rule
+    here: THIS FILE DRAWS MEASUREMENTS, IT DOES NOT WRITE COPY. Every line of
+    prose it used to carry belonged to someone else —
+
+      SIZE & FIT (72px)     the panel's summary says it, immediately above.
+      FINISHED GARMENT /    the table's own header says it.
+        MEASURED FLAT / ...
+      the rule under both   a line under nothing.
+      the A/B/C caption     six lines of 17px beside the drawing, defining
+        block                 measurements the A, B and C callouts and the
+                              table's own headings already name.
+      BOXY, OVERSIZED FIT   the operator's fit comments, which sit directly
+        / DROPPED SHOULDER    under this chart in the panel.
+      100% RING-SPUN        a fabric spec, which is `Product details`.
+        COTTON / 241 GSM
+      TO FIT CHEST IS ...   sentences. They are worth saying, and the place to
+      MEASURE A SHIRT ...     say them is the fit comments field, where an
+                              operator can edit them without redrawing an SVG.
+
+    Prose baked into artwork cannot be corrected, translated or reworded by the
+    person who owns the words. Leaving it out is not an omission; it is putting
+    each thing where its author can reach it.
+
+    THE DRAWING IS UNTOUCHED, moved and scaled by a transform on its group. Its
+    geometry was solved rather than eyeballed — see the note on the path — so
+    editing coordinates to reflow would risk the one thing here that took real
+    work to get right.
+  -->
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto-start-reverse">
       <path d="M 0 5 L 10 0 L 10 10 Z" fill="#08090a"/>
@@ -6,21 +42,20 @@
     <style>
       .display { font-family: "Barlow Condensed", sans-serif; font-weight: 900; }
       .mono { font-family: "Iosevka", monospace; }
-      .rule { stroke: #08090a; stroke-width: 2; fill: none; }
-      .hairline { stroke: #08090a; stroke-width: 1.25; fill: none; }
-      .label { font-family: "Iosevka", monospace; font-size: 22px; letter-spacing: 1.5px; fill: #08090a; }
+      .rule { stroke: #08090a; stroke-width: 2.5; fill: none; }
+      .hairline { stroke: #08090a; stroke-width: 1.5; fill: none; }
+      .label { font-family: "Iosevka", monospace; font-size: 20px; letter-spacing: 1px; fill: #08090a; }
       .value { font-family: "Iosevka", monospace; font-size: 28px; fill: #08090a; }
+      .sub { font-family: "Iosevka", monospace; font-size: 17px; fill: #08090a; opacity: 0.62; }
+      .head { font-family: "Iosevka", monospace; font-size: 18px; fill: #08090a; }
     </style>
   </defs>
 
-  <g fill="#08090a">
-    <text x="64" y="92" class="display" font-size="72" letter-spacing="-1">SIZE &amp; FIT</text>
-    <text x="64" y="130" class="mono" font-size="22" letter-spacing="2">FINISHED GARMENT / MEASURED FLAT / CENTIMETRES AND INCHES</text>
-  </g>
-
-  <line x1="64" y1="164" x2="1536" y2="164" class="rule"/>
-
-  <g aria-label="T-shirt measurement diagram">
+  <!--
+    THE DRAWING, at 0.802 in the left column. The transform is the ONLY thing
+    that changed about it; every coordinate below is the one that was solved.
+  -->
+  <g aria-label="T-shirt measurement diagram" transform="translate(-125.6, -121.6) scale(0.802)">
     <!--
       ISOTROPIC, AND SOLVED FROM THE THREE PUBLISHED MEASUREMENTS. 13 units per
       inch in BOTH directions, for a medium: chest 21 in, length 29 in, sleeve
@@ -59,83 +94,73 @@
     <!-- hem band -->
     <path class="hairline" d="M 289 596 L 561 596"/>
 
-    <!-- A: taken 1 in (13 units) below the armhole, as the caption promises. -->
+    <!-- A: taken 1 in (13 units) below the armhole, as the notes promise. -->
     <path class="hairline" d="M 289 415 L 289 441 M 561 415 L 561 441" stroke-dasharray="4 5"/>
     <line x1="291" y1="428" x2="559" y2="428" class="rule" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-    <text x="425" y="466" text-anchor="middle" class="mono" font-size="24" font-weight="700">A</text>
+    <text x="425" y="474" text-anchor="middle" class="mono" font-size="34" font-weight="700">A</text>
 
     <!-- B: high point of shoulder to finished hem, set outside the silhouette. -->
     <path class="hairline" d="M 470 250 L 728 250 M 561 627 L 728 627" stroke-dasharray="4 5"/>
     <line x1="714" y1="250" x2="714" y2="627" class="rule" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-    <text x="738" y="445" class="mono" font-size="24" font-weight="700">B</text>
+    <text x="738" y="450" class="mono" font-size="34" font-weight="700">B</text>
 
     <!-- C: centre back neck, over the shoulder, to the sleeve hem. -->
     <path class="hairline" d="M 425 250 L 276 270 L 194 308" stroke-dasharray="5 5" opacity="0.8"/>
     <circle cx="425" cy="250" r="4.5" fill="#08090a"/>
     <circle cx="194" cy="308" r="4.5" fill="#08090a"/>
-    <text x="300" y="238" text-anchor="middle" class="mono" font-size="24" font-weight="700">C</text>
-
-    <text x="425" y="712" text-anchor="middle" class="label">A / CHEST WIDTH</text>
-    <text x="425" y="742" text-anchor="middle" class="mono" font-size="17" fill="#08090a">MEASURED 1 IN / 2.5 CM BELOW ARMHOLE</text>
-    <text x="425" y="778" text-anchor="middle" class="label">B / BODY LENGTH</text>
-    <text x="425" y="808" text-anchor="middle" class="mono" font-size="17" fill="#08090a">HIGH-POINT SHOULDER TO FINISHED HEM</text>
-    <text x="425" y="844" text-anchor="middle" class="label">C / SLEEVE LENGTH</text>
-    <text x="425" y="874" text-anchor="middle" class="mono" font-size="17" fill="#08090a">CENTRE BACK NECK, OVER SHOULDER, TO HEM</text>
+    <text x="298" y="234" text-anchor="middle" class="mono" font-size="34" font-weight="700">C</text>
   </g>
 
+  <!--
+    THE TABLE, given the wider of the two columns. It is what a shopper opened
+    the drawer for; the drawing is the reference that explains its headings.
+  -->
   <g aria-label="Size measurements table">
-    <text x="760" y="238" class="label">FINISHED GARMENT / CM, INCHES BELOW</text>
+    <line x1="520" y1="40" x2="1110" y2="40" class="rule"/>
+    <line x1="520" y1="92" x2="1110" y2="92" class="hairline"/>
+    <line x1="520" y1="192" x2="1110" y2="192" class="hairline"/>
+    <line x1="520" y1="292" x2="1110" y2="292" class="hairline"/>
+    <line x1="520" y1="392" x2="1110" y2="392" class="rule"/>
+    <line x1="600" y1="40" x2="600" y2="392" class="hairline"/>
+    <line x1="727.5" y1="40" x2="727.5" y2="392" class="hairline"/>
+    <line x1="855" y1="40" x2="855" y2="392" class="hairline"/>
+    <line x1="982.5" y1="40" x2="982.5" y2="392" class="hairline"/>
 
-    <line x1="760" y1="272" x2="1536" y2="272" class="rule"/>
-    <line x1="760" y1="354" x2="1536" y2="354" class="hairline"/>
-    <line x1="760" y1="466" x2="1536" y2="466" class="hairline"/>
-    <line x1="760" y1="578" x2="1536" y2="578" class="hairline"/>
-    <line x1="760" y1="690" x2="1536" y2="690" class="rule"/>
-    <line x1="870" y1="272" x2="870" y2="690" class="hairline"/>
-    <line x1="1035" y1="272" x2="1035" y2="690" class="hairline"/>
-    <line x1="1200" y1="272" x2="1200" y2="690" class="hairline"/>
-    <line x1="1365" y1="272" x2="1365" y2="690" class="hairline"/>
+    <text x="534" y="76" class="head">SIZE</text>
+    <text x="663.75" y="76" text-anchor="middle" class="head">TO FIT CHEST</text>
+    <text x="791.25" y="76" text-anchor="middle" class="head">A / CHEST</text>
+    <text x="918.75" y="76" text-anchor="middle" class="head">B / LENGTH</text>
+    <text x="1046.25" y="76" text-anchor="middle" class="head">C / SLEEVE</text>
 
-    <text x="784" y="322" text-anchor="start" class="mono" font-size="17" fill="#08090a">SIZE</text>
-    <text x="952" y="322" text-anchor="middle" class="mono" font-size="17" fill="#08090a">TO FIT CHEST</text>
-    <text x="1117" y="322" text-anchor="middle" class="mono" font-size="17" fill="#08090a">A / CHEST</text>
-    <text x="1282" y="322" text-anchor="middle" class="mono" font-size="17" fill="#08090a">B / LENGTH</text>
-    <text x="1450" y="322" text-anchor="middle" class="mono" font-size="17" fill="#08090a">C / SLEEVE</text>
+    <text x="534" y="158" class="display" font-size="48" fill="#08090a">S</text>
+    <text x="663.75" y="144" text-anchor="middle" class="value">86-91</text>
+    <text x="663.75" y="170" text-anchor="middle" class="sub">34-36 in</text>
+    <text x="791.25" y="144" text-anchor="middle" class="value">49.5</text>
+    <text x="791.25" y="170" text-anchor="middle" class="sub">19.5 in</text>
+    <text x="918.75" y="144" text-anchor="middle" class="value">71.1</text>
+    <text x="918.75" y="170" text-anchor="middle" class="sub">28 in</text>
+    <text x="1046.25" y="144" text-anchor="middle" class="value">45.1</text>
+    <text x="1046.25" y="170" text-anchor="middle" class="sub">17.75 in</text>
 
-    <text x="784" y="425" class="display" font-size="54">S</text>
-    <text x="952" y="417" text-anchor="middle" class="value" font-size="26">86-91</text>
-    <text x="952" y="443" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">34-36 in</text>
-    <text x="1117" y="417" text-anchor="middle" class="value" font-size="26">49.5</text>
-    <text x="1117" y="443" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">19.5 in</text>
-    <text x="1282" y="417" text-anchor="middle" class="value" font-size="26">71.1</text>
-    <text x="1282" y="443" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">28 in</text>
-    <text x="1450" y="417" text-anchor="middle" class="value" font-size="26">45.1</text>
-    <text x="1450" y="443" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">17.75 in</text>
+    <text x="534" y="258" class="display" font-size="48" fill="#08090a">M</text>
+    <text x="663.75" y="244" text-anchor="middle" class="value">97-102</text>
+    <text x="663.75" y="270" text-anchor="middle" class="sub">38-40 in</text>
+    <text x="791.25" y="244" text-anchor="middle" class="value">53.3</text>
+    <text x="791.25" y="270" text-anchor="middle" class="sub">21 in</text>
+    <text x="918.75" y="244" text-anchor="middle" class="value">73.7</text>
+    <text x="918.75" y="270" text-anchor="middle" class="sub">29 in</text>
+    <text x="1046.25" y="244" text-anchor="middle" class="value">47.0</text>
+    <text x="1046.25" y="270" text-anchor="middle" class="sub">18.5 in</text>
 
-    <text x="784" y="537" class="display" font-size="54">M</text>
-    <text x="952" y="529" text-anchor="middle" class="value" font-size="26">97-102</text>
-    <text x="952" y="555" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">38-40 in</text>
-    <text x="1117" y="529" text-anchor="middle" class="value" font-size="26">53.3</text>
-    <text x="1117" y="555" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">21 in</text>
-    <text x="1282" y="529" text-anchor="middle" class="value" font-size="26">73.7</text>
-    <text x="1282" y="555" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">29 in</text>
-    <text x="1450" y="529" text-anchor="middle" class="value" font-size="26">47.0</text>
-    <text x="1450" y="555" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">18.5 in</text>
-
-    <text x="784" y="649" class="display" font-size="54">L</text>
-    <text x="952" y="641" text-anchor="middle" class="value" font-size="26">107-112</text>
-    <text x="952" y="667" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">42-44 in</text>
-    <text x="1117" y="641" text-anchor="middle" class="value" font-size="26">58.4</text>
-    <text x="1117" y="667" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">23 in</text>
-    <text x="1282" y="641" text-anchor="middle" class="value" font-size="26">76.2</text>
-    <text x="1282" y="667" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">30 in</text>
-    <text x="1450" y="641" text-anchor="middle" class="value" font-size="26">49.5</text>
-    <text x="1450" y="667" text-anchor="middle" class="mono" font-size="16" fill="#08090a" opacity="0.62">19.5 in</text>
-
-    <text x="760" y="742" class="label">BOXY, OVERSIZED FIT / DROPPED SHOULDER</text>
-    <text x="760" y="778" class="mono" font-size="20" fill="#08090a">100% RING-SPUN COTTON / 241 GSM</text>
-    <text x="760" y="812" class="mono" font-size="17" fill="#08090a">C / CENTRE BACK NECK, OVER THE SHOULDER, TO SLEEVE HEM.</text>
-    <text x="760" y="838" class="mono" font-size="17" fill="#08090a">TO FIT CHEST IS THE BODY IT IS CUT FOR, NOT THE GARMENT.</text>
-    <text x="760" y="864" class="mono" font-size="17" fill="#08090a">MEASURE A SHIRT YOU OWN AND COMPARE. TOLERANCE 2.5 CM.</text>
+    <text x="534" y="358" class="display" font-size="48" fill="#08090a">L</text>
+    <text x="663.75" y="344" text-anchor="middle" class="value">107-112</text>
+    <text x="663.75" y="370" text-anchor="middle" class="sub">42-44 in</text>
+    <text x="791.25" y="344" text-anchor="middle" class="value">58.4</text>
+    <text x="791.25" y="370" text-anchor="middle" class="sub">23 in</text>
+    <text x="918.75" y="344" text-anchor="middle" class="value">76.2</text>
+    <text x="918.75" y="370" text-anchor="middle" class="sub">30 in</text>
+    <text x="1046.25" y="344" text-anchor="middle" class="value">49.5</text>
+    <text x="1046.25" y="370" text-anchor="middle" class="sub">19.5 in</text>
   </g>
+
 </svg>

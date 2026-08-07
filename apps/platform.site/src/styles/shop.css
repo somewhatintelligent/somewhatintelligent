@@ -396,10 +396,12 @@
   background: var(--color-surface-sunken);
 }
 
+/* Unfiltered, like the ledger and the product page — see `.object-image` in
+   `styles.css`. A cart thumbnail is the shopper checking they picked the right
+   thing, which a grade actively interferes with. */
 .cart-line-image img {
   width: 100%;
   height: 100%;
-  filter: grayscale(0.7) contrast(1.08);
   object-fit: cover;
 }
 

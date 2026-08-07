@@ -146,10 +146,15 @@
   display: none !important;
 }
 
+/*
+ * NO FILTER. The shots were desaturated and contrast-pushed on the way in,
+ * which is a colour grade applied to someone else's photograph by a stylesheet
+ * — the shop deciding a garment's colour is slightly wrong. Whatever grade a
+ * photograph should carry belongs in the photograph.
+ */
 .product-shot img {
   width: 100%;
   height: 100%;
-  filter: grayscale(0.32) contrast(1.05);
   object-fit: cover;
   object-position: 65% center;
 }
@@ -375,31 +380,21 @@
 /*
  * ── The size guide, inside the panel that opens onto it ──────────────────
  *
- * THE CHART AND THE FIT COMMENTS SIDE BY SIDE, ruled off from the prose above
- * them — mockup 03. The chart used to take the gallery field on the left
- * instead, on the argument that a measurement chart is unreadable at the width
- * of a sheet column. It is smaller here, and it is where a shopper who opened
- * this drawer is looking; a control in one column that quietly changes another
- * is the worse trade.
+ * THE CHART TAKES THE WHOLE BODY and the comments sit under it. It was beside
+ * them, per mockup 03, and that mockup drew a much simpler chart than the real
+ * one: at the ~250px a side-by-side split leaves, the measurements rendered
+ * around four pixels tall. Full width roughly doubles that, and the artwork was
+ * redrawn to suit — see `04-gildan-75000-size-chart.svg`, which lost its own
+ * `SIZE & FIT` title because the summary directly above it already says so.
  *
- * `has-notes` ADDS the second track rather than the base rule reserving one.
- * Comments are optional beside a chart, so a one-column guide is a real state
- * and not a degenerate two-column one — no divider with nothing behind it.
+ * The chart used to take the GALLERY field instead, on the argument that a
+ * chart is unreadable at the width of a sheet column. It is still smaller here;
+ * a control in one column that quietly changes another is the worse trade.
  */
 .product-size-guide {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
   margin-bottom: 14px;
+  padding: 10px;
   border: 1px solid var(--color-border);
-}
-
-.product-size-guide.has-notes {
-  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
-}
-
-.product-size-notes {
-  padding: 12px 13px;
-  border-left: 1px solid var(--color-border);
 }
 
 /*
@@ -420,9 +415,14 @@
  *
  * `contain`, so a wide chart and a tall one are both whole. `cover` would crop
  * measurements off the edge, which on this particular image is the one thing
- * that cannot be allowed to happen. `aspect-ratio` because the element is in
- * flow here and a masked box has no intrinsic size of its own — without it the
- * chart would be a zero-height nothing.
+ * that cannot be allowed to happen.
+ *
+ * `aspect-ratio` MATCHES THE ARTWORK — 1140x432 — because a masked box has no
+ * intrinsic size of its own, so without one the chart is a zero-height nothing.
+ * It was `4 / 3` against a 16:9 file, which letterboxed the chart into two
+ * thirds of a box that was already too small. A ratio that disagrees with the
+ * file it holds is dead space in the tightest place on the page; if the chart
+ * is ever redrawn at another shape, this number moves with it.
  *
  * THE FALLBACK IS THE BASE RULE rather than the exception: an engine without
  * mask support drops the chart on a plate as an ordinary image.
@@ -435,28 +435,15 @@
  */
 .product-size-chart {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  padding: 10px;
+  aspect-ratio: 1140 / 432;
   background: #fff var(--chart-src) center / contain no-repeat;
-  background-origin: content-box;
 }
 
-/*
- * The origin and clip as LONGHANDS. `mask` takes a `<geometry-box>`, but the
- * legacy `-webkit-mask` shorthand does not parse one everywhere it is still
- * needed, and a shorthand that fails to parse takes the mask with it — which
- * would leave the element painted flat `currentColor`, a solid rectangle where
- * the chart should be. Longhands degrade to an unpadded mask at worst.
- */
 @supports ((mask: url("")) or (-webkit-mask: url(""))) {
   .product-size-chart {
     background: currentColor;
     -webkit-mask: var(--chart-src) center / contain no-repeat;
     mask: var(--chart-src) center / contain no-repeat;
-    -webkit-mask-origin: content-box;
-    mask-origin: content-box;
-    -webkit-mask-clip: content-box;
-    mask-clip: content-box;
   }
 }
 
@@ -544,20 +531,5 @@
 
   .product-panels {
     margin-top: 24px;
-  }
-
-  /*
-   * THE GUIDE STACKS, chart above notes. Two columns inside a phone-width panel
-   * would leave the chart at about 140px — measurements printed too small to
-   * read, which is the one thing this panel exists to prevent. The divider moves
-   * with the split, since a `border-left` on a full-width cell is a stray mark.
-   */
-  .product-size-guide.has-notes {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .product-size-notes {
-    border-left: 0;
-    border-top: 1px solid var(--color-border);
   }
 }
