@@ -1,138 +1,267 @@
 /*
  * One object's page.
  *
+ * THE DESKTOP PAGE IS ONE VIEWPORT AND THE DOCUMENT NEVER SCROLLS. `.site-frame`
+ * is a `100dvh` grid of header / main / footer, so everything below is a matter
+ * of `min-height: 0` and `overflow: hidden` discipline: a grid child defaults to
+ * `min-height: auto`, which refuses to shrink below its content and pushes the
+ * footer off the bottom. Every track and every cell that holds an image says
+ * otherwise.
+ *
+ * That constraint is DESKTOP ONLY. Below 1024px the frame unlocks and the page
+ * scrolls like any other — a filmstrip, a photograph, a title, a size grid and
+ * two panels do not fit in a phone's viewport, and pretending otherwise means
+ * shrinking the photograph until it is not evidence of anything.
+ *
  * The only route that INVERTS ground and figure — hence the `--color-inverse`
  * pair read on `.product-main` rather than a theme set on the document, which
  * would take the site chrome with it.
  */
 
-/* Carried over from the global sheet of the site this replaces, scoped to the
-   one page that draws them. The stage is INVERTED — this is the only route
-   that flips ground and figure, which is why the tokens are read here rather
-   than set on the document. */
 .product-main {
   display: grid;
   min-height: 0;
-  grid-template-rows: minmax(0, 72%) minmax(190px, 28%);
   overflow: hidden;
   background: var(--color-inverse);
   color: var(--color-inverse-foreground);
 }
 
+/*
+ * TWO FIELDS: the gallery, and the sheet. The gallery takes what is left after
+ * the sheet has what it needs, which is the right way round — the sheet's
+ * contents are text at a fixed size, and the photograph is what should absorb a
+ * wider or narrower window.
+ */
 .product-stage {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(0, 50%) minmax(220px, 21%) minmax(330px, 29%);
+  grid-template-columns: minmax(0, 1fr) minmax(24rem, 34%);
   overflow: hidden;
 }
 
-.product-hero-image,
-.product-proof-column figure {
+/* ── The gallery field ──────────────────────────────────────────────────── */
+
+/*
+ * ONE IMAGE FILLS THE FIELD. The strip column only exists when there is more
+ * than one image to put in it — `has-strip` adds the track rather than the base
+ * rule reserving one and leaving it empty, which is what an empty gallery cell
+ * would be.
+ */
+.product-gallery {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+}
+
+.product-gallery.has-strip {
+  grid-template-columns: 168px minmax(0, 1fr);
+}
+
+.product-filmstrip {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-inverse);
+}
+
+.product-thumb {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0;
+  /* The UA paints buttons if you let it — see `.product-size` below. */
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.product-thumb-index {
+  padding-bottom: 4px;
+  border-bottom: 1px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+/*
+ * THE SELECTED IMAGE, marked on the NUMBER rather than on the thumbnail. A ring
+ * around a dark photograph on a dark ground is close to invisible; the pink
+ * rule under `01` is not, and it is the same accent the rest of the system uses
+ * for "this one".
+ */
+.product-thumb[aria-pressed="true"] .product-thumb-index {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.product-thumb img {
+  width: 100%;
+  height: 128px;
+  border: 1px solid var(--color-border);
+  object-fit: cover;
+}
+
+.product-thumb[aria-pressed="true"] img {
+  border-color: var(--color-inverse-foreground);
+}
+
+.product-thumb:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.product-plate {
+  position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: var(--color-background);
 }
 
-.product-hero-image {
-  border-right: 1px solid var(--color-border);
+/*
+ * EVERY SHOT OCCUPIES THE WHOLE FIELD AND ONE IS SHOWN. Absolute rather than a
+ * single element with a swapped `src`: the bytes are already fetched, so
+ * choosing is instant and there is no white frame between two photographs.
+ * `[hidden]` needs `display: none !important` because `position: absolute`
+ * would otherwise out-specify it.
+ */
+.product-shot,
+.product-sizing-plate {
+  position: absolute;
+  inset: 0;
+  margin: 0;
 }
 
-.product-hero-image img,
-.product-proof-column img {
+.product-shot[hidden],
+.product-sizing-plate[hidden] {
+  display: none !important;
+}
+
+.product-shot img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-}
-
-.product-hero-image img {
   filter: grayscale(0.32) contrast(1.05);
+  object-fit: cover;
   object-position: 65% center;
 }
 
-.product-proof-column {
-  display: grid;
+/*
+ * THE SIZING PLATE.
+ *
+ * ITS OWN BACKGROUND, and that is the point rather than a detail. An operator
+ * draws the chart on whatever canvas they happen to use, in whatever format
+ * they already have; compositing it over a surface this element paints means it
+ * reads correctly regardless, instead of depending on their background matching
+ * ours. A plate that only works because two colours happen to agree is a plate
+ * that breaks the day either one is retouched.
+ *
+ * `contain`, so a wide chart and a tall one are both whole. `cover` would crop
+ * measurements off the edge, which on this particular image is the one thing
+ * that cannot be allowed to happen.
+ */
+.product-sizing-plate {
+  display: flex;
+  padding: clamp(24px, 4vw, 64px);
+  align-items: center;
+  justify-content: center;
+  background: var(--color-inverse-foreground);
+}
+
+.product-sizing-plate img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ── The purchase sheet ─────────────────────────────────────────────────── */
+
+/*
+ * THE SHEET SCROLLS, THE DOCUMENT DOES NOT. A long description plus two open
+ * panels can exceed the viewport; when it does, the overflow belongs to this
+ * column — the photograph and the chrome stay put, which is what makes the page
+ * one viewport rather than one screenful of a taller thing.
+ */
+.product-sheet {
+  display: flex;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: 61% 39%;
-  border-right: 1px solid var(--color-border);
+  flex-direction: column;
+  padding: 26px 32px;
+  overflow-y: auto;
 }
 
-.product-proof-column figure:first-child {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.product-proof-column figure:first-child img {
-  filter: grayscale(0.35) contrast(1.1);
-  object-position: 65% center;
-}
-
-.product-proof-column figure:last-child img {
-  filter: grayscale(1) contrast(1.25);
-  object-position: center 19%;
-}
-
-.product-sheet {
-  min-width: 0;
-  overflow: hidden;
-  padding: 28px 34px;
-}
-
-.product-sheet > p:first-child,
+.product-object-id,
 .product-state {
   font-family: var(--font-mono);
   font-size: 9px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .product-sheet h1 {
-  margin-top: 18px;
+  margin-top: 14px;
   font-family: var(--font-display);
-  font-size: clamp(56px, 5.4vw, 86px);
+  font-size: clamp(44px, 4.2vw, 68px);
   font-weight: 700;
   letter-spacing: -0.045em;
-  line-height: 0.78;
+  line-height: 0.82;
+  text-transform: uppercase;
 }
 
 .product-description {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--color-border);
+  margin-top: 18px;
   font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.45;
+}
+
+.product-description p + p {
+  margin-top: 10px;
 }
 
 .product-price {
-  margin-top: 16px;
+  margin-top: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-border);
   font-family: var(--font-mono);
   font-size: 19px;
 }
 
 .product-size-field {
   min-width: 0;
-  margin-top: 16px;
-  padding: 14px 0 0;
+  margin-top: 14px;
+  padding: 0;
   border: 0;
-  border-top: 1px solid var(--color-border);
 }
 
 .product-size-field > p {
   font-family: var(--font-mono);
   font-size: 9px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .product-sizes {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 9px;
 }
 
 .product-size {
   display: flex;
-  height: 35px;
+  height: 38px;
   align-items: center;
   justify-content: center;
   /* THE UA PAINTS BUTTONS IF YOU LET IT. Nothing here set a background, so
@@ -152,11 +281,12 @@
 /* THE SELECTED SIZE. The page script has always set `aria-pressed`, but
    nothing read it, so choosing a size moved the state line and left the grid
    looking untouched — the one control whose whole job is to show a choice.
-   Inverted rather than outlined, so it reads against four that are not. */
+   Pink rather than merely outlined, matching the mockups and the filmstrip's
+   own "this one" mark. */
 .product-size[aria-pressed="true"] {
-  border-color: var(--color-inverse-foreground);
-  background: var(--color-inverse-foreground);
-  color: var(--color-inverse);
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground, var(--color-inverse));
 }
 
 /* Struck through rather than merely dimmed: a sold-out size has to read as
@@ -167,93 +297,14 @@
   text-decoration: line-through;
 }
 
+.product-size:focus-visible,
+.product-buy:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .product-state {
-  margin-top: 13px;
-}
-
-.product-notes {
-  display: grid;
-  min-height: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--color-border);
-}
-
-.product-notes article {
-  min-width: 0;
-  padding: 22px 30px;
-  border-right: 1px solid var(--color-border);
-}
-
-.product-notes article:last-child {
-  border-right: 0;
-}
-
-.product-notes h2 {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.product-notes p {
-  margin-top: 18px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.product-notes a {
-  text-decoration: underline;
-}
-
-@media (max-width: 1023px) {
-  .product-main {
-    display: block;
-    overflow: visible;
-  }
-
-  .product-stage {
-    display: block;
-    overflow: visible;
-  }
-
-  .product-hero-image {
-    height: 520px;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .product-proof-column {
-    height: 420px;
-    grid-template-rows: 1fr;
-    grid-template-columns: 1fr 1fr;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .product-proof-column figure:first-child {
-    border-right: 1px solid var(--color-border);
-    border-bottom: 0;
-  }
-
-  .product-sheet {
-    padding: 30px 18px 36px;
-  }
-
-  .product-sheet h1 {
-    font-size: 19vw;
-  }
-
-  .product-notes {
-    display: block;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .product-notes article {
-    min-height: 150px;
-    padding: 25px 18px;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-  }
+  margin-top: 11px;
 }
 
 /* THE BUY CONTROL. It lived in `shop.css` and the product page does not load
@@ -269,8 +320,8 @@
    and invisible. The disabled state's 0.45 opacity finished the job. */
 .product-buy {
   width: 100%;
-  height: 46px;
-  margin-top: 16px;
+  height: 48px;
+  margin-top: 14px;
   appearance: none;
   border: 0;
   background: var(--color-inverse-foreground);
@@ -278,10 +329,162 @@
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 13px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .product-buy:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+/* ── The panels ─────────────────────────────────────────────────────────── */
+
+/*
+ * PUSHED TO THE BOTTOM of the sheet by `margin-top: auto`, so a short
+ * description does not leave them floating in the middle of the column with a
+ * gap underneath. They are the last thing read and they sit last.
+ */
+.product-panels {
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.product-panel {
+  border-top: 1px solid var(--color-border);
+}
+
+.product-panel:last-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.product-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+/* The default disclosure triangle, removed in both spellings. */
+.product-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.product-panel > summary:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.product-panel-mark {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.product-panel[open] .product-panel-mark {
+  transform: rotate(180deg);
+}
+
+.product-panel-body {
+  padding-bottom: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.product-panel-body p + p {
+  margin-top: 10px;
+}
+
+/*
+ * MOTION IS OPT-IN. The chevron and the panel body animate only where the
+ * visitor has not asked for less of it; everything above is a static rule, so
+ * removing motion removes motion rather than removing the affordance.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .product-panel-mark {
+    transition: transform 160ms ease;
+  }
+
+  .product-thumb img,
+  .product-thumb-index {
+    transition:
+      border-color 160ms ease,
+      color 160ms ease;
+  }
+}
+
+/* ── Below the desktop stage ────────────────────────────────────────────── */
+
+/*
+ * THE ONE-VIEWPORT RULE IS A DESKTOP RULE. Here the stage stacks, the page
+ * scrolls, and the filmstrip turns on its side under the photograph — a column
+ * of thumbnails beside a phone-width image would leave neither of them big
+ * enough to be worth showing.
+ *
+ * THE SCROLL BELONGS TO `.product-main`, NOT THE DOCUMENT, and that is the
+ * site's pattern rather than this page's preference: the global sheet sets
+ * `body { overflow: hidden }` and `.site-frame` is a `100dvh` grid, so the
+ * chrome is fixed on every route and each route scrolls a region inside it —
+ * `/shop` scrolls its ledger the same way. Unlocking the document here would
+ * fight that rule and lose to it.
+ */
+@media (max-width: 1023px) {
+  .product-main {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .product-stage,
+  .product-gallery {
+    display: block;
+    overflow: visible;
+  }
+
+  .product-gallery {
+    border-right: 0;
+  }
+
+  .product-plate {
+    position: relative;
+    height: 62vh;
+    min-height: 320px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .product-filmstrip {
+    flex-direction: row;
+    padding: 12px 16px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .product-thumb {
+    width: 84px;
+    flex: none;
+  }
+
+  .product-thumb img {
+    height: 84px;
+  }
+
+  .product-sheet {
+    padding: 28px 18px 36px;
+    overflow: visible;
+  }
+
+  .product-sheet h1 {
+    font-size: 17vw;
+  }
+
+  .product-panels {
+    margin-top: 24px;
+  }
 }

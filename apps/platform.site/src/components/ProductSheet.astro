@@ -1,27 +1,30 @@
 ---
-// The spec sheet — the right-hand column of an object's page.
+// THE PURCHASE SHEET — the right-hand column, and everything a shopper needs to
+// decide and to buy.
 //
-// Split out of the route because it holds nearly all of that page's branching:
-// the description may be absent, the size grid may be absent, and every size
-// carries its own availability. The route is left as the page's SHAPE (three
-// plates and a notes rail); this is the part with decisions in it.
+// IN THE ORDER SOMEONE ACTUALLY READS IT: what this is, what it is called, what
+// it is, what it costs, which size, buy. The optional panels sit under the buy
+// control because they are what you open when the answer above was not enough,
+// and shipping and returns are not among them — an operator who wants those
+// said writes them into the description, where they are visible without a
+// click rather than filed under a heading nobody opens.
+//
+// The route decides nothing about this column and this column decides nothing
+// about the page's shape; `productView` decided both.
 import { formatPrice } from "../lib/format.ts";
-import ProductDescription from "./ProductDescription.astro";
+import ProductPanels from "./ProductPanels.astro";
 import ProductSizes from "./ProductSizes.astro";
+import type { ProductView } from "../core/product-view.ts";
 import type { StorefrontProductDTO } from "../lib/commerce.ts";
 
 interface Props {
   product: StorefrontProductDTO;
-  /** Already decided by the route — see its `availability`. */
+  view: ProductView;
+  /** Already decided by `availabilityLine` — the sheet states it, never derives it. */
   availability: string;
-  /** Escaped paragraphs. Operator markdown NEVER reaches `set:html`. */
-  paragraphs: readonly string[];
 }
 
-const { product, availability, paragraphs } = Astro.props;
-
-/** Resolved here so the markup carries no fallback of its own. */
-const cover = product.media[0]?.href ?? "";
+const { product, view, availability } = Astro.props;
 ---
 
 <section
@@ -30,16 +33,31 @@ const cover = product.media[0]?.href ?? "";
   data-title={product.title}
   data-price-cents={String(product.priceCents)}
   data-currency={product.currency}
-  data-cover={cover}
+  data-cover={view.media[0]?.href ?? ""}
 >
-  <p>Object / {product.slug} / release {product.version}</p>
+  <p class="product-object-id">{view.identifier}</p>
   <h1 id="product-title">{product.title}</h1>
 
-  <ProductDescription paragraphs={paragraphs} />
+  {
+    /*
+      ALWAYS VISIBLE, directly under the title — never an accordion. It is the
+      one piece of prose a shopper is guaranteed to read, so it is where an
+      operator puts anything they need read, shipping and returns included.
+    */
+    view.description.length > 0 && (
+      <div class="product-description">
+        {view.description.map((paragraph) => (
+          <p>{paragraph}</p>
+        ))}
+      </div>
+    )
+  }
 
   <p class="product-price">{formatPrice(product.priceCents, product.currency)}</p>
 
   <ProductSizes variants={product.variants} />
 
   <p class="product-state" id="buy-state" aria-live="polite">{availability}</p>
+
+  <ProductPanels panels={view.panels} />
 </section>

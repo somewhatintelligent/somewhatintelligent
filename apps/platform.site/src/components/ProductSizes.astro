@@ -28,7 +28,7 @@ const sizes = variants.map((v) => ({
 
 {
   sizes.length > 0 && (
-    <div class="product-size-field">
+    <fieldset class="product-size-field">
       <p>Size</p>
       <div class="product-sizes" role="group" aria-label="Size">
         {sizes.map((s) => (
@@ -50,6 +50,6 @@ const sizes = variants.map((v) => ({
       <button type="button" class="product-buy" id="add-to-cart" disabled>
         Add to cart
       </button>
-    </div>
+    </fieldset>
   )
 }

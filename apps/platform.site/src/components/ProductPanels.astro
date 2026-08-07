@@ -1,0 +1,48 @@
+---
+// THE ACCORDIONS, and there are at most two of them.
+//
+// `<details name="product-panels">` rather than a hand-rolled disclosure: the
+// shared `name` is the platform's own "only one open at a time", so the rule
+// costs no JavaScript, no `aria-expanded` to keep in step with a class, and no
+// focus management — a `<summary>` is already a keyboard-operable control in
+// every engine. The page script closes siblings by hand only where `name` is
+// unsupported, which is a progressive fallback rather than the mechanism.
+//
+// A PANEL EITHER EXISTS OR IT DOES NOT. `panels` is built by `productView` and
+// contains no entry for an absent field, so nothing here branches on emptiness
+// and no empty drawer can reach a page.
+//
+// The `Size & fit` body carries the FIT COMMENTS only. The chart itself is not
+// in here — it replaces the gallery image on the left when this opens, which is
+// the whole reason it earns the room to be read at.
+import type { ProductPanel } from "../core/product-view.ts";
+
+interface Props {
+  panels: readonly ProductPanel[];
+}
+
+const { panels } = Astro.props;
+---
+
+{
+  panels.length > 0 && (
+    <div class="product-panels">
+      {panels.map((panel) => (
+        <details name="product-panels" class="product-panel" data-panel={panel.id}>
+          <summary>
+            <span>{panel.label}</span>
+            {/* Decorative: the open state is already on the `<details>`. */}
+            <svg class="product-panel-mark" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M2 5.5 8 11l6-5.5" fill="none" stroke="currentColor" stroke-width="1.25" />
+            </svg>
+          </summary>
+          <div class="product-panel-body">
+            {panel.paragraphs.map((paragraph) => (
+              <p>{paragraph}</p>
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  )
+}

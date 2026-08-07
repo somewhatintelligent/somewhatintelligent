@@ -1,16 +1,25 @@
 ---
-// One object. Carried over from the site this replaces: an inverted stage —
-// hero plate, two evidence figures, and the spec sheet — over a notes rail.
+// One object, in one viewport.
 //
-// EVERYTHING HERE IS THE ACTIVE RELEASE. Title, price, description and the
-// frozen image set come from what was published; the SIZES are live, because
-// inventory deliberately sits outside the release model — pinning stock into a
-// release would resurrect sold-out sizes on republish.
+// THE STAGE IS TWO FIELDS: the gallery on the left, the purchase sheet on the
+// right. There is no notes rail under them any more — `Release / Sizing / Make
+// / Returns` was four headings of boilerplate that pushed the buy control below
+// the fold and said, between them, almost nothing an operator had written. What
+// survived of it lives where an operator can actually author it: the
+// description, which is always visible, and two optional panels they fill in or
+// leave empty.
+//
+// EVERYTHING HERE IS THE ACTIVE RELEASE. Title, price, description, details,
+// the size guide and the frozen image set all come from what was published; the
+// SIZES are live, because inventory deliberately sits outside the release model
+// — pinning stock into a release would resurrect sold-out sizes on republish.
 import Base from "../../layouts/Base.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
+import ProductGallery from "../../components/ProductGallery.astro";
 import ProductSheet from "../../components/ProductSheet.astro";
 import { getStorefrontProduct } from "../../lib/commerce.ts";
+import { availabilityLine, productView } from "../../core/product-view.ts";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
 import "../../styles/product.css";
 
@@ -31,46 +40,14 @@ try {
 }
 if (!product) return new Response(null, { status: 404 });
 
-const [heroImage, ...rest] = product.media;
 /**
- * The plates, resolved to what the markup renders. An `alt` falls back to the
- * title here rather than in three separate `||`s down the page, and `proof` is
- * cut to the two the layout has room for — the stage is a fixed three-column
- * grid, not a gallery.
+ * EVERY DECISION THIS PAGE MAKES, made in one place and tested without a
+ * renderer — whether there is a filmstrip, which panels exist, what the sizing
+ * plate is. See `core/product-view.ts`; the markup below is the page's shape.
  */
-const hero = heroImage ? { href: heroImage.href, alt: heroImage.alt || product.title } : null;
-const proof = rest.slice(0, 2).map((m) => ({ href: m.href, alt: m.alt || product.title }));
-// Operator markdown renders as ESCAPED PARAGRAPHS ONLY — never `set:html`. The
-// description is operator-authored and reaches this page unsanitised; splitting
-// on blank lines gets the shape of prose without handing a template the ability
-// to inject markup.
-const paragraphs = (product.descriptionMarkdown ?? "")
-  .split(/\n{2,}/)
-  .map((p) => p.trim())
-  .filter(Boolean);
-const seoDescription = paragraphs[0] ?? `${product.title} — object by somewhatintelligent.`;
-
-const sellable = product.variants.filter((v) => v.available);
-
-/**
- * The two sentences that depend on what is buyable, settled here rather than as
- * ternary chains in the markup — the template should read as the page's shape,
- * not as the decision that produced it.
- *
- * "No sizes published" and "Sold out" are DIFFERENT facts: the first is an
- * operator who has not finished, the second is a run that is spoken for.
- */
-const availability =
-  product.variants.length === 0
-    ? "No sizes published."
-    : sellable.length === 0
-      ? "Sold out."
-      : "Select a size.";
-
-const sizing =
-  sellable.length > 0
-    ? `Available in ${sellable.map((v) => v.size).join(", ")}.`
-    : "Nothing in stock at the moment.";
+const view = productView(product);
+const availability = availabilityLine(product.variants);
+const seoDescription = view.description[0] ?? `${product.title} — object by somewhatintelligent.`;
 ---
 
 <Base title={`${product.title} — somewhatintelligent`} description={seoDescription}>
@@ -79,45 +56,8 @@ const sizing =
 
     <main class="product-main">
       <section class="product-stage" aria-labelledby="product-title">
-        <figure class="product-hero-image">
-          {hero && <img src={hero.href} alt={hero.alt} />}
-        </figure>
-
-        <div class="product-proof-column" aria-label="Object evidence">
-          {
-            proof.map((m) => (
-              <figure>
-                <img src={m.href} alt={m.alt} />
-              </figure>
-            ))
-          }
-        </div>
-
-        <ProductSheet product={product} availability={availability} paragraphs={paragraphs} />
-      </section>
-
-      <section class="product-notes" aria-label="Object notes">
-        <article>
-          <h2>Release</h2>
-          <p>
-            Version {product.version}. What is shown here is the published release — drafts change
-            nothing until they ship.
-          </p>
-        </article>
-        <article>
-          <h2>Sizing</h2>
-          <p>{sizing}</p>
-        </article>
-        <article>
-          <h2>Make</h2>
-          <p>Printed to order in small runs. Each object is numbered by release, not by unit.</p>
-        </article>
-        <article>
-          <h2>Returns</h2>
-          <p>
-            Made-to-order goods are covered by the <a href="/refunds">refund policy</a>.
-          </p>
-        </article>
+        <ProductGallery media={view.media} sizingPlate={view.sizingPlate} />
+        <ProductSheet product={product} view={view} availability={availability} />
       </section>
     </main>
 
@@ -127,7 +67,11 @@ const sizing =
 
 <script>
   /**
-   * SIZE SELECTION AND ADD-TO-CART.
+   * THE THREE THINGS THIS PAGE DOES CLIENT-SIDE, and no more.
+   *
+   *   1  choose a size, and add it to the cart;
+   *   2  choose which photograph fills the gallery;
+   *   3  swap that photograph for the sizing plate while `Size & fit` is open.
    *
    * Scoped to this page's markup and bails when it is absent, so the handler is
    * a no-op on every other route. The cart stores only `{ variantId, quantity }`
@@ -173,4 +117,80 @@ const sizing =
       stateEl.textContent = `Added. ${count} ${count === 1 ? "item" : "items"} in the cart.`;
     }
   });
+
+  /**
+   * THE FILMSTRIP. Every shot is already in the document; choosing one is a
+   * `hidden` flip rather than a `src` swap, so there is no re-request and no
+   * white flash between two photographs of the same shirt.
+   */
+  const shots = Array.from(document.querySelectorAll<HTMLElement>("[data-shot]"));
+  const thumbs = Array.from(document.querySelectorAll<HTMLButtonElement>(".product-thumb"));
+  const sizingPlate = document.querySelector<HTMLElement>("[data-sizing-plate]");
+
+  const panels = Array.from(document.querySelectorAll<HTMLDetailsElement>(".product-panel"));
+  const sizePanel = panels.find((panel) => panel.dataset.panel === "size-fit");
+
+  /**
+   * TWO INDEPENDENT FACTS DECIDE WHAT THE FIELD SHOWS, and each is kept where
+   * it already lives: WHICH SHOT is selected (`shown`) and WHETHER THE CHART
+   * has displaced it (`sizePanel.open`). `hidden` is the rendering of both
+   * together, never the storage of either — which is the trap the first version
+   * fell into, hiding every shot for the chart and then needing a variable to
+   * recover the selection the DOM could no longer answer for.
+   *
+   * One function reads both and applies them, so no handler has to know what
+   * another will do, and reloading or find-in-page-opening the panel converges
+   * on the same view as clicking it.
+   */
+  let shown = 0;
+
+  const render = () => {
+    const chart = sizePanel?.open === true && sizingPlate !== null;
+    if (sizingPlate) sizingPlate.hidden = !chart;
+    shots.forEach((shot, i) => {
+      shot.hidden = chart || i !== shown;
+    });
+  };
+
+  /**
+   * CHOOSING A PHOTOGRAPH TAKES THE FIELD BACK. Asked for a shot while the
+   * chart is up, the honest answer is to show it — so the panel closes. The
+   * alternative, recording the choice and applying it whenever the panel
+   * happens to close, is a control that visibly does nothing when pressed.
+   */
+  thumbs.forEach((thumb, index) => {
+    thumb.addEventListener("click", () => {
+      for (const other of thumbs) {
+        other.setAttribute("aria-pressed", other === thumb ? "true" : "false");
+      }
+      shown = index;
+      if (sizePanel) sizePanel.open = false;
+      render();
+    });
+  });
+
+  /**
+   * `Size & fit` TAKES THE GALLERY FIELD, because a measurement chart is
+   * unreadable at the width of a sheet column — the one thing mockup 03's
+   * miniature demonstrated.
+   *
+   * Driven off `toggle`, which fires for every route into the open state: a
+   * click on the summary, `Enter` on it, a sibling `<details name>` closing this
+   * one, and find-in-page opening it. A click handler would miss three of those.
+   *
+   * The close-siblings pass is for engines without `<details name>`. Where the
+   * attribute is supported it never finds a second open panel, because the
+   * browser closed it first — running it either way means the behaviour does
+   * not depend on which of the two happened.
+   */
+  for (const panel of panels) {
+    panel.addEventListener("toggle", () => {
+      if (panel.open) {
+        for (const other of panels) {
+          if (other !== panel) other.open = false;
+        }
+      }
+      render();
+    });
+  }
 </script>
