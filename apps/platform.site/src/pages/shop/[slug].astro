@@ -18,6 +18,7 @@ import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import ProductGallery from "../../components/ProductGallery.astro";
 import ProductSheet from "../../components/ProductSheet.astro";
+import ProductZoom from "../../components/ProductZoom.astro";
 import { getStorefrontProduct } from "../../lib/commerce.ts";
 import { availabilityLine, productView } from "../../core/product-view.ts";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
@@ -63,19 +64,29 @@ const seoDescription = view.description[0] ?? `${product.title} — object by so
 
     <SiteFooter />
   </div>
+
+  {/*
+    OUTSIDE THE FRAME, because `.site-frame` is a `100dvh` grid with
+    `overflow: hidden` on the track that holds the page. A modal dialog is
+    painted in the top layer regardless of where it sits in the tree, but
+    keeping it out of a clipped subtree means nothing about this page's
+    scroll discipline has to be relaxed to let it through.
+  */}
+  <ProductZoom />
 </Base>
 
 <script>
   /**
-   * THE TWO THINGS THIS PAGE DOES CLIENT-SIDE, and no more.
+   * THE THREE THINGS THIS PAGE DOES CLIENT-SIDE, and no more.
    *
    *   1  choose a size, and add it to the cart;
-   *   2  choose which photograph fills the gallery.
+   *   2  choose which photograph fills the gallery;
+   *   3  open any image at full size in the viewer.
    *
-   * There was a third — swapping that photograph for the size chart while
-   * `Size & fit` was open. The chart is rendered inside the panel now, so the
-   * accordion needs no script at all beyond the sibling-closing fallback below,
-   * and the gallery answers to the filmstrip and nothing else.
+   * There was another — swapping the gallery photograph for the size chart
+   * while `Size & fit` was open. The chart is rendered inside the panel now, so
+   * the accordion needs no script at all beyond the sibling-closing fallback
+   * below, and the gallery answers to the filmstrip and nothing else.
    *
    * Scoped to this page's markup and bails when it is absent, so the handler is
    * a no-op on every other route. The cart stores only `{ variantId, quantity }`
@@ -165,6 +176,61 @@ const seoDescription = view.description[0] ?? `${product.title} — object by so
       for (const other of panels) {
         if (other !== panel) other.open = false;
       }
+    });
+  }
+
+  /**
+   * THE FULL-SIZE VIEWER. Every opener carries its own `src` and `alt`, so
+   * this reads the button that was pressed and never asks the page which image
+   * is currently showing — there is no state here to fall out of step.
+   *
+   * THE OPENERS SHIP `hidden` AND ARE REVEALED HERE. They do nothing without
+   * this handler, and a magnifying glass that does not magnify is worse than no
+   * magnifying glass; a page whose script failed to load should look like a
+   * page without the feature rather than one with a broken control.
+   *
+   * `showModal()` rather than `show()`: it is the modal form that traps focus,
+   * makes the rest of the document inert, renders a real `::backdrop` and
+   * closes on `Esc`. All four are behaviours we would otherwise be writing, and
+   * writing worse.
+   */
+  const zoom = document.querySelector<HTMLDialogElement>("dialog[data-zoom]");
+  const zoomImage = zoom?.querySelector<HTMLImageElement>("[data-zoom-image]") ?? null;
+
+  if (zoom && zoomImage) {
+    for (const opener of document.querySelectorAll<HTMLButtonElement>("[data-zoom-src]")) {
+      opener.hidden = false;
+      opener.addEventListener("click", () => {
+        zoomImage.src = opener.dataset.zoomSrc ?? "";
+        zoomImage.alt = opener.dataset.zoomAlt ?? "";
+        /**
+         * Line art needs a white ground; a photograph does not. The opener
+         * says which it is, because the opener is the only thing that knows.
+         */
+        zoom.classList.toggle("on-plate", "zoomPlate" in opener.dataset);
+        zoom.showModal();
+      });
+    }
+
+    /**
+     * CLICKING THE BACKDROP CLOSES IT. `::backdrop` is not an element and
+     * cannot take a listener, but a click on it targets the dialog itself —
+     * whereas a click on the image or the close button targets those. So
+     * `event.target === zoom` is precisely "outside the content", with no
+     * hit-testing of our own.
+     */
+    zoom.addEventListener("click", (event) => {
+      if (event.target === zoom) zoom.close();
+    });
+
+    /**
+     * Dropping the `src` on close so a large photograph is not held decoded
+     * for a page the visitor has gone back to reading. It costs a cache hit to
+     * reopen and nothing to leave.
+     */
+    zoom.addEventListener("close", () => {
+      zoomImage.removeAttribute("src");
+      zoomImage.alt = "";
     });
   }
 </script>

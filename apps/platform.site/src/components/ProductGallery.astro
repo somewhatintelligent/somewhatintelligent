@@ -56,6 +56,31 @@ const showFilmstrip = media.length > 1;
       media.map((plate, index) => (
         <figure class="product-shot" data-shot={String(index)} hidden={index !== 0}>
           <img src={plate.href} alt={plate.alt} loading={index === 0 ? "eager" : "lazy"} />
+
+          {/*
+            ONE OPENER PER SHOT rather than one on the plate reading whichever
+            is visible. The button that enlarges image 02 carries image 02's
+            href and its alt, so nothing has to ask the DOM what is currently
+            shown and no answer can be stale — the same reason the filmstrip
+            flips `hidden` instead of swapping a `src`.
+
+            `hidden` UNTIL THE SCRIPT RUNS. It does nothing without its handler,
+            and a control that does nothing is worse than no control; see
+            `pages/shop/[slug].astro`, which reveals these.
+          */}
+          <button
+            type="button"
+            class="product-zoom-open"
+            data-zoom-src={plate.href}
+            data-zoom-alt={plate.alt}
+            aria-label={`Enlarge image ${plate.label}`}
+            hidden
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <path d="M10.4 10.4 14 14" fill="none" stroke="currentColor" stroke-width="1.5" />
+            </svg>
+          </button>
         </figure>
       ))
     }

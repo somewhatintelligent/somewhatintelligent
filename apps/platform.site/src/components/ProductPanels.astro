@@ -75,6 +75,30 @@ const { panels } = Astro.props;
                   aria-label={panel.chart.alt}
                   style={`--chart-src: url("${panel.chart.href}")`}
                 />
+
+                {/*
+                  `data-zoom-plate` because this is the one image on the page
+                  that is not a photograph. The shop masks it to the page's ink;
+                  at full size on the viewer's dark ground that would render a
+                  silhouette, so the viewer paints white behind it and shows the
+                  chart as it was drawn.
+
+                  `hidden` until the script reveals it — see the gallery.
+                */}
+                <button
+                  type="button"
+                  class="product-zoom-open is-inline"
+                  data-zoom-src={panel.chart.href}
+                  data-zoom-alt={panel.chart.alt}
+                  data-zoom-plate
+                  hidden
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+                    <path d="M10.4 10.4 14 14" fill="none" stroke="currentColor" stroke-width="1.5" />
+                  </svg>
+                  Enlarge chart
+                </button>
               </div>
             )}
 

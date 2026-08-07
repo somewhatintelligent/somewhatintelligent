@@ -1,0 +1,49 @@
+---
+// THE FULL-SIZE VIEWER — one dialog for the whole page, opened by any control
+// that carries a `data-zoom-src`.
+//
+// ONE DIALOG, NOT ONE PER IMAGE. The gallery renders every shot up front
+// because choosing between them must be instant; this is the opposite case.
+// It opens on a deliberate gesture, one image at a time, and the bytes it wants
+// are the bytes already on the page — so a single `<img>` with a swapped `src`
+// costs a cache hit rather than a request, and eight hidden dialogs would be
+// eight copies of markup to keep in step for no gain.
+//
+// WHAT IT SHOWS IS THE ASSET, WHOLE. `contain`, never `cover`: the gallery
+// crops to fill its field and this is the control that undoes that. A zoom that
+// showed the same crop larger would answer a question nobody asked — the
+// operator's framing is visible everywhere else on the page.
+//
+// `<dialog>` AND `showModal()` CARRY THE HARD PARTS. Focus moves in and is
+// trapped, `Esc` closes, the rest of the page goes inert, and the backdrop is a
+// real pseudo-element rather than a div pretending. `<form method="dialog">`
+// closes without script at all, so the close button works even if the handler
+// that opened it has since thrown.
+//
+// THE PLATE IS FOR LINE ART. A size chart is dark ink on transparency — over
+// the dialog's own dark ground it would be invisible, and it is the one image
+// here that is NOT a photograph. `on-plate` paints white behind it. The shop
+// tints the same file to the page's ink with a mask; at full size that would be
+// a silhouette of a chart rather than a chart, so this shows it as drawn.
+---
+
+<dialog class="product-zoom" data-zoom aria-label="Full-size image">
+  {/*
+    A form rather than a click handler: `method="dialog"` closes the dialog as
+    a platform behaviour, with no JavaScript of ours in the path.
+  */}
+  <form method="dialog">
+    <button type="submit" class="product-zoom-close" aria-label="Close">
+      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3 3 13 13 M13 3 3 13" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+      </svg>
+    </button>
+  </form>
+
+  {/*
+    `alt` is set from whatever opened this, so the description a screen reader
+    gets at full size is the one the operator wrote for that image — not a
+    second, emptier one belonging to the viewer.
+  */}
+  <img data-zoom-image src="" alt="" />
+</dialog>

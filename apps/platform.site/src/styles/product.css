@@ -159,6 +159,137 @@
   object-position: 65% center;
 }
 
+/* ── The full-size viewer ───────────────────────────────────────────────── */
+
+/*
+ * THE OPENER, sitting in the corner of whatever it enlarges. Small, and it
+ * stays small: the photograph is the content and this is a footnote on it.
+ *
+ * On the plate it is absolutely positioned over the shot; in the size-guide
+ * panel there is no plate to sit on, so `is-inline` puts it in the flow under
+ * the chart as an ordinary labelled control. One class, because the two are the
+ * same affordance in two layouts rather than two different controls.
+ */
+.product-zoom-open {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: 1px solid var(--color-border);
+  /* Over a photograph, so it needs a ground of its own to stay legible. The
+     flat colour first, because an engine without `color-mix` would otherwise
+     take the transparent initial value and leave the glyph on bare photo. */
+  background: var(--color-inverse);
+  background: color-mix(in srgb, var(--color-inverse) 78%, transparent);
+  color: var(--color-inverse-foreground);
+  cursor: pointer;
+}
+
+.product-zoom-open svg {
+  width: 15px;
+  height: 15px;
+}
+
+.product-zoom-open.is-inline {
+  position: static;
+  width: auto;
+  height: auto;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 7px 10px;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.product-zoom-open:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/*
+ * THE DIALOG. `max-*` rather than fixed, so a tall chart and a wide photograph
+ * are both whole — the whole point of this control is the uncropped frame, and
+ * a viewport-filling box that cropped it would be the gallery again.
+ *
+ * `dialog` ships with a UA border, padding and a `max-width` of its own; all
+ * three are cleared here rather than fought with later.
+ */
+.product-zoom {
+  max-width: 96vw;
+  max-height: 96dvh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.product-zoom::backdrop {
+  background: rgb(0 0 0 / 0.82);
+}
+
+.product-zoom img {
+  display: block;
+  max-width: 96vw;
+  max-height: 96dvh;
+  /* `contain` via intrinsic sizing: the box is the image, so nothing crops. */
+  object-fit: contain;
+}
+
+/*
+ * WHITE BEHIND LINE ART, and only there. A size chart is dark ink on
+ * transparency: over the backdrop it would be a chart drawn in the dark. The
+ * shop tints the same file to the page's ink with a mask, which at this size
+ * would be a silhouette rather than a chart — so this shows it as drawn, on the
+ * ground it was drawn for.
+ */
+.product-zoom.on-plate img {
+  padding: clamp(12px, 3vw, 32px);
+  background: #fff;
+}
+
+/*
+ * INSIDE THE FRAME, top right. It sat above the dialog on a negative offset
+ * first, which is fine until the image is tall enough to reach the viewport —
+ * then the only way out is scrolled off the top of the screen. `Esc` and the
+ * backdrop still close it, but a control that is sometimes not there is not a
+ * control. Its own ground keeps it legible over both a dark photograph and the
+ * white plate a chart sits on.
+ */
+.product-zoom-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: 0;
+  background: rgb(0 0 0 / 0.55);
+  color: rgb(255 255 255 / 0.92);
+  cursor: pointer;
+}
+
+.product-zoom-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.product-zoom-close:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 /* ── The purchase sheet ─────────────────────────────────────────────────── */
 
 /*
