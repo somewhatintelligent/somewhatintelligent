@@ -1,0 +1,10 @@
+{
+  "name": "@swi/c4-topology",
+  "private": true,
+  "description": "C4 topology prototype: alchemy IaC graph + oxc code graph → explorable diagrams",
+  "type": "module",
+  "dependencies": {
+    "oxc-parser": "^0.143.0",
+    "oxc-resolver": "^11.24.2"
+  }
+}

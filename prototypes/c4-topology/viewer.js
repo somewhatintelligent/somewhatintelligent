@@ -41,6 +41,7 @@ const wrap = (text, maxChars, maxLines) => {
 };
 
 const nodeByKey = new Map(VM.nodes.map((n) => [n.key, n]));
+const CODE_SOURCE = (VM.code?.generator ?? "fallow").split(" ")[0];
 const systemByStack = new Map(VM.systems.map((s) => [s.stack, s]));
 
 // ── view definitions ───────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ const views = [
     id: "code:" + key,
     label: (nodeByKey.get(key)?.name ?? key) + " code",
     lvl: "L3",
-    title: `Code map — ${nodeByKey.get(key)?.name ?? key} (${VM.code.containers[key].appRoot}, via fallow)`,
+    title: `Code map — ${nodeByKey.get(key)?.name ?? key} (${VM.code.containers[key].appRoot}, via ${CODE_SOURCE})`,
     codeKey: key,
   })),
 ];
@@ -87,7 +88,7 @@ const resolveView = (id) => {
     return {
       id,
       railId: "code:" + key,
-      title: `Code — ${name} / ${comp} (files & functions, via fallow)`,
+      title: `Code — ${name} / ${comp} (files & functions, via ${CODE_SOURCE})`,
     };
   }
   return { ...views[0], railId: views[0].id };
@@ -294,7 +295,7 @@ function codeCompGraph(key) {
       name: c.id,
       role: c.pkg ? "external" : "code",
       kindLine: `[Module — ${c.files.length} file${c.files.length === 1 ? "" : "s"}]`,
-      desc: `${m.fns} fns · max cx ${m.cx}` + (m.unused ? ` · ${m.unused} unused exports` : ""),
+      desc: `${m.fns} fns · max cx ${m.cx}` + (m.unused ? ` · ${m.unused} unused candidates` : ""),
       col: c.entry ? 0 : Math.max(1, cols.get(c.id)),
       drill: `codefiles:${key}:${c.id}`,
       member: !c.pkg,
@@ -530,14 +531,33 @@ function renderView() {
   const archNav = el("nav", {});
   const codeNav = el("nav", {});
   for (const v of views) {
-    (v.id.startsWith("code:") || v.id === "components" ? codeNav : archNav).append(viewButton(v));
+    const nav = v.id.startsWith("code:") || v.id === "components" ? codeNav : archNav;
+    nav.append(viewButton(v));
+    // The active code map expands into its L4 module views so the code level
+    // is reachable from the rail, not just by double-click.
+    if (v.codeKey && view.railId === v.id) {
+      for (const comp of VM.code.containers[v.codeKey].components) {
+        const drillId = `codefiles:${v.codeKey}:${comp.id}`;
+        nav.append(
+          el(
+            "button",
+            {
+              class: "viewlink sub" + (currentView === drillId ? " active" : ""),
+              onclick: () => navigate(drillId),
+            },
+            el("span", { class: "lvl", text: "L4" }),
+            document.createTextNode(comp.id),
+          ),
+        );
+      }
+    }
   }
   const rail = el(
     "div",
     { class: "rail" },
     el("h2", { text: "Architecture" }),
     archNav,
-    el("h2", { text: "Code maps · fallow" }),
+    el("h2", { text: "Code maps · " + CODE_SOURCE }),
     codeNav,
     legend(),
   );
@@ -1069,7 +1089,7 @@ function inspector() {
       el("h4", { text: "code" }),
       el("button", {
         class: "drill",
-        text: "open code map (L3 · via fallow) →",
+        text: `open code map (L3 · via ${CODE_SOURCE}) →`,
         onclick: () => navigate("code:" + key),
       }),
     );
@@ -1158,8 +1178,8 @@ function codeInspector(key) {
   row("imports", f.import_count);
   row("entry point", f.is_entry ? "yes" : undefined);
   row("in cycle", f.in_cycle ? "yes" : undefined);
-  if (f.unused_exports?.length) row("unused", f.unused_exports.join(", "));
-  row("provenance", "extracted by fallow (oxc AST)");
+  if (f.unused_exports?.length) row("unused candidates", f.unused_exports.join(", "));
+  row("provenance", `extracted by ${CODE_SOURCE} (oxc AST)`);
   inner.append(dl);
 
   if (f.functions?.length) {

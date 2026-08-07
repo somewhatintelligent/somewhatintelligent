@@ -193,6 +193,7 @@ interface CgFile {
 const codegraphPath = path.join(dir, "codegraph.json");
 const codegraph = fs.existsSync(codegraphPath)
   ? (JSON.parse(fs.readFileSync(codegraphPath, "utf8")) as {
+      generator?: string;
       files: CgFile[];
       edges: [number, number, number][];
       zones: { name: string; files: number }[];
@@ -215,6 +216,7 @@ interface CodeContainer {
 }
 
 const code: {
+  generator: string;
   files: CgFile[];
   edges: [number, number, number][];
   containers: Record<string, CodeContainer>;
@@ -225,9 +227,10 @@ const code: {
     fromZone: string;
     toZone: string;
   }[];
-} = { files: [], edges: [], containers: {}, violations: [] };
+} = { generator: "fallow viz", files: [], edges: [], containers: {}, violations: [] };
 
 if (codegraph) {
+  if (codegraph.generator) code.generator = codegraph.generator;
   const cgFiles = codegraph.files;
   const byPath = new Map(cgFiles.map((f, i) => [f.path, i]));
   const outEdges = new Map<number, number[]>();

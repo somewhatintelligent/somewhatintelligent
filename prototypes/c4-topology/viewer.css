@@ -204,6 +204,15 @@ body {
   background: var(--accent-soft);
   font-weight: 600;
 }
+.rail button.viewlink.sub {
+  padding-left: 30px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--ink-soft);
+}
+.rail button.viewlink.sub.active {
+  color: var(--ink);
+}
 
 /* Legend */
 .legend {

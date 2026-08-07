@@ -8,8 +8,9 @@ agents can navigate, generated mechanically from the stacks themselves.
 # 1. capture the IaC graph (no deploy, no credentials — sandbox eval only)
 SANDBOX=1 CI=1 bun prototypes/c4-topology/extract.ts --stage dev_claude
 
-# 2. capture the code graph (fallow AST analysis → L3/L4)
-bun prototypes/c4-topology/codegraph.ts
+# 2. capture the code graph (L3/L4). Two interchangeable producers:
+bun prototypes/c4-topology/oxgraph.ts     # native oxc — default, ~1.7s, no subprocess
+bun prototypes/c4-topology/codegraph.ts   # lift fallow's viz payload instead
 
 # 3. render it
 bun prototypes/c4-topology/generate.ts
@@ -20,16 +21,17 @@ open prototypes/c4-topology/index.html   # deep links: #view=…&select=…&them
 
 ## Files
 
-| file              | role                                                                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `extract.ts`      | evaluates every `alchemy.run.ts` and walks alchemy's Output-expression AST → `topology.json` (nodes, edges, props, cross-stack refs) |
-| `model.ts`        | the C4 overlay: systems, people, per-resource intent, and _asserted_ runtime edges with code citations                               |
-| `generate.ts`     | merges extraction + overlay into a viewmodel, inlines `viewer.css`/`viewer.js` → self-contained `index.html`                         |
-| `viewer.{css,js}` | dependency-free renderer: layered layout, pan/zoom, hover isolation, inspector, light+dark                                           |
-| `codegraph.ts`    | runs `fallow viz` and lifts its embedded `__FALLOW_DATA__` viewmodel → `codegraph.json` (files, import edges, zones, violations)     |
-| `topology.json`   | captured IaC extraction (committed so the diagram is reproducible without running stacks)                                            |
-| `codegraph.json`  | captured fallow code graph (per-file metrics incl. per-function complexity)                                                          |
-| `index.html`      | the deliverable — works from `file://`, no network                                                                                   |
+| file              | role                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `extract.ts`      | evaluates every `alchemy.run.ts` and walks alchemy's Output-expression AST → `topology.json` (nodes, edges, props, cross-stack refs)  |
+| `model.ts`        | the C4 overlay: systems, people, per-resource intent, and _asserted_ runtime edges with code citations                                |
+| `generate.ts`     | merges extraction + overlay into a viewmodel, inlines `viewer.css`/`viewer.js` → self-contained `index.html`                          |
+| `viewer.{css,js}` | dependency-free renderer: layered layout, pan/zoom, hover isolation, inspector, light+dark                                            |
+| `oxgraph.ts`      | native code-graph extraction with `oxc-parser` + `oxc-resolver` → `codegraph.json`; reads `.fallowrc.jsonc` for entries/ignores/zones |
+| `codegraph.ts`    | the alternative producer: runs `fallow viz` and lifts its embedded `__FALLOW_DATA__` viewmodel into the same `codegraph.json` schema  |
+| `topology.json`   | captured IaC extraction (committed so the diagram is reproducible without running stacks)                                             |
+| `codegraph.json`  | captured fallow code graph (per-file metrics incl. per-function complexity)                                                           |
+| `index.html`      | the deliverable — works from `file://`, no network                                                                                    |
 
 ## Why this shape (the research, condensed)
 
@@ -132,41 +134,68 @@ exist because the walker understands alchemy's internals:
   contract, captured as a real expression edge)
 - `StripeListener` correctly appears as dev-only tooling
 
-## Levels 3–4: the code graph, via fallow
+## Levels 3–4: the code graph
 
-`fallow` (already a dependency of this repo) is a Rust/oxc static analyzer with
-a `viz` mode. Its HTML output embeds `window.__FALLOW_DATA__` — the complete
-file-level model: per-file status/exports/importer counts, **per-function
-cyclomatic + cognitive complexity**, the import edge list (flag bit0 = the
-edge is entirely type-only), bun-workspace clustering, **boundary zones**,
-cycles, clone groups, and boundary violations. That payload is richer than
-its `dot`/`mermaid` emitters (which drop clusters, flags, and violations), so
-`codegraph.ts` lifts the JSON instead. Contract source:
-`crates/engine/src/viz.rs` (`VizData`) in `fallow-rs/fallow`; the shape is
-stable across 3.10 ↔ 3.14 (`schema_version: 7`).
+The code level has two interchangeable producers writing the same
+`codegraph.json` schema. `generate.ts` consumes whichever ran last and labels
+the views with its name, so the diagram always states its own provenance.
 
-**The L2→L4 join is mechanical.** Every Worker's extracted props carry
-`main` (entry file) or `rootDir`. `generate.ts` BFSes fallow's import graph
-from that anchor to get the container's code closure, then:
+### `oxgraph.ts` — native oxc (the default)
+
+fallow is a Rust tool built on **oxc**, and oxc ships napi bindings — so the
+same engine is directly available in-process. `oxgraph.ts` does the whole
+pipeline itself: discover sources → `oxc-parser` for the module record and AST
+(`.astro` contributes both its frontmatter fence and its non-inline `<script>`
+blocks) → `oxc-resolver` against each file's nearest tsconfig (with realpath
+normalization, since bun workspace deps are symlinks) → import edges with
+type-only flags, per-function cyclomatic/cognitive complexity, unused-export
+candidates, Tarjan cycles, and boundary violations.
+
+It reads **`.fallowrc.jsonc`** rather than inventing its own model: the repo's
+`entry` globs, `ignorePatterns`, and the whole `boundaries` block (zones in
+declaration order — first match wins — and `rules` as allow-lists). So the
+zones on the diagram are literally the zones the repo declares.
+
+**Validated against fallow on this repo: 1489 of 1489 import edges identical,
+149/150 type-only flags agree, zone assignments match** (app-core 22, lib 27,
+platform-pkg 101, platform-app 333, product-app/mezedes 43, infra 9), and both
+find the same single boundary violation. Runtime ~1.7s for 535 files.
+
+### Where fallow is still the better tool
+
+The parity above is on the _import graph_. Everything past that, fallow does
+better, and the honest split is:
+
+|                                                  | oxgraph                                                                                                       | fallow                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| import graph, type-only flags, zones             | identical                                                                                                     | identical                                                                      |
+| per-function complexity                          | approximate (nesting-weighted)                                                                                | sonar-exact, with per-contribution breakdown                                   |
+| unused exports                                   | **candidates only** — syntactic; can't see type-position uses, so types are excluded rather than over-claimed | checker-grade, incl. re-export chains through barrels and `--type-aware` proof |
+| per-export consumers                             | not modeled                                                                                                   | `--trace-file` → `referenced_by[{from_file, kind}]`                            |
+| duplication, hotspots, framework entry detection | none                                                                                                          | built in (87 clone groups here)                                                |
+
+So: **oxgraph owns the graph** (it's fast, dependency-light, runs in-process,
+and needs no binary), and **fallow owns the semantics**. The natural next step
+is to keep oxgraph as the structural producer and enrich it from fallow's JSON
+where fallow is authoritative — `fallow dead-code --format json` for proven
+unused exports and cycles, `--trace-file` for symbol-level consumer edges —
+rather than choosing one. Both scripts stay in the repo for that reason.
+
+### The L2→L4 join is mechanical
+
+Every Worker's extracted props carry `main` (entry file) or `rootDir`.
+`generate.ts` BFSes the import graph from that anchor to get the container's
+code closure, then:
 
 - **L3** — folders (and imported workspace packages) become components, with
-  aggregated import edges, per-module fn/complexity/unused rollups, and
-  import-depth layering (entry at the left).
-- **L4** — double-click a module (or use the inspector) to drill into its
-  files: per-file nodes carry fallow's function inventory (name, line,
-  cyclomatic, cognitive), unused-export names, cycle membership. Type-only
-  imports render dotted; fallow boundary violations render red (this repo has
-  exactly one: `platform.site/src/core/product-view.ts` importing
-  `platform.commerce/domain/Contracts.ts` across zones — type-only, visible
-  on the Storefront code map).
-
-Not yet lifted (documented seams for the next pass): per-export consumer
-lists (`fallow dead-code --trace-file <path>` → every export with
-`referenced_by[{from_file, kind}]`), checker-proven symbol impact
-(`--type-aware --symbol-impact FILE:EXPORT`), and fallow's `boundaries`
-config — its `hexagonal` preset (zones `adapters→ports→domain` with
-`allowTypeOnly`) could formalize the commerce module's ports-and-adapters
-rules and fail CI on violations.
+  aggregated import edges, per-module fn/complexity rollups, and import-depth
+  layering (entry at the left).
+- **L4** — every module appears in the left rail under its active code map
+  (and responds to double-click on the diagram). File nodes carry the function
+  inventory: name, line, cyclomatic, cognitive. Type-only imports render
+  dotted; boundary violations render red — this repo has exactly one,
+  `platform.site/src/core/product-view.ts` → `platform.commerce/domain/Contracts.ts`
+  (app-core reaching into platform-app; type-only, visible on the Storefront map).
 
 ## Ideation / next steps
 
