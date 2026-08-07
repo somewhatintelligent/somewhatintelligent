@@ -2,14 +2,38 @@
 import Base from "../layouts/Base.astro";
 import HomeView from "../components/views/HomeView.astro";
 import { HOME_DOCUMENT } from "../lib/home-document.ts";
+import { graph, organization, webPage, webSite } from "../core/structured-data.ts";
 
 // On-demand, not prerendered: `output: "server"` is forced by the stack and
 // this route opts out of nothing, so the Worker renders the page per request.
 // The document is committed rather than read from anywhere — see
 // `src/lib/home-document.ts`.
 const doc = HOME_DOCUMENT;
+
+const origin = Astro.url.origin;
+
+/**
+ * THE ONLY PAGE THAT CARRIES `WebSite`. Google's site-name documentation is
+ * explicit that the markup has to sit on the domain root; every other page
+ * refers to this node by `@id` instead of restating it.
+ */
+const jsonLd = graph([
+  organization(origin),
+  webSite(origin),
+  webPage({
+    origin,
+    path: "/",
+    name: doc.seo.title,
+    description: doc.seo.description,
+  }),
+]);
 ---
 
-<Base title={doc.seo.title} description={doc.seo.description}>
+<Base
+  title={doc.seo.title}
+  description={doc.seo.description}
+  jsonLd={jsonLd}
+  markdownAlternate
+>
   <HomeView document={doc} />
 </Base>

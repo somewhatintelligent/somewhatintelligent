@@ -1,14 +1,23 @@
 ---
 import Base from "../layouts/Base.astro";
 import TxShell from "../components/TxShell.astro";
+import { pageGraph } from "../core/structured-data.ts";
 
 // Refund policy. Static legal/informational page linked from the site footer.
+
+const TITLE = "Refunds — somewhatintelligent";
+const DESCRIPTION = "Returns and refunds for somewhatintelligent orders.";
+
+const jsonLd = pageGraph({
+  origin: Astro.url.origin,
+  path: "/refunds",
+  name: TITLE,
+  description: DESCRIPTION,
+  crumb: "Refunds",
+});
 ---
 
-<Base
-  title="Refunds — somewhatintelligent"
-  description="Returns and refunds for somewhatintelligent orders."
->
+<Base title={TITLE} description={DESCRIPTION} jsonLd={jsonLd}>
   <TxShell title="Refunds" maxWidth={640}>
     <div class="legal">
       <p class="legal-updated">Last updated August 2026.</p>

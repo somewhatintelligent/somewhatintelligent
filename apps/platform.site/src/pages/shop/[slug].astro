@@ -22,6 +22,16 @@ import ProductZoom from "../../components/ProductZoom.astro";
 import { getStorefrontProduct } from "../../lib/commerce.ts";
 import { availabilityLine, productView } from "../../core/product-view.ts";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
+import { absoluteUrl } from "../../core/site.ts";
+import {
+  breadcrumbs,
+  graph,
+  isoCurrency,
+  majorUnits,
+  organization,
+  productNode,
+  webPage,
+} from "../../core/structured-data.ts";
 import "../../styles/product.css";
 
 const { slug } = Astro.params;
@@ -49,9 +59,76 @@ if (!product) return new Response(null, { status: 404 });
 const view = productView(product);
 const availability = availabilityLine(product.variants);
 const seoDescription = view.description[0] ?? `${product.title} — object by somewhatintelligent.`;
+
+const origin = Astro.url.origin;
+const path = `/shop/${product.slug}`;
+
+/**
+ * THE CARD IS THE OBJECT'S OWN PHOTOGRAPH, not the studio's wordmark plate.
+ *
+ * This is the one place a generated card would be the wrong answer. A shared
+ * product link competes in a feed against every other picture in it, and the
+ * shirt is a better picture of the shirt than a title set over black. The bytes
+ * already exist, already sit behind an immutable cache header, and are already
+ * the image the page opens on — index 0 is the listing cover by contract.
+ *
+ * NO `og:image:width`/`height`. The media worker streams whatever was uploaded
+ * and nothing here has measured it; declaring dimensions we have not read is
+ * how a card gets letterboxed by a platform that believed them.
+ */
+const cover = view.media[0];
+const socialImage = cover ? { url: cover.href, alt: cover.alt } : undefined;
+
+const inStock = product.variants.some((variant) => variant.available);
+
+const jsonLd = graph([
+  organization(origin),
+  webPage({
+    origin,
+    path,
+    name: product.title,
+    description: seoDescription,
+    type: "ItemPage",
+    ...(cover ? { image: absoluteUrl(origin, cover.href) } : {}),
+  }),
+  breadcrumbs(origin, [
+    { name: "somewhatintelligent", path: "/" },
+    { name: "Objects", path: "/shop" },
+    { name: product.title },
+  ]),
+  productNode({
+    origin,
+    product,
+    market,
+    /** The whole description, not the first paragraph the `<meta>` is capped to. */
+    description: view.description.join(" "),
+  }),
+]);
 ---
 
-<Base title={`${product.title} — somewhatintelligent`} description={seoDescription}>
+<Base
+  title={`${product.title} — somewhatintelligent`}
+  description={seoDescription}
+  ogType="product"
+  image={socialImage}
+  jsonLd={jsonLd}
+  markdownAlternate
+>
+  {/*
+    THE `product:` NAMESPACE, which is Open Graph's and not schema.org's.
+    Facebook and Pinterest read these and neither reads JSON-LD; the price in a
+    Pinterest rich pin comes from here or from nowhere. It duplicates the offer
+    above because the two vocabularies have no overlap, not because either is
+    redundant.
+  */}
+  <Fragment slot="head">
+    <meta property="product:price:amount" content={String(majorUnits(product.priceCents))} />
+    <meta property="product:price:currency" content={isoCurrency(product.currency)} />
+    <meta property="product:availability" content={inStock ? "in stock" : "out of stock"} />
+    <meta property="product:condition" content="new" />
+    <meta property="product:retailer_item_id" content={product.slug} />
+  </Fragment>
+
   <div class="site-frame product-frame">
     <SiteHeader />
 

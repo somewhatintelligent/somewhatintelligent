@@ -1,11 +1,23 @@
 ---
 import Base from "../layouts/Base.astro";
 import TxShell from "../components/TxShell.astro";
+import { pageGraph } from "../core/structured-data.ts";
 
 // Privacy policy. Static legal page linked from the site footer.
+
+const TITLE = "Privacy — somewhatintelligent";
+const DESCRIPTION = "How somewhatintelligent handles your data.";
+
+const jsonLd = pageGraph({
+  origin: Astro.url.origin,
+  path: "/privacy",
+  name: TITLE,
+  description: DESCRIPTION,
+  crumb: "Privacy",
+});
 ---
 
-<Base title="Privacy — somewhatintelligent" description="How somewhatintelligent handles your data.">
+<Base title={TITLE} description={DESCRIPTION} jsonLd={jsonLd}>
   <TxShell title="Privacy" maxWidth={640}>
     <div class="legal">
       <p class="legal-updated">Last updated July 2026.</p>

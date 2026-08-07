@@ -9,7 +9,9 @@
   },
   "scripts": {
     "dev": "alchemy dev",
-    "email": "email dev --dir api/email/preview --port 3001"
+    "email": "email dev --dir api/email/preview --port 3001",
+    "og": "platform-og build",
+    "test": "vp test run"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.6.25",
@@ -48,6 +50,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^6.0.1",
     "auth": "^1.6.25",
+    "platform.og": "workspace:*",
     "react-email": "^5.0.5",
     "tailwindcss": "catalog:",
     "vite-plus": "catalog:"

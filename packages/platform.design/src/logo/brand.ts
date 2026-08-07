@@ -15,6 +15,27 @@ export type LogoColorScheme =
   | "on-destructive"
   | "on-success";
 
+/**
+ * The grounds a social card is drawn on, as literal hex for the same reason as
+ * `ogColors` — satori resolves no custom property, so a card cannot read the
+ * semantic palette and these values cannot be derived from it at render time.
+ *
+ * They MIRROR `darkPalette`/`lightPalette` in `../tokens/brand.ts` rather than
+ * introducing new colour: `dark.bg` is the garment black the site renders on
+ * and `light.bg` is proof paper. A reskin edits both files, and the contrast
+ * audit covers the tokens these were taken from.
+ */
+export interface LogoOgSurface {
+  /** Card ground. */
+  bg: string;
+  /** Wordmark and title. */
+  text: string;
+  /** Eyebrow, tagline, and any secondary line. */
+  muted: string;
+  /** The scheme `LogoIcon` is drawn with on this ground. */
+  scheme: LogoColorScheme;
+}
+
 export interface LogoBrand {
   /** Full wordmark. */
   wordmarkFull: string;
@@ -29,6 +50,11 @@ export interface LogoBrand {
     /** Stroke for light surfaces. */
     light: string;
   };
+  /** The two grounds `platform.og` cards are composed on. */
+  ogSurfaces: {
+    dark: LogoOgSurface;
+    light: LogoOgSurface;
+  };
 }
 
 export const brand: LogoBrand = {
@@ -38,6 +64,12 @@ export const brand: LogoBrand = {
   ogColors: {
     primary: "#F7F7F3",
     light: "#080908",
+  },
+  ogSurfaces: {
+    /** `neutral.950` ground, `neutral.50` type — what every public page renders as. */
+    dark: { bg: "#080908", text: "#F7F7F3", muted: "#81817A", scheme: "primary" },
+    /** `neutral.50` ground, `neutral.950` type — the icon plate, which must read on a light tab bar. */
+    light: { bg: "#F7F7F3", text: "#080908", muted: "#60605A", scheme: "light" },
   },
 };
 

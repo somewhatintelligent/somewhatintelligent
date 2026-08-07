@@ -9,13 +9,23 @@
 import Base from "../../layouts/Base.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
+import { pageGraph } from "../../core/structured-data.ts";
 import "../../styles/shop.css";
+
+const TITLE = "Software — somewhatintelligent";
+const DESCRIPTION = "Systems and tools published by somewhatintelligent.";
+
+const jsonLd = pageGraph({
+  origin: Astro.url.origin,
+  path: "/software",
+  name: TITLE,
+  description: DESCRIPTION,
+  crumb: "Software",
+  type: "CollectionPage",
+});
 ---
 
-<Base
-  title="Software — somewhatintelligent"
-  description="Systems and tools published by somewhatintelligent."
->
+<Base title={TITLE} description={DESCRIPTION} jsonLd={jsonLd} markdownAlternate>
   <div class="site-frame">
     <SiteHeader />
 

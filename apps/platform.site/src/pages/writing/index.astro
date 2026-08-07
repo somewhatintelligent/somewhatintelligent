@@ -1,22 +1,23 @@
 ---
-// PRERENDERED, unlike most of this site. The texts are files in the repository
-// and the page is the same for everyone, so it is built once and served off the
-// asset layer with no Worker invocation. `output: "server"` is forced by the
-// stack; this route opts out of it.
+// ON-DEMAND, though every fact on it is committed to this repository.
 //
-// The adapter prerenders inside workerd (`prerenderEnvironment: "workerd"`),
-// so the site chrome's binding reads resolve at build like they do at request
-// time. What does NOT survive prerendering is per-request state — the header's
-// market cookie — which is why `SiteHeader` sets that control client-side.
+// It was prerendered for exactly one commit, and the metadata layer is why it
+// is not. `Base` derives the canonical, `og:url`, `og:image` and the markdown
+// alternate from `Astro.url.origin` ON PURPOSE — see `core/site.ts`: the Worker
+// answers on workers.dev in every stage and on the apex only in production, so
+// a build-time origin would make a stage emit canonicals pointing at
+// production. Prerendering has no request to take an origin from, so it would
+// bake a placeholder into all four. Astro's `site` option would settle this —
+// a per-stage value is a fact, not a guess — but that is stack plumbing, not
+// something to smuggle into a merge.
 import Base from "../../layouts/Base.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import WritingIndex from "../../components/views/WritingIndex.astro";
 import { WRITING_DOCUMENT } from "../../lib/writing-document.ts";
 import { publishedRows } from "../../core/writing-view.ts";
+import { pageGraph } from "../../core/structured-data.ts";
 import { getCollection } from "astro:content";
-
-export const prerender = true;
 
 const doc = WRITING_DOCUMENT;
 const rows = publishedRows(
@@ -32,9 +33,26 @@ const rows = publishedRows(
   })),
   { includeDrafts: import.meta.env.DEV },
 );
+
+const origin = Astro.url.origin;
+
+const jsonLd = pageGraph({
+  origin,
+  path: "/writing",
+  name: doc.seo.title,
+  description: doc.seo.description,
+  crumb: doc.heading,
+  type: "CollectionPage",
+});
 ---
 
-<Base title={doc.seo.title} description={doc.seo.description} theme="light">
+<Base
+  title={doc.seo.title}
+  description={doc.seo.description}
+  theme="light"
+  jsonLd={jsonLd}
+  markdownAlternate
+>
   <div class="site-frame">
     <div data-theme="dark" style="display: contents;">
       <SiteHeader />

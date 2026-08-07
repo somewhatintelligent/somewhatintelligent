@@ -2,12 +2,29 @@
 import Base from "../../layouts/Base.astro";
 import AboutView from "../../components/views/AboutView.astro";
 import { ABOUT_DOCUMENT } from "../../lib/about-document.ts";
+import { pageGraph } from "../../core/structured-data.ts";
 
 // Copy/SEO come from the committed document rather than the Publisher page
 // read this route used to perform — see `src/lib/about-document.ts`.
 const doc = ABOUT_DOCUMENT;
+
+const origin = Astro.url.origin;
+
+const jsonLd = pageGraph({
+  origin,
+  path: "/about",
+  name: doc.seo.title,
+  description: doc.seo.description,
+  crumb: "About",
+  type: "AboutPage",
+});
 ---
 
-<Base title={doc.seo.title} description={doc.seo.description}>
+<Base
+  title={doc.seo.title}
+  description={doc.seo.description}
+  jsonLd={jsonLd}
+  markdownAlternate
+>
   <AboutView document={doc} />
 </Base>

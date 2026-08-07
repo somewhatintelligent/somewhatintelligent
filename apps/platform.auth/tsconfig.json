@@ -34,6 +34,8 @@
     "api/**/*.tsx",
     "app/**/*.ts",
     "app/**/*.tsx",
+    "og/**/*.tsx",
+    "og.config.ts",
     "test/**/*.ts"
   ]
 }

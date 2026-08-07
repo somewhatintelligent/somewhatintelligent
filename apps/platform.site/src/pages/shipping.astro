@@ -1,14 +1,23 @@
 ---
 import Base from "../layouts/Base.astro";
 import TxShell from "../components/TxShell.astro";
+import { pageGraph } from "../core/structured-data.ts";
 
 // Shipping policy. Static legal/informational page linked from the site footer.
+
+const TITLE = "Shipping — somewhatintelligent";
+const DESCRIPTION = "How and when somewhatintelligent orders ship.";
+
+const jsonLd = pageGraph({
+  origin: Astro.url.origin,
+  path: "/shipping",
+  name: TITLE,
+  description: DESCRIPTION,
+  crumb: "Shipping",
+});
 ---
 
-<Base
-  title="Shipping — somewhatintelligent"
-  description="How and when somewhatintelligent orders ship."
->
+<Base title={TITLE} description={DESCRIPTION} jsonLd={jsonLd}>
   <TxShell title="Shipping" maxWidth={640}>
     <div class="legal">
       <p class="legal-updated">Last updated August 2026.</p>

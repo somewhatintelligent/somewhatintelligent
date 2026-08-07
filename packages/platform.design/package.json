@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./logo": "./src/logo/index.ts",
+    "./logo/og": "./src/logo/og-lockup.tsx",
     "./tokens": "./src/tokens/index.ts",
     "./tokens/*": "./src/tokens/*.ts",
     "./generated/*": "./generated/*",

@@ -1,46 +1,74 @@
 ---
-// One text. Prerendered from the collection, same as the index — `getStaticPaths`
-// enumerates the published texts at build and each one deploys as a static
-// asset.
+// One text.
 //
-// DRAFTS ARE NOT GIVEN A PATH. Because these routes prerender, a draft that
-// merely went unlisted on the index would still deploy as a reachable URL;
-// `publishedRows` drops them, so in a production build the file is not
-// published at all. It still gets a path in dev, where laying an unfinished
-// text out on the real page is the point.
+// A REQUEST-TIME LOOKUP RATHER THAN `getStaticPaths`, for the reason given in
+// `writing/index.astro`: the metadata layer reads the origin off the request,
+// so these routes stay on demand until Astro's `site` is set per stage. The
+// texts are still files in this repository — `getCollection` reads a data store
+// built at compile time, not a service.
+//
+// A DRAFT IS A 404, not merely an unlisted page. `publishedRows` drops drafts
+// from a production build, and this route resolves against that same list
+// rather than against the collection, so an unfinished text cannot be reached
+// by guessing its slug.
 import Base from "../../layouts/Base.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import WritingArticle from "../../components/views/WritingArticle.astro";
 import { publishedRows } from "../../core/writing-view.ts";
+import { WRITING_DOCUMENT } from "../../lib/writing-document.ts";
+import { BRAND_NAME, breadcrumbs, graph, organization, webPage } from "../../core/structured-data.ts";
 import { getCollection, render } from "astro:content";
 
-export const prerender = true;
+const { slug } = Astro.params;
 
-export async function getStaticPaths() {
-  const entries = await getCollection("writing");
-  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+const entries = await getCollection("writing");
+const row = publishedRows(
+  entries.map((entry) => ({
+    slug: entry.id,
+    title: entry.data.title,
+    deck: entry.data.deck,
+    kind: entry.data.kind,
+    date: entry.data.date,
+    updated: entry.data.updated,
+    draft: entry.data.draft,
+    body: entry.body ?? "",
+  })),
+  { includeDrafts: import.meta.env.DEV },
+).find((candidate) => candidate.slug === slug);
 
-  return publishedRows(
-    entries.map((entry) => ({
-      slug: entry.id,
-      title: entry.data.title,
-      deck: entry.data.deck,
-      kind: entry.data.kind,
-      date: entry.data.date,
-      updated: entry.data.updated,
-      draft: entry.data.draft,
-      body: entry.body ?? "",
-    })),
-    { includeDrafts: import.meta.env.DEV },
-  ).map((row) => ({
-    params: { slug: row.slug },
-    props: { row, entry: byId.get(row.slug)! },
-  }));
-}
+const entry = row ? entries.find((candidate) => candidate.id === row.slug) : undefined;
+if (!row || !entry) return new Response(null, { status: 404 });
 
-const { row, entry } = Astro.props;
 const { Content } = await render(entry);
+
+/**
+ * COMPOSED FROM THE PRIMITIVES RATHER THAN THROUGH `pageGraph`, which builds a
+ * two-crumb trail and is documented for the one-level routes. A text sits a
+ * level deeper, so its trail is studio → texts → this one.
+ *
+ * NOT AN `Article` NODE YET. That is what Google actually wants here —
+ * `headline`, `datePublished`, `author` — but `structured-data.ts` has no
+ * builder for one, and inventing an untested node shape in a merge is how
+ * invalid markup ships. `ItemPage` is honest and the follow-up is small.
+ */
+const origin = Astro.url.origin;
+const path = `/writing/${row.slug}`;
+const jsonLd = graph([
+  organization(origin),
+  webPage({
+    origin,
+    path,
+    name: row.title,
+    description: entry.data.description,
+    type: "ItemPage",
+  }),
+  breadcrumbs(origin, [
+    { name: BRAND_NAME, path: "/" },
+    { name: WRITING_DOCUMENT.heading, path: "/writing" },
+    { name: row.title },
+  ]),
+]);
 ---
 
 <Base
@@ -48,6 +76,7 @@ const { Content } = await render(entry);
   description={entry.data.description}
   ogType="article"
   theme="light"
+  jsonLd={jsonLd}
 >
   <div class="site-frame">
     <div data-theme="dark" style="display: contents;">

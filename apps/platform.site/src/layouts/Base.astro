@@ -1,13 +1,49 @@
 ---
 import "../styles.css";
-import PostHogLayout from "./PostHogLayout.astro"
+import PostHogLayout from "./PostHogLayout.astro";
+import { absoluteUrl, canonicalPath, markdownPath } from "../core/site.ts";
+import { serialize, type JsonLdNode } from "../core/structured-data.ts";
+
+/** A social card. Root-relative `url` is fine — it is made absolute below. */
+export interface SocialImage {
+  readonly url: string;
+  /**
+   * REQUIRED, and not decorative. `og:image:alt` is what a screen reader
+   * announces for a shared link, and the platforms that read it are the same
+   * ones that crop the picture — a card whose text is cropped away has nothing
+   * else to say for itself.
+   */
+  readonly alt: string;
+  readonly width?: number;
+  readonly height?: number;
+}
 
 interface Props {
   title?: string;
   description?: string;
-  ogType?: "website" | "article";
+  ogType?: "website" | "article" | "product";
+  /**
+   * Keep this page out of an index. For the routes that are ABOUT ONE PERSON'S
+   * TRANSACTION rather than about the shop — an order, a cart — and for the
+   * 404, which is not a page at all. The site this replaces marked its
+   * `/checkout` pair this way and the equivalents here inherited nothing, so
+   * `/orders/<number>` was indexable.
+   */
   noindex?: boolean;
   theme?: "dark" | "light";
+  /**
+   * The page's own card. Omitted means the studio card — which is right for
+   * every surface whose subject IS the studio, and wrong for a product, whose
+   * subject is a photograph the site already holds.
+   */
+  image?: SocialImage;
+  /** The page's `@graph`. Absent on the routes that are nobody's business but the buyer's. */
+  jsonLd?: JsonLdNode;
+  /**
+   * A markdown twin exists at `<path>.md`. Advertised as an alternate
+   * representation so an agent finds it from the page rather than by guessing.
+   */
+  markdownAlternate?: boolean;
 }
 
 const {
@@ -16,23 +52,108 @@ const {
   ogType = "website",
   noindex = false,
   theme = "dark",
+  image,
+  jsonLd,
+  markdownAlternate = false,
 } = Astro.props;
+
+/**
+ * THE ORIGIN COMES FROM THE REQUEST. See `core/site.ts` — a baked one would
+ * make every stage emit canonicals pointing at production.
+ */
+const origin = Astro.url.origin;
+const path = canonicalPath(Astro.url.pathname);
+const canonical = absoluteUrl(origin, path);
+
+/** The studio card, and the dimensions `og/opengraph.og.tsx` actually renders. */
+const DEFAULT_CARD: SocialImage = {
+  url: "/og/opengraph-image.png",
+  alt: "somewhatintelligent — objects, systems, texts",
+  width: 1200,
+  height: 630,
+};
+
+const card = image ?? DEFAULT_CARD;
+const cardUrl = card.url.startsWith("http") ? card.url : absoluteUrl(origin, card.url);
+
+/**
+ * X reads `twitter:image` and falls back to `og:image` — so the separate
+ * artwork is only worth naming when this page has not supplied its own.
+ */
+const twitterCardUrl = image ? cardUrl : absoluteUrl(origin, "/og/twitter-image.png");
+
+/**
+ * `max-image-preview:large` is the directive that lets a result carry the card
+ * at all, and `max-snippet:-1` lifts the description cap. Both are opt-in:
+ * Google's default is a thumbnail and a truncated snippet. `noindex` alone on
+ * the excluded routes — `nofollow` with it would strip the site's own internal
+ * links out of a crawl for no gain, since those pages link only to pages that
+ * are indexable anyway.
+ */
+const robots = noindex
+  ? "noindex, follow"
+  : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
 ---
-  <!doctype html>
-  <html lang="en" data-theme={theme} style={`color-scheme: ${theme};`}>
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <meta name="description" content={description} />
-      {noindex && <meta name="robots" content="noindex" />}
-      <meta property="og:type" content={ogType} />
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <title>{title}</title>
-    </head>
-    <body>
+
+<!doctype html>
+<html lang="en" data-theme={theme} style={`color-scheme: ${theme};`}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content={robots} />
+
+    {/* The ground the card and the page share — it is what a browser paints
+        behind the document before the stylesheet lands. */}
+    <meta name="theme-color" content="#080908" />
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="somewhatintelligent" />
+    <meta property="og:locale" content="en_CA" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={cardUrl} />
+    <meta property="og:image:alt" content={card.alt} />
+    {card.width && <meta property="og:image:width" content={String(card.width)} />}
+    {card.height && <meta property="og:image:height" content={String(card.height)} />}
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={twitterCardUrl} />
+    <meta name="twitter:image:alt" content={card.alt} />
+
+    {/* 96 rather than 32: Google's favicon guidance asks for a multiple of 48,
+        and browsers downscale better than they upscale. See og/icon.og.tsx. */}
+    <link rel="icon" type="image/png" sizes="96x96" href="/og/icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/og/apple-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    {
+      markdownAlternate && (
+        <link
+          rel="alternate"
+          type="text/markdown"
+          href={absoluteUrl(origin, markdownPath(path))}
+          title={`${title} (markdown)`}
+        />
+      )
+    }
+
+    {
+      jsonLd && (
+        <script type="application/ld+json" set:html={serialize(jsonLd)} is:inline />
+      )
+    }
+
+    <slot name="head" />
+  </head>
+  <body>
     <PostHogLayout>
       <slot />
     </PostHogLayout>
-    </body>
-  </html>
+  </body>
+</html>

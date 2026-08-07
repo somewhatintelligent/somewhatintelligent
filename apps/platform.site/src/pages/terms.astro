@@ -1,11 +1,23 @@
 ---
 import Base from "../layouts/Base.astro";
 import TxShell from "../components/TxShell.astro";
+import { pageGraph } from "../core/structured-data.ts";
 
 // Terms of use. Static legal page linked from the site footer.
+
+const TITLE = "Terms — somewhatintelligent";
+const DESCRIPTION = "Terms of use for somewhatintelligent.";
+
+const jsonLd = pageGraph({
+  origin: Astro.url.origin,
+  path: "/terms",
+  name: TITLE,
+  description: DESCRIPTION,
+  crumb: "Terms",
+});
 ---
 
-<Base title="Terms — somewhatintelligent" description="Terms of use for somewhatintelligent.">
+<Base title={TITLE} description={DESCRIPTION} jsonLd={jsonLd}>
   <TxShell title="Terms" maxWidth={640}>
     <div class="legal">
       <p class="legal-updated">Last updated July 2026.</p>
