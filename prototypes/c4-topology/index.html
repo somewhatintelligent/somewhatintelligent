@@ -1,0 +1,1447 @@
+<title>somewhatintelligent — C4 topology</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+/* somewhatintelligent C4 viewer — tokens first, both themes. */
+:root {
+  --bg: #f6f7f8;
+  --panel: #ffffff;
+  --ink: #1c242e;
+  --ink-soft: #5a6673;
+  --line: #d7dde3;
+  --accent: #b87333; /* copper — selection & focus only */
+  --accent-soft: #b8733322;
+  --compute: #4b7ea6;
+  --compute-fill: #4b7ea614;
+  --datastore: #4e8f7b;
+  --datastore-fill: #4e8f7b14;
+  --edge-role: #77699e;
+  --edge-role-fill: #77699e14;
+  --external: #7c8794;
+  --external-fill: #7c879412;
+  --person: #a3743c;
+  --person-fill: #a3743c14;
+  --schema: #8a8f6a;
+  --dev: #9a8f4a;
+  --canvas-dot: #1c242e0f;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141920;
+    --panel: #1b222b;
+    --ink: #d9e1e8;
+    --ink-soft: #8b98a5;
+    --line: #303b46;
+    --accent: #e0a464;
+    --accent-soft: #e0a46426;
+    --compute: #6ea3cc;
+    --compute-fill: #6ea3cc1a;
+    --datastore: #6fb39d;
+    --datastore-fill: #6fb39d1a;
+    --edge-role: #a195c9;
+    --edge-role-fill: #a195c91a;
+    --external: #8d99a6;
+    --external-fill: #8d99a614;
+    --person: #cfa06a;
+    --person-fill: #cfa06a1a;
+    --schema: #a8ad86;
+    --dev: #bfb069;
+    --canvas-dot: #d9e1e812;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141920;
+  --panel: #1b222b;
+  --ink: #d9e1e8;
+  --ink-soft: #8b98a5;
+  --line: #303b46;
+  --accent: #e0a464;
+  --accent-soft: #e0a46426;
+  --compute: #6ea3cc;
+  --compute-fill: #6ea3cc1a;
+  --datastore: #6fb39d;
+  --datastore-fill: #6fb39d1a;
+  --edge-role: #a195c9;
+  --edge-role-fill: #a195c91a;
+  --external: #8d99a6;
+  --external-fill: #8d99a614;
+  --person: #cfa06a;
+  --person-fill: #cfa06a1a;
+  --schema: #a8ad86;
+  --dev: #bfb069;
+  --canvas-dot: #d9e1e812;
+}
+:root[data-theme="light"] {
+  --bg: #f6f7f8;
+  --panel: #ffffff;
+  --ink: #1c242e;
+  --ink-soft: #5a6673;
+  --line: #d7dde3;
+  --accent: #b87333;
+  --accent-soft: #b8733322;
+  --compute: #4b7ea6;
+  --compute-fill: #4b7ea614;
+  --datastore: #4e8f7b;
+  --datastore-fill: #4e8f7b14;
+  --edge-role: #77699e;
+  --edge-role-fill: #77699e14;
+  --external: #7c8794;
+  --external-fill: #7c879412;
+  --person: #a3743c;
+  --person-fill: #a3743c14;
+  --schema: #8a8f6a;
+  --dev: #9a8f4a;
+  --canvas-dot: #1c242e0f;
+}
+
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+}
+#app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: 232px 1fr auto;
+  grid-template-areas:
+    "top top top"
+    "rail canvas inspector";
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Top bar */
+.topbar {
+  grid-area: top;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.topbar h1 {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+.topbar .view-title {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.topbar .spacer {
+  flex: 1;
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.badge.stage {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Left rail */
+.rail {
+  grid-area: rail;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  padding: 14px 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.rail h2 {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+  margin: 0;
+  padding: 0 16px 6px;
+}
+.rail nav {
+  display: flex;
+  flex-direction: column;
+}
+.rail button.viewlink {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 16px;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  color: var(--ink);
+}
+.rail button.viewlink .lvl {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+  margin-right: 7px;
+}
+.rail button.viewlink:hover {
+  background: var(--accent-soft);
+}
+.rail button.viewlink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.rail button.viewlink.active {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+/* Legend */
+.legend {
+  margin-top: auto;
+  padding: 12px 16px 4px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.legend .k {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend .swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1.5px solid;
+  flex: none;
+}
+.legend .stroke {
+  width: 22px;
+  height: 0;
+  border-top: 2px solid var(--ink-soft);
+  flex: none;
+}
+.legend .stroke.dashed {
+  border-top-style: dashed;
+}
+
+/* Canvas */
+.canvas-wrap {
+  grid-area: canvas;
+  position: relative;
+  overflow: hidden;
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.canvas-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.canvas-wrap svg.panning {
+  cursor: grabbing;
+}
+.canvas-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.zoombar {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+}
+.zoombar button {
+  all: unset;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 9px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+}
+.zoombar button:hover {
+  border-color: var(--accent);
+}
+.zoombar button:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* SVG node styling (classes set from JS) */
+.node {
+  cursor: pointer;
+}
+.node rect.box {
+  fill: var(--panel);
+  stroke-width: 1.5;
+  rx: 8;
+}
+.node.role-compute rect.box {
+  stroke: var(--compute);
+  fill: var(--compute-fill);
+}
+.node.role-datastore rect.box {
+  stroke: var(--datastore);
+  fill: var(--datastore-fill);
+}
+.node.role-edge rect.box {
+  stroke: var(--edge-role);
+  fill: var(--edge-role-fill);
+  stroke-dasharray: 5 3;
+}
+.node.role-schema rect.box {
+  stroke: var(--schema);
+  fill: none;
+  stroke-dasharray: 2 3;
+}
+.node.role-dev rect.box {
+  stroke: var(--dev);
+  fill: none;
+  stroke-dasharray: 2 3;
+}
+.node.role-external rect.box {
+  stroke: var(--external);
+  fill: var(--external-fill);
+}
+.node.role-person rect.box {
+  stroke: var(--person);
+  fill: var(--person-fill);
+  rx: 18;
+}
+.node.role-system rect.box {
+  stroke: var(--compute);
+  fill: var(--compute-fill);
+  stroke-width: 2;
+}
+.node.role-system-ext rect.box {
+  stroke: var(--external);
+  fill: var(--external-fill);
+  stroke-width: 2;
+}
+.node.selected rect.box {
+  stroke: var(--accent) !important;
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+}
+.node text {
+  fill: var(--ink);
+}
+.node text.name {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+}
+.node text.kind {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  fill: var(--ink-soft);
+}
+.node text.desc {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  fill: var(--ink-soft);
+}
+.node text.domain {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  fill: var(--accent);
+}
+.boundary {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-dasharray: 8 5;
+  stroke-width: 1;
+  opacity: 0.55;
+  rx: 14;
+}
+.boundary-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-soft);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.edge path {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.4;
+  opacity: 0.85;
+}
+.edge.asserted path {
+  stroke-dasharray: 5 4;
+}
+.edge text {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  fill: var(--ink-soft);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+}
+.edge.dim {
+  opacity: 0.18;
+}
+.edge.hot path {
+  stroke: var(--accent);
+  opacity: 1;
+}
+.edge.hot text {
+  fill: var(--accent);
+}
+.node.dim {
+  opacity: 0.35;
+}
+
+/* Inspector */
+.inspector {
+  grid-area: inspector;
+  width: 0;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  overflow-y: auto;
+  transition: width 0.18s ease;
+}
+.inspector.open {
+  width: 320px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inspector {
+    transition: none;
+  }
+}
+.inspector .inner {
+  padding: 16px;
+  width: 288px;
+}
+.inspector h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+.inspector .close {
+  all: unset;
+  cursor: pointer;
+  float: right;
+  font-family: var(--mono);
+  color: var(--ink-soft);
+  padding: 2px 6px;
+}
+.inspector .close:hover {
+  color: var(--accent);
+}
+.inspector .close:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.inspector .meta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+.inspector p.desc {
+  font-size: 12.5px;
+  margin: 8px 0;
+}
+.inspector dl {
+  margin: 10px 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  font-size: 11.5px;
+}
+.inspector dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+.inspector dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.inspector h4 {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  margin: 16px 0 6px;
+}
+.inspector ul.rels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.inspector ul.rels li {
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+.inspector ul.rels li.asserted {
+  border-left-style: dotted;
+}
+.inspector ul.rels .lbl {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.inspector pre {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin: 6px 0 14px;
+}
+.prov {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  margin-left: 6px;
+}
+.prov.extracted {
+  border-color: var(--datastore);
+  color: var(--datastore);
+}
+
+@media (max-width: 900px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "top"
+      "rail"
+      "canvas";
+    grid-template-rows: auto auto 1fr;
+  }
+  .rail {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .legend {
+    display: none;
+  }
+  .inspector.open {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    box-shadow: -8px 0 24px rgb(0 0 0 / 0.25);
+  }
+}
+
+</style>
+<div id="app"></div>
+<script type="application/json" id="viewmodel">
+{"title":"somewhatintelligent — software topology","stage":"dev_claude","generatedAt":"2026-08-07T04:07:22.289Z","systems":[{"stack":"SomewhatIntelligentAuth","name":"Identity","description":"better-auth identity service: passkeys, 2FA, organizations, magic links, device auth, OAuth provider. Account UI at accounts.somewhatintelligent.ca."},{"stack":"PlatformCommerce","name":"Site & Commerce","description":"Public storefront at the apex plus the commerce substrate: catalog, checkout, settlement, fulfilment, audit — and the operator console behind Zero Trust."},{"stack":"AgenticInbox","name":"Inbox","description":"Staff mailbox at mail.somewhatintelligent.ca with an AI agent inside: per-mailbox Durable Objects, MCP tool surface, inbound catch-all email."},{"stack":"Mezedes","name":"Mezedes","description":"Agent-facing artifact platform: MCP `create` typechecks, bundles and publishes tiny web apps to \u003cslug>.somewhatintelligent.dev."},{"stack":"Cloudflare","name":"Zero Trust Foundation","description":"Production-only foundation stack: Access organization, Cloudflare IdP and the account-member policy every internal surface reuses.","synthetic":true},{"stack":"AxiomStack","name":"Observability","description":"Production-only Axiom stack: OTel datasets (metrics/traces/logs), per-app dashboards, monitors and email alerts.","synthetic":true},{"stack":"Stripe","name":"Stripe","description":"Hosted checkout, payments and webhooks (live + sandbox accounts).","synthetic":true,"external":true}],"nodes":[{"key":"SomewhatIntelligentAuth/AuthMigrations","name":"Auth Schema","stack":"SomewhatIntelligentAuth","fqn":"AuthMigrations","type":"Drizzle.Schema","role":"schema","description":"Drizzle schema + generated migrations applied to the Auth DB at deploy.","technology":"Drizzle (build-time)","extracted":true,"exported":false,"props":{"schema":"/home/user/somewhatintelligent/apps/platform.auth/api/schema.gen.ts","out":"/home/user/somewhatintelligent/apps/platform.auth/api/migrations","dialect":"sqlite"}},{"key":"SomewhatIntelligentAuth/AuthDatabase","name":"Auth DB","stack":"SomewhatIntelligentAuth","fqn":"AuthDatabase","type":"Cloudflare.D1Database","role":"datastore","description":"Accounts, sessions, orgs, passkeys. Production adopts the pre-existing guestlist DB behind an id guard.","technology":"Cloudflare D1 (SQLite)","extracted":true,"exported":true,"props":{"migrationsDir":"«expr:AuthMigrations»","migrationsTable":"d1_migrations"}},{"key":"SomewhatIntelligentAuth/SomewhatIntelligentAuthApp","name":"Identity App","stack":"SomewhatIntelligentAuth","fqn":"SomewhatIntelligentAuthApp","type":"Cloudflare.Worker","role":"compute","description":"Account/dashboard UI (TanStack Start). The only public door into auth.","technology":"Cloudflare Worker · TanStack Start","domain":"accounts.somewhatintelligent.ca","serviceName":"auth-app","extracted":true,"exported":false,"props":{"name":"si-identity-dev-claude","rootDir":"/home/user/somewhatintelligent/apps/platform.auth","compatibility":{"flags":["nodejs_compat"]},"env":{"AUTH":"«fn»","AVATARS":"«resource:AuthAvatars»","CF_VERSION_METADATA":{"kind":"Cloudflare.Workers.VersionMetadata","name":"CF_VERSION_METADATA","toWorkerBinding":"«fn»","asEffect":"«fn»","pipe":"«fn»"},"VITE_AUTH_USERNAME":true,"VITE_AUTH_ADMIN":true,"VITE_AUTH_TWO_FACTOR":true,"VITE_AUTH_DEVICE_AUTHORIZATION":true,"VITE_AUTH_MAGIC_LINK":true,"VITE_AUTH_OAUTH_PROVIDER":true,"VITE_AUTH_ORGANIZATION":true,"VITE_AUTH_SOCIAL_PROVIDERS":[],"OTEL_SERVICE_NAME":"","OTEL_EXPORTER_OTLP_TRACES_ENDPOINT":"","OTEL_EXPORTER_OTLP_TRACES_HEADERS":"","OTEL_EXPORTER_OTLP_LOGS_ENDPOINT":"","OTEL_EXPORTER_OTLP_LOGS_HEADERS":"","OTEL_EXPORTER_OTLP_METRICS_ENDPOINT":"","OTEL_EXPORTER_OTLP_METRICS_HEADERS":""},"dev":{"port":1350,"strictPort":true},"workersDev":true,"vite":{"main":"./app/worker.ts","rootDir":"/home/user/somewhatintelligent/apps/platform.auth"},"isExternal":true}},{"key":"SomewhatIntelligentAuth/AuthAvatars","name":"Avatars","stack":"SomewhatIntelligentAuth","fqn":"AuthAvatars","type":"Cloudflare.R2.Bucket","role":"datastore","description":"Profile images.","technology":"Cloudflare R2","extracted":true,"exported":false,"props":{"name":"si-avatars-dev-claude"}},{"key":"SomewhatIntelligentAuth/AuthWorker","name":"Auth API","stack":"SomewhatIntelligentAuth","fqn":"AuthWorker","type":"Cloudflare.Worker","role":"compute","description":"better-auth backend. No public URL — reachable only over the AUTH service binding.","technology":"Cloudflare Worker · better-auth","serviceName":"auth","extracted":true,"exported":false,"props":{"main":"file:///home/user/somewhatintelligent/apps/platform.auth/api/worker.ts","workersDev":false,"observability":{"enabled":true},"compatibility":{"flags":["nodejs_compat"]},"env":{"AUTH_ORIGIN":"«Object»","AUTH_COOKIE_DOMAIN":"«Object»","EMAIL":"«Object»","OTEL_SERVICE_NAME":"auth","SANDBOX":"«expr»"},"exports":{"default":{"fetch":"«fn»","tail":"«fn»","trace":"«fn»","tailStream":"«fn»","scheduled":"«fn»","test":"«fn»","email":"«fn»","queue":"«fn»"}}}},{"key":"PlatformCommerce/CommerceSchema","name":"Commerce Schema","stack":"PlatformCommerce","fqn":"CommerceSchema","type":"Drizzle.Schema","role":"schema","description":"Drizzle schema + migrations applied to the Commerce DB at deploy.","technology":"Drizzle (build-time)","extracted":true,"exported":false,"props":{"schema":"/home/user/somewhatintelligent/apps/platform.commerce/domain/Schema.ts","out":"/home/user/somewhatintelligent/apps/platform.commerce/migrations","dialect":"sqlite"}},{"key":"PlatformCommerce/CommerceDatabase","name":"Commerce DB","stack":"PlatformCommerce","fqn":"CommerceDatabase","type":"Cloudflare.D1Database","role":"datastore","description":"One D1 shared by all commerce workers: 11 domain tables — catalog, orders, reservations, payment events, audit ledger.","technology":"Cloudflare D1 (SQLite)","extracted":true,"exported":true,"props":{"migrationsDir":"«expr:CommerceSchema»","migrationsTable":"drizzle_migrations"}},{"key":"PlatformCommerce/CommerceMedia","name":"Media Store","stack":"PlatformCommerce","fqn":"CommerceMedia","type":"Cloudflare.R2.Bucket","role":"datastore","description":"Product media objects.","technology":"Cloudflare R2","extracted":true,"exported":false,"props":{"name":"si-commerce-media-dev-claude"}},{"key":"PlatformCommerce/Commerce","name":"Commerce Core","stack":"PlatformCommerce","fqn":"Commerce","type":"Cloudflare.Worker","role":"compute","description":"~32-method RPC domain surface: catalog, checkout, orders, fulfilment, deletion, audit. The service binding IS the auth boundary — no public URL.","technology":"Cloudflare Worker · Effect RPC","extracted":true,"exported":false,"props":{"main":"file:///home/user/somewhatintelligent/apps/platform.commerce/workers/Commerce.ts","workersDev":false,"env":{"OTEL_SERVICE_NAME":"commerce"},"exports":{"default":{"fetch":"«fn»","tail":"«fn»","trace":"«fn»","tailStream":"«fn»","scheduled":"«fn»","test":"«fn»","email":"«fn»","queue":"«fn»"}}}},{"key":"PlatformCommerce/Settlement","name":"Settlement","stack":"PlatformCommerce","fqn":"Settlement","type":"Cloudflare.Worker","role":"compute","description":"Stripe webhook intake (HMAC-verified) → payment-events queue → idempotent settle; 15-min reconcile cron.","technology":"Cloudflare Worker · cron + queue consumer","domain":"hooks.somewhatintelligent.ca","serviceName":"commerce-settlement","extracted":true,"exported":true,"props":{"main":"file:///home/user/somewhatintelligent/apps/platform.commerce/workers/Settlement.ts","domain":"hooks-dev-claude.somewhatintelligent.ca","workersDev":false,"env":{"OTEL_SERVICE_NAME":"commerce-settlement","CommercePaymentEvents_queueName":"«expr:CommercePaymentEvents»"},"exports":{"default":{"fetch":"«fn»","tail":"«fn»","trace":"«fn»","tailStream":"«fn»","scheduled":"«fn»","test":"«fn»","email":"«fn»","queue":"«fn»"}}}},{"key":"PlatformCommerce/CommercePaymentEvents","name":"Payment Events","stack":"PlatformCommerce","fqn":"CommercePaymentEvents","type":"Cloudflare.Queues.Queue","role":"datastore","description":"Queue between webhook intake and settlement, keyed idempotent by provider event id.","technology":"Cloudflare Queue","extracted":true,"exported":false,"props":{"name":"si-commerce-payments-dev-claude"}},{"key":"PlatformCommerce/Media","name":"Media","stack":"PlatformCommerce","fqn":"Media","type":"Cloudflare.Worker","role":"compute","description":"Read-only GET /media/:id — streams R2 objects through a D1 active-product join.","technology":"Cloudflare Worker","serviceName":"commerce-media","extracted":true,"exported":true,"props":{"main":"file:///home/user/somewhatintelligent/apps/platform.commerce/workers/Media.ts","env":{"OTEL_SERVICE_NAME":"commerce-media"},"exports":{"default":{"fetch":"«fn»","tail":"«fn»","trace":"«fn»","tailStream":"«fn»","scheduled":"«fn»","test":"«fn»","email":"«fn»","queue":"«fn»"}}}},{"key":"PlatformCommerce/CommerceOperator","name":"Operator Console","stack":"PlatformCommerce","fqn":"CommerceOperator","type":"Cloudflare.Worker","role":"compute","description":"Staff console for catalog and orders. Verifies the Access JWT on every request.","technology":"Cloudflare Worker · TanStack Start","domain":"commerce.somewhatintelligent.ca","serviceName":"commerce-operator","extracted":true,"exported":true,"props":{"name":"si-commerce-operator-dev-claude","rootDir":"/home/user/somewhatintelligent/apps/platform.commerce","compatibility":{"flags":["nodejs_compat"]},"domain":"commerce-dev-claude.somewhatintelligent.ca","workersDev":false,"observability":{"enabled":true},"env":{"COMMERCE":"«fn»","SETTLEMENT":"«fn»","POLICY_AUD":"«expr:OperatorAccess»","TEAM_DOMAIN":"«ref:Cloudflare@production»","OPERATOR_AUTH":"access","PAYMENTS_ENVIRONMENT":"dev","CF_VERSION_METADATA":{"kind":"Cloudflare.Workers.VersionMetadata","name":"CF_VERSION_METADATA","toWorkerBinding":"«fn»","asEffect":"«fn»","pipe":"«fn»"},"OTEL_SERVICE_NAME":"","OTEL_EXPORTER_OTLP_TRACES_ENDPOINT":"","OTEL_EXPORTER_OTLP_TRACES_HEADERS":"","OTEL_EXPORTER_OTLP_LOGS_ENDPOINT":"","OTEL_EXPORTER_OTLP_LOGS_HEADERS":"","OTEL_EXPORTER_OTLP_METRICS_ENDPOINT":"","OTEL_EXPORTER_OTLP_METRICS_HEADERS":""},"vite":{"main":"./app/worker.ts","rootDir":"/home/user/somewhatintelligent/apps/platform.commerce"},"isExternal":true}},{"key":"PlatformCommerce/OperatorAccess","name":"Operator Access","stack":"PlatformCommerce","fqn":"OperatorAccess","type":"Cloudflare.Access.Application","role":"edge","description":"Zero Trust Access application in front of the operator console; account members only.","technology":"Cloudflare Access","extracted":true,"exported":false,"props":{"domain":"commerce-dev-claude.somewhatintelligent.ca","type":"self_hosted","allowedIdps":["«ref:Cloudflare@production»"],"policies":["«ref:Cloudflare@production»"],"autoRedirectToIdentity":true,"oauthConfiguration":{"enabled":true,"dynamicClientRegistration":{"enabled":true}},"adopt":true}},{"key":"PlatformCommerce/Site","name":"Storefront","stack":"PlatformCommerce","fqn":"Site","type":"Cloudflare.Worker","role":"compute","description":"Public website + shop at the apex: catalog, cart, orders, writing, software, about. Stateless by design.","technology":"Cloudflare Worker · Astro","domain":"somewhatintelligent.ca","extracted":true,"exported":true,"props":{"rootDir":"/home/user/somewhatintelligent/apps/platform.site","sessionKVBindingName":false,"compatibility":{"date":"2026-04-15"},"workersDev":true,"env":{"AUTH_ORIGIN":"«ref:SomewhatIntelligentAuth»","COMMERCE":"«fn»","MEDIA":"«fn»"},"source":{"provider":"@distilled.cloud/astro/source","devMode":"server","options":{"rootDir":"/home/user/somewhatintelligent/apps/platform.site","sessionKVBindingName":false,"astro":{"output":"server"}}},"isExternal":true}},{"key":"PlatformCommerce/StripeListener","name":"Stripe Listener","stack":"PlatformCommerce","fqn":"StripeListener","type":"Command.Dev","role":"dev","description":"Local `stripe listen` forwarder, armed only under alchemy dev — not deployed.","technology":"Stripe CLI (dev only)","extracted":true,"exported":false,"props":{"command":"«expr:Settlement»","shell":true}},{"key":"AgenticInbox/InboxAccess","name":"Inbox Access","stack":"AgenticInbox","fqn":"InboxAccess","type":"Cloudflare.Access.Application","role":"edge","description":"Zero Trust Access application in front of the mailbox.","technology":"Cloudflare Access","extracted":true,"exported":true,"props":{"name":"AgenticInbox-InboxAccess-dev-stoli-qamzqweyw7kcrmor","domain":"mail.somewhatintelligent.ca","type":"self_hosted","allowedIdps":["«ref:Cloudflare@production»"],"policies":["«ref:Cloudflare@production»"],"autoRedirectToIdentity":true,"oauthConfiguration":{"enabled":true,"dynamicClientRegistration":{"enabled":true}},"adopt":true}},{"key":"AgenticInbox/Inbox","name":"Inbox App","stack":"AgenticInbox","fqn":"Inbox","type":"Cloudflare.Worker","role":"compute","description":"Mailbox UI + Hono API + EmailAgent (Agents SDK) + MCP surface at /mcp. One SQLite Durable Object per mailbox; inbound mail via Email Routing catch-all.","technology":"Cloudflare Worker · React Router + DOs","domain":"mail.somewhatintelligent.ca","serviceName":"inbox","extracted":true,"exported":true,"props":{"name":"agentic-inbox-si","rootDir":"/home/user/somewhatintelligent/apps/platform.inbox","compatibility":{"date":"2025-11-28","flags":["nodejs_compat"]},"domain":"mail.somewhatintelligent.ca","workersDev":false,"observability":{"enabled":true},"env":{"DOMAINS":"mail.somewhatintelligent.ca","EMAIL_ADDRESSES":[],"POLICY_AUD":"«expr:InboxAccess»","TEAM_DOMAIN":"«ref:Cloudflare@production»","CF_VERSION_METADATA":{"kind":"Cloudflare.Workers.VersionMetadata","name":"CF_VERSION_METADATA","toWorkerBinding":"«fn»","asEffect":"«fn»","pipe":"«fn»"},"BUCKET":"«Object»","AI":"«Object»","EMAIL":"«Object»","MAILBOX":{"kind":"Cloudflare.DurableObject","name":"MailboxDO","className":"MailboxDO"},"EMAIL_AGENT":{"kind":"Cloudflare.DurableObject","name":"EmailAgent","className":"EmailAgent"},"EMAIL_MCP":{"kind":"Cloudflare.DurableObject","name":"EmailMCP","className":"EmailMCP"},"OTEL_SERVICE_NAME":"","OTEL_EXPORTER_OTLP_TRACES_ENDPOINT":"","OTEL_EXPORTER_OTLP_TRACES_HEADERS":"","OTEL_EXPORTER_OTLP_LOGS_ENDPOINT":"","OTEL_EXPORTER_OTLP_LOGS_HEADERS":"","OTEL_EXPORTER_OTLP_METRICS_ENDPOINT":"","OTEL_EXPORTER_OTLP_METRICS_HEADERS":""},"vite":{"main":"workers/app.ts","rootDir":"/home/user/somewhatintelligent/apps/platform.inbox"},"isExternal":true}},{"key":"AgenticInbox/Bucket","name":"Attachments","stack":"AgenticInbox","fqn":"Bucket","type":"Cloudflare.R2.Bucket","role":"datastore","description":"Mail attachment storage.","technology":"Cloudflare R2","extracted":true,"exported":false,"props":{"name":"agentic-inbox-si"}},{"key":"AgenticInbox/Ai","name":"AI Gateway","stack":"AgenticInbox","fqn":"Ai","type":"Cloudflare.AI.Gateway","role":"datastore","description":"Gateway in front of Workers AI for the mail agent's inference.","technology":"Cloudflare AI Gateway","extracted":true,"exported":false,"props":{"id":"agentic-inbox-si"}},{"key":"Mezedes/MezedesAccess","name":"Shell Access","stack":"Mezedes","fqn":"MezedesAccess","type":"Cloudflare.Access.Application","role":"edge","description":"Zero Trust Access on the owner shell only — artifact links stay shareable.","technology":"Cloudflare Access","extracted":true,"exported":false,"props":{"domain":"mezedes-dev-claude.somewhatintelligent.ca","type":"self_hosted","allowedIdps":["«ref:Cloudflare@production»"],"policies":["«ref:Cloudflare@production»"],"autoRedirectToIdentity":true,"oauthConfiguration":{"enabled":true,"dynamicClientRegistration":{"enabled":true}},"adopt":true}},{"key":"Mezedes/Mezedes","name":"Mezedes","stack":"Mezedes","fqn":"Mezedes","type":"Cloudflare.Worker","role":"compute","description":"MCP `create` → install, typecheck, bundle, publish. Owner shell behind Access; artifacts served publicly on the wildcard zone via WorkerLoader.","technology":"Cloudflare Worker · WorkerLoader + DO","domain":"mezedes.somewhatintelligent.ca + *.somewhatintelligent.dev","extracted":true,"exported":false,"props":{"main":"/home/user/somewhatintelligent/apps/mezedes/src/server/entry.ts","observability":{"enabled":true},"compatibility":{"date":"2026-07-01","flags":["nodejs_compat"]},"dev":{"port":8787,"strictPort":true},"workersDev":true,"assets":{"directory":"/home/user/somewhatintelligent/apps/mezedes/dist/shell","notFoundHandling":"single-page-application","runWorkerFirst":true},"env":{"BLOBS":"«Object»","OWNER":{"kind":"Cloudflare.DurableObject","name":"Owner","className":"Owner"},"LOADER":"«Object»","AUTH":"access","POLICY_AUD":"«expr:MezedesAccess»","TEAM_DOMAIN":"«ref:Cloudflare@production»","ARTIFACT_SUFFIX":"a-dev-claude.somewhatintelligent.ca","SHELL_ORIGIN":"https://mezedes-dev-claude.somewhatintelligent.ca","OTEL_SERVICE_NAME":"","OTEL_EXPORTER_OTLP_TRACES_ENDPOINT":"","OTEL_EXPORTER_OTLP_TRACES_HEADERS":"","OTEL_EXPORTER_OTLP_LOGS_ENDPOINT":"","OTEL_EXPORTER_OTLP_LOGS_HEADERS":"","OTEL_EXPORTER_OTLP_METRICS_ENDPOINT":"","OTEL_EXPORTER_OTLP_METRICS_HEADERS":""},"isExternal":true}},{"key":"Mezedes/Blobs","name":"Artifact Blobs","stack":"Mezedes","fqn":"Blobs","type":"Cloudflare.R2.Bucket","role":"datastore","description":"Published artifact bundles.","technology":"Cloudflare R2","extracted":true,"exported":false,"props":{}},{"key":"Cloudflare/__stack__@production","name":"Zero Trust Foundation","stack":"Cloudflare","role":"edge","description":"Access organization, Cloudflare IdP, account-member policy. Every internal Access app references this stack's production output.","technology":"Cloudflare Zero Trust","extracted":false},{"key":"SomewhatIntelligentAuth/__stack__","name":"Identity (stack output)","stack":"SomewhatIntelligentAuth","role":"edge","description":"AuthRouting contract consumed by the storefront: origin, auth base URL, cookie domain, feature manifest.","technology":"alchemy cross-stack output","extracted":false},{"key":"AxiomStack/__stack__@production","name":"Observability","stack":"AxiomStack","role":"external","description":"production-metrics / traces / logs datasets + ingest token, resolved lazily by every prod/staging worker.","technology":"Axiom (OTel)","extracted":false},{"key":"Stripe/__external__","name":"Stripe","stack":"Stripe","role":"external","description":"Hosted checkout + webhook source for settlement.","technology":"SaaS","extracted":false},{"key":"actor/Visitor","name":"Visitor","stack":"actors","role":"person","description":"Anyone on the public internet: browses the site, buys, signs up, follows artifact links, sends email.","technology":"Person","extracted":false},{"key":"actor/Operator","name":"Operator","stack":"actors","role":"person","description":"Staff — a Cloudflare account member. Reaches internal consoles through Zero Trust Access.","technology":"Person","extracted":false},{"key":"actor/Agent","name":"AI Agent","stack":"actors","role":"person","description":"MCP clients (Claude et al.): build artifacts via Mezedes, read and draft mail via Inbox tools.","technology":"Person (non-human)","extracted":false}],"edges":[{"from":"SomewhatIntelligentAuth/AuthDatabase","to":"SomewhatIntelligentAuth/AuthMigrations","label":"applies migrations","provenance":"extracted","detail":"prop @ migrationsDir"},{"from":"SomewhatIntelligentAuth/SomewhatIntelligentAuthApp","to":"SomewhatIntelligentAuth/AuthAvatars","label":"env AVATARS","provenance":"extracted","detail":"prop @ env.AVATARS"},{"from":"SomewhatIntelligentAuth/SomewhatIntelligentAuthApp","to":"SomewhatIntelligentAuth/AuthWorker","label":"binds AUTH","technology":"service binding","provenance":"extracted","detail":"binding @ binding:AUTH"},{"from":"SomewhatIntelligentAuth/SomewhatIntelligentAuthApp","to":"SomewhatIntelligentAuth/AuthAvatars","label":"binds AVATARS","technology":"service binding","provenance":"extracted","detail":"binding @ binding:AVATARS"},{"from":"SomewhatIntelligentAuth/AuthWorker","to":"SomewhatIntelligentAuth/AuthDatabase","label":"binds AuthDatabase","technology":"service binding","provenance":"extracted","detail":"binding @ binding:AuthDatabase"},{"from":"SomewhatIntelligentAuth/AuthWorker","to":"SomewhatIntelligentAuth/AuthAvatars","label":"binds AuthAvatars","technology":"service binding","provenance":"extracted","detail":"binding @ binding:AuthAvatars"},{"from":"PlatformCommerce/CommerceDatabase","to":"PlatformCommerce/CommerceSchema","label":"applies migrations","provenance":"extracted","detail":"prop @ migrationsDir"},{"from":"PlatformCommerce/Commerce","to":"PlatformCommerce/CommerceDatabase","label":"binds CommerceDatabase","technology":"service binding","provenance":"extracted","detail":"binding @ binding:CommerceDatabase"},{"from":"PlatformCommerce/Commerce","to":"PlatformCommerce/CommerceMedia","label":"binds CommerceMedia","technology":"service binding","provenance":"extracted","detail":"binding @ binding:CommerceMedia"},{"from":"PlatformCommerce/Settlement","to":"PlatformCommerce/CommercePaymentEvents","label":"env CommercePaymentEvents_queueName","provenance":"extracted","detail":"prop @ env.CommercePaymentEvents_queueName"},{"from":"PlatformCommerce/Settlement","to":"PlatformCommerce/CommerceDatabase","label":"binds CommerceDatabase","technology":"service binding","provenance":"extracted","detail":"binding @ binding:CommerceDatabase"},{"from":"PlatformCommerce/Settlement","to":"PlatformCommerce/CommerceMedia","label":"binds CommerceMedia","technology":"service binding","provenance":"extracted","detail":"binding @ binding:CommerceMedia"},{"from":"PlatformCommerce/Settlement","to":"PlatformCommerce/CommercePaymentEvents","label":"binds CommercePaymentEvents","technology":"service binding","provenance":"extracted","detail":"binding @ binding:CommercePaymentEvents"},{"from":"PlatformCommerce/Media","to":"PlatformCommerce/CommerceDatabase","label":"binds CommerceDatabase","technology":"service binding","provenance":"extracted","detail":"binding @ binding:CommerceDatabase"},{"from":"PlatformCommerce/Media","to":"PlatformCommerce/CommerceMedia","label":"binds CommerceMedia","technology":"service binding","provenance":"extracted","detail":"binding @ binding:CommerceMedia"},{"from":"PlatformCommerce/CommerceOperator","to":"PlatformCommerce/OperatorAccess","label":"env POLICY_AUD","provenance":"extracted","detail":"prop @ env.POLICY_AUD"},{"from":"PlatformCommerce/CommerceOperator","to":"Cloudflare/__stack__@production","label":"env TEAM_DOMAIN","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ env.TEAM_DOMAIN"},{"from":"PlatformCommerce/CommerceOperator","to":"PlatformCommerce/Commerce","label":"binds COMMERCE","technology":"service binding","provenance":"extracted","detail":"binding @ binding:COMMERCE"},{"from":"PlatformCommerce/CommerceOperator","to":"PlatformCommerce/Settlement","label":"binds SETTLEMENT","technology":"service binding","provenance":"extracted","detail":"binding @ binding:SETTLEMENT"},{"from":"PlatformCommerce/CommerceOperator","to":"PlatformCommerce/OperatorAccess","label":"binds POLICY_AUD","technology":"service binding","provenance":"extracted","detail":"binding @ binding:POLICY_AUD"},{"from":"PlatformCommerce/OperatorAccess","to":"Cloudflare/__stack__@production","label":"uses IdP","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ allowedIdps.0"},{"from":"PlatformCommerce/OperatorAccess","to":"Cloudflare/__stack__@production","label":"uses policy","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ policies.0"},{"from":"PlatformCommerce/Site","to":"SomewhatIntelligentAuth/__stack__","label":"env AUTH_ORIGIN","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ env.AUTH_ORIGIN"},{"from":"PlatformCommerce/Site","to":"PlatformCommerce/Commerce","label":"binds COMMERCE","technology":"service binding","provenance":"extracted","detail":"binding @ binding:COMMERCE"},{"from":"PlatformCommerce/Site","to":"PlatformCommerce/Media","label":"binds MEDIA","technology":"service binding","provenance":"extracted","detail":"binding @ binding:MEDIA"},{"from":"PlatformCommerce/StripeListener","to":"PlatformCommerce/Settlement","label":"forwards to","provenance":"extracted","detail":"prop @ command"},{"from":"AgenticInbox/InboxAccess","to":"Cloudflare/__stack__@production","label":"uses IdP","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ allowedIdps.0"},{"from":"AgenticInbox/InboxAccess","to":"Cloudflare/__stack__@production","label":"uses policy","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ policies.0"},{"from":"AgenticInbox/Inbox","to":"AgenticInbox/InboxAccess","label":"env POLICY_AUD","provenance":"extracted","detail":"prop @ env.POLICY_AUD"},{"from":"AgenticInbox/Inbox","to":"Cloudflare/__stack__@production","label":"env TEAM_DOMAIN","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ env.TEAM_DOMAIN"},{"from":"AgenticInbox/Inbox","to":"AgenticInbox/InboxAccess","label":"binds POLICY_AUD","technology":"service binding","provenance":"extracted","detail":"binding @ binding:POLICY_AUD"},{"from":"AgenticInbox/Inbox","to":"AgenticInbox/Bucket","label":"binds BUCKET","technology":"service binding","provenance":"extracted","detail":"binding @ binding:BUCKET"},{"from":"Mezedes/MezedesAccess","to":"Cloudflare/__stack__@production","label":"uses IdP","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ allowedIdps.0"},{"from":"Mezedes/MezedesAccess","to":"Cloudflare/__stack__@production","label":"uses policy","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ policies.0"},{"from":"Mezedes/Mezedes","to":"Mezedes/MezedesAccess","label":"env POLICY_AUD","provenance":"extracted","detail":"prop @ env.POLICY_AUD"},{"from":"Mezedes/Mezedes","to":"Cloudflare/__stack__@production","label":"env TEAM_DOMAIN","technology":"cross-stack ref","provenance":"extracted","detail":"cross-stack @ env.TEAM_DOMAIN"},{"from":"Mezedes/Mezedes","to":"Mezedes/Blobs","label":"binds BLOBS","technology":"service binding","provenance":"extracted","detail":"binding @ binding:BLOBS"},{"from":"Mezedes/Mezedes","to":"Mezedes/MezedesAccess","label":"binds POLICY_AUD","technology":"service binding","provenance":"extracted","detail":"binding @ binding:POLICY_AUD"},{"from":"actor/Visitor","to":"PlatformCommerce/Site","label":"browses, shops","technology":"HTTPS","provenance":"asserted","detail":"apps/platform.site/src/pages/"},{"from":"actor/Visitor","to":"SomewhatIntelligentAuth/SomewhatIntelligentAuthApp","label":"signs up, manages account","technology":"HTTPS","provenance":"asserted","detail":"apps/platform.auth/alchemy.run.ts"},{"from":"actor/Visitor","to":"Mezedes/Mezedes","label":"opens artifact links","technology":"HTTPS *.somewhatintelligent.dev","provenance":"asserted","detail":"apps/mezedes/alchemy.run.ts"},{"from":"actor/Visitor","to":"AgenticInbox/Inbox","label":"sends mail (catch-all)","technology":"SMTP → Email Routing","provenance":"asserted","detail":"apps/platform.inbox/workers/"},{"from":"actor/Operator","to":"PlatformCommerce/CommerceOperator","label":"manages catalog & orders","technology":"HTTPS via Access","provenance":"asserted","detail":"apps/platform.commerce/module.ts"},{"from":"actor/Operator","to":"AgenticInbox/Inbox","label":"reads mail","technology":"HTTPS via Access","provenance":"asserted","detail":"apps/platform.inbox/alchemy.run.ts"},{"from":"actor/Operator","to":"Mezedes/Mezedes","label":"uses owner shell","technology":"HTTPS via Access","provenance":"asserted","detail":"apps/mezedes/alchemy.run.ts"},{"from":"actor/Agent","to":"Mezedes/Mezedes","label":"create artifacts","technology":"MCP /mcp","provenance":"asserted","detail":"apps/mezedes/README"},{"from":"actor/Agent","to":"AgenticInbox/Inbox","label":"read/search/draft mail","technology":"MCP /mcp","provenance":"asserted","detail":"apps/platform.inbox/alchemy.run.ts"},{"from":"PlatformCommerce/Commerce","to":"Stripe/__external__","label":"mints checkout sessions","technology":"Stripe API","provenance":"asserted","detail":"apps/platform.commerce/services/PaymentsStripe.ts"},{"from":"Stripe/__external__","to":"PlatformCommerce/Settlement","label":"checkout/charge/dispute events","technology":"signed webhook POST /webhook","provenance":"asserted","detail":"apps/platform.commerce/infrastructure/StripeDev.ts"},{"from":"PlatformCommerce/Settlement","to":"Stripe/__external__","label":"verifies & reconciles","technology":"Stripe API","provenance":"asserted","detail":"apps/platform.commerce/workers/SettlementSurface.ts"},{"from":"PlatformCommerce/Site","to":"SomewhatIntelligentAuth/SomewhatIntelligentAuthApp","label":"account links","technology":"HTTPS redirect (AUTH_ORIGIN)","provenance":"asserted","detail":"apps/platform.site/src/components/SiteHeader.astro"},{"from":"SomewhatIntelligentAuth/AuthWorker","to":"AxiomStack/__stack__@production","label":"OTLP export","technology":"OTel","provenance":"asserted","detail":"infra/telemetry.ts"},{"from":"SomewhatIntelligentAuth/SomewhatIntelligentAuthApp","to":"AxiomStack/__stack__@production","label":"OTLP export","technology":"OTel","provenance":"asserted","detail":"infra/telemetry.ts"},{"from":"PlatformCommerce/Settlement","to":"AxiomStack/__stack__@production","label":"OTLP export","technology":"OTel","provenance":"asserted","detail":"infra/telemetry.ts"},{"from":"PlatformCommerce/CommerceOperator","to":"AxiomStack/__stack__@production","label":"OTLP export","technology":"OTel","provenance":"asserted","detail":"infra/telemetry.ts"},{"from":"AgenticInbox/Inbox","to":"AxiomStack/__stack__@production","label":"OTLP export","technology":"OTel","provenance":"asserted","detail":"infra/telemetry.ts"},{"from":"PlatformCommerce/Settlement","to":"PlatformCommerce/CommercePaymentEvents","label":"consumes","technology":"queue consumer","provenance":"extracted","detail":"collapsed PlatformCommerce/Settlement/CommercePaymentEventsConsumer"}],"components":{"of":"PlatformCommerce/Commerce","components":[{"name":"Catalog","description":"Product lifecycle","kind":"domain"},{"name":"Checkout","description":"Session mint + reservation","kind":"domain"},{"name":"Orders","description":"Order queries & fulfilment","kind":"domain"},{"name":"Settlement","description":"Idempotent settle (shared with Settlement worker)","kind":"domain"},{"name":"Audit","description":"Append-only ledger","kind":"domain"},{"name":"Database (port)","description":"Effect service tag over D1","kind":"port"},{"name":"Blobs (port)","description":"Effect service tag over R2","kind":"port"},{"name":"Payments (port)","description":"Provider-agnostic payments","kind":"port"},{"name":"PaymentsStripe","description":"Live adapter (only one in deploy graph)","kind":"adapter"},{"name":"CommerceSurface","description":"RPC composition root","kind":"surface"}],"wiring":[{"from":"CommerceSurface","to":"Catalog","label":"routes RPC"},{"from":"CommerceSurface","to":"Checkout","label":"routes RPC"},{"from":"CommerceSurface","to":"Orders","label":"routes RPC"},{"from":"CommerceSurface","to":"Audit","label":"routes RPC"},{"from":"Catalog","to":"Database (port)","label":"reads/writes"},{"from":"Checkout","to":"Database (port)","label":"reserves"},{"from":"Checkout","to":"Payments (port)","label":"mints session"},{"from":"Orders","to":"Database (port)","label":"reads"},{"from":"Settlement","to":"Database (port)","label":"settles"},{"from":"Audit","to":"Database (port)","label":"appends"},{"from":"Payments (port)","to":"PaymentsStripe","label":"provided by"},{"from":"Catalog","to":"Blobs (port)","label":"media"}]}}
+</script>
+<script>
+/* somewhatintelligent C4 viewer — vanilla JS, no dependencies. */
+"use strict";
+
+const VM = JSON.parse(document.getElementById("viewmodel").textContent);
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// ── helpers ────────────────────────────────────────────────────────────────
+
+const el = (tag, attrs = {}, ...children) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "text") node.textContent = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  node.append(...children);
+  return node;
+};
+const svgEl = (tag, attrs = {}, ...children) => {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  node.append(...children);
+  return node;
+};
+const wrap = (text, maxChars, maxLines) => {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const w of words) {
+    if ((line + " " + w).trim().length > maxChars && line) {
+      lines.push(line);
+      line = w;
+      if (lines.length === maxLines) break;
+    } else line = (line + " " + w).trim();
+  }
+  if (lines.length < maxLines && line) lines.push(line);
+  else if (lines.length === maxLines && line) {
+    lines[maxLines - 1] = lines[maxLines - 1].replace(/.{2}$/, "…");
+  }
+  return lines;
+};
+
+const nodeByKey = new Map(VM.nodes.map((n) => [n.key, n]));
+const systemByStack = new Map(VM.systems.map((s) => [s.stack, s]));
+
+// ── view definitions ───────────────────────────────────────────────────────
+
+const appSystems = VM.systems.filter((s) => !s.synthetic);
+const views = [
+  {
+    id: "landscape",
+    label: "System Landscape",
+    lvl: "L1",
+    title: "System Landscape — the whole estate",
+  },
+  ...appSystems.map((s) => ({
+    id: "system:" + s.stack,
+    label: s.name,
+    lvl: "L2",
+    title: `Container view — ${s.name} (${s.stack} @ ${VM.stage})`,
+  })),
+  {
+    id: "components",
+    label: "Commerce Core interior",
+    lvl: "L3",
+    title: "Component view — Commerce Core (hand-authored teaser)",
+  },
+];
+
+// ── graph shaping per view ─────────────────────────────────────────────────
+
+const systemOf = (key) => {
+  if (key.startsWith("actor/")) return key;
+  const stack = key.split("/")[0];
+  return systemByStack.has(stack) ? "sys:" + stack : key;
+};
+
+function landscapeGraph() {
+  const nodes = [];
+  for (const a of VM.nodes.filter((n) => n.role === "person")) {
+    nodes.push({
+      key: a.key,
+      name: a.name,
+      role: "person",
+      kindLine: "[Person]",
+      desc: a.description,
+      col: 0,
+    });
+  }
+  for (const s of VM.systems) {
+    nodes.push({
+      key: "sys:" + s.stack,
+      name: s.name,
+      role: s.external ? "system-ext" : s.synthetic ? "system-ext" : "system",
+      kindLine: s.external
+        ? "[Software System — external]"
+        : s.synthetic
+          ? "[Software System — foundation]"
+          : "[Software System]",
+      desc: s.description,
+      col: s.external || s.synthetic ? 2 : 1,
+      stack: s.stack,
+    });
+  }
+  const byPair = new Map();
+  for (const e of VM.edges) {
+    const from = systemOf(e.from);
+    const to = systemOf(e.to);
+    if (from === to) continue;
+    const id = from + "→" + to;
+    if (!byPair.has(id))
+      byPair.set(id, { from, to, labels: [], provenance: "asserted", technologies: new Set() });
+    const p = byPair.get(id);
+    if (!p.labels.includes(e.label)) p.labels.push(e.label);
+    if (e.technology) p.technologies.add(e.technology);
+    if (e.provenance === "extracted") p.provenance = "extracted";
+  }
+  const edges = [...byPair.values()].map((p) => ({
+    from: p.from,
+    to: p.to,
+    label:
+      p.labels.slice(0, 2).join(" · ") + (p.labels.length > 2 ? ` +${p.labels.length - 2}` : ""),
+    provenance: p.provenance,
+  }));
+  return { nodes, edges, boundary: null };
+}
+
+function systemGraph(stack) {
+  const memberKeys = new Set(VM.nodes.filter((n) => n.stack === stack).map((n) => n.key));
+  const touching = VM.edges.filter((e) => memberKeys.has(e.from) || memberKeys.has(e.to));
+  const neighborKeys = new Set();
+  for (const e of touching) {
+    if (!memberKeys.has(e.from)) neighborKeys.add(e.from);
+    if (!memberKeys.has(e.to)) neighborKeys.add(e.to);
+  }
+  const nodes = [];
+  const colOf = (n) =>
+    n.role === "edge" ? 1 : n.role === "compute" ? 2 : n.role === "dev" ? 2 : 3;
+  for (const key of memberKeys) {
+    const n = nodeByKey.get(key);
+    nodes.push({
+      key,
+      name: n.name,
+      role: n.role,
+      kindLine: containerKindLine(n),
+      desc: n.description,
+      domain: n.domain,
+      col: colOf(n),
+      member: true,
+    });
+  }
+  for (const key of neighborKeys) {
+    const n = nodeByKey.get(key);
+    if (!n) continue;
+    const initiates = touching.some((e) => e.from === key && memberKeys.has(e.to));
+    nodes.push({
+      key,
+      name: n.name,
+      role: n.role === "person" ? "person" : "external",
+      kindLine:
+        n.role === "person"
+          ? "[Person]"
+          : `[${n.stack === "actors" ? "Person" : (systemByStack.get(n.stack)?.name ?? n.stack)}]`,
+      desc: "",
+      compact: true,
+      col: initiates ? 0 : 4,
+    });
+  }
+  const edges = touching.map((e) => ({ ...e }));
+  const sys = systemByStack.get(stack);
+  return {
+    nodes,
+    edges,
+    boundary: { label: `${sys.name} — ${stack} @ ${VM.stage}`, memberOnly: true },
+  };
+}
+
+function componentsGraph() {
+  const c = VM.components;
+  const colFor = { surface: 0, domain: 1, port: 2, adapter: 3 };
+  const nodes = c.components.map((m) => ({
+    key: "cmp:" + m.name,
+    name: m.name,
+    role: m.kind === "port" ? "edge" : m.kind === "adapter" ? "external" : "compute",
+    kindLine: `[Component — ${m.kind}]`,
+    desc: m.description,
+    col: colFor[m.kind],
+  }));
+  const edges = c.wiring.map((w) => ({
+    from: "cmp:" + w.from,
+    to: "cmp:" + w.to,
+    label: w.label,
+    provenance: "asserted",
+  }));
+  return {
+    nodes,
+    edges,
+    boundary: { label: `Commerce Core worker — hexagonal interior (hand-authored)` },
+  };
+}
+
+function containerKindLine(n) {
+  const t = n.technology || n.type || "";
+  const kind =
+    n.role === "datastore"
+      ? "Container — data"
+      : n.role === "edge"
+        ? "Infrastructure"
+        : n.role === "schema"
+          ? "Build-time"
+          : n.role === "dev"
+            ? "Dev only"
+            : "Container";
+  return `[${kind}: ${t}]`;
+}
+
+// ── layout ─────────────────────────────────────────────────────────────────
+
+const SIZES = {
+  person: { w: 180, h: 82 },
+  system: { w: 226, h: 104 },
+  "system-ext": { w: 226, h: 96 },
+  card: { w: 204, h: 88 },
+  compact: { w: 168, h: 46 },
+};
+const sizeOf = (n) => {
+  if (n.compact) return SIZES.compact;
+  if (n.role === "person") return SIZES.person;
+  if (n.role === "system" || n.role === "system-ext") return SIZES[n.role];
+  return SIZES.card;
+};
+
+function layout(graph) {
+  const COL_W = 318;
+  const ROW_GAP = 36;
+  const cols = new Map();
+  for (const n of graph.nodes) {
+    if (!cols.has(n.col)) cols.set(n.col, []);
+    cols.get(n.col).push(n);
+  }
+  const colIndexes = [...cols.keys()].sort((a, b) => a - b);
+  // two barycenter passes to reduce crossings
+  const pos = new Map(graph.nodes.map((n, i) => [n.key, i]));
+  const neighborsOf = (key) =>
+    graph.edges
+      .filter((e) => e.from === key || e.to === key)
+      .map((e) => (e.from === key ? e.to : e.from));
+  for (const pass of [0, 1]) {
+    const order = pass === 0 ? colIndexes : [...colIndexes].reverse();
+    for (const ci of order) {
+      cols.get(ci).sort((a, b) => {
+        const avg = (n) => {
+          const ns = neighborsOf(n.key)
+            .map((k) => pos.get(k))
+            .filter((v) => v !== undefined);
+          return ns.length ? ns.reduce((s, v) => s + v, 0) / ns.length : pos.get(n.key);
+        };
+        return avg(a) - avg(b);
+      });
+      cols.get(ci).forEach((n, i) => pos.set(n.key, i));
+    }
+  }
+  // assign coordinates, centering each column vertically
+  const colHeights = new Map();
+  for (const ci of colIndexes) {
+    const h = cols.get(ci).reduce((s, n) => s + sizeOf(n).h + ROW_GAP, -ROW_GAP);
+    colHeights.set(ci, h);
+  }
+  const maxH = Math.max(...colHeights.values());
+  const placed = new Map();
+  colIndexes.forEach((ci, i) => {
+    let y = (maxH - colHeights.get(ci)) / 2;
+    for (const n of cols.get(ci)) {
+      const s = sizeOf(n);
+      placed.set(n.key, {
+        ...n,
+        x: 40 + i * COL_W + (COL_W - 40 - s.w) / 2,
+        y: 40 + y,
+        w: s.w,
+        h: s.h,
+      });
+      y += s.h + ROW_GAP;
+    }
+  });
+  const width = 40 + colIndexes.length * COL_W + 40;
+  const height = maxH + 120;
+  return { placed, width, height };
+}
+
+// ── rendering ──────────────────────────────────────────────────────────────
+
+const app = document.getElementById("app");
+let currentView = "landscape";
+let selectedKey = null;
+let viewBox = { x: 0, y: 0, w: 1200, h: 800 };
+let svg, contentBounds;
+
+function renderView() {
+  app.textContent = "";
+  const view = views.find((v) => v.id === currentView);
+
+  app.append(
+    el(
+      "div",
+      { class: "topbar" },
+      el("h1", { text: "somewhatintelligent · topology" }),
+      el("span", { class: "view-title", text: view.title }),
+      el("span", { class: "spacer" }),
+      el("span", { class: "badge stage", text: "stage " + VM.stage }),
+      el("span", { class: "badge", text: "generated " + VM.generatedAt.slice(0, 10) }),
+    ),
+  );
+
+  const nav = el("nav", {});
+  for (const v of views) {
+    nav.append(
+      el(
+        "button",
+        {
+          class: "viewlink" + (v.id === currentView ? " active" : ""),
+          onclick: () => {
+            currentView = v.id;
+            selectedKey = null;
+            render();
+          },
+        },
+        el("span", { class: "lvl", text: v.lvl }),
+        document.createTextNode(v.label),
+      ),
+    );
+  }
+  const rail = el("div", { class: "rail" }, el("h2", { text: "C4 views" }), nav, legend());
+  app.append(rail);
+
+  const graph =
+    currentView === "landscape"
+      ? landscapeGraph()
+      : currentView === "components"
+        ? componentsGraph()
+        : systemGraph(currentView.slice(7));
+  app.append(canvas(graph));
+  app.append(inspector());
+}
+
+function legend() {
+  const item = (cls, label) =>
+    el(
+      "div",
+      { class: "k" },
+      el("span", { class: "swatch", style: swatchStyle(cls) }),
+      document.createTextNode(label),
+    );
+  const stroke = (dashed, label) =>
+    el(
+      "div",
+      { class: "k" },
+      el("span", { class: "stroke" + (dashed ? " dashed" : "") }),
+      document.createTextNode(label),
+    );
+  return el(
+    "div",
+    { class: "legend" },
+    item("compute", "application (runs code)"),
+    item("datastore", "data store / queue"),
+    item("edge", "access & wiring"),
+    item("external", "external system"),
+    item("person", "person / agent"),
+    stroke(false, "extracted from IaC graph"),
+    stroke(true, "asserted (cited in code)"),
+    el("div", { class: "k", text: "arrows read “A → uses → B”" }),
+  );
+}
+function swatchStyle(role) {
+  return `border-color: var(--${role === "edge" ? "edge-role" : role}); background: var(--${role === "edge" ? "edge-role" : role}-fill, transparent)`;
+}
+
+function canvas(graph) {
+  const { placed, width, height } = layout(graph);
+  contentBounds = { width, height };
+  svg = svgEl("svg", { role: "img", "aria-label": views.find((v) => v.id === currentView).title });
+  const defs = svgEl(
+    "defs",
+    {},
+    marker("arr", "var(--ink-soft)"),
+    marker("arr-hot", "var(--accent)"),
+  );
+  const root = svgEl("g", {});
+  svg.append(defs, root);
+
+  // system boundary
+  if (graph.boundary) {
+    const members = [...placed.values()].filter(
+      (n) => !graph.boundary.memberOnly || n.member || n.key.startsWith("cmp:"),
+    );
+    if (members.length) {
+      const minX = Math.min(...members.map((n) => n.x)) - 22;
+      const minY = Math.min(...members.map((n) => n.y)) - 30;
+      const maxX = Math.max(...members.map((n) => n.x + n.w)) + 22;
+      const maxY = Math.max(...members.map((n) => n.y + n.h)) + 22;
+      root.append(
+        svgEl("rect", {
+          class: "boundary",
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
+          rx: 14,
+        }),
+        svgEl(
+          "text",
+          { class: "boundary-label", x: minX + 12, y: minY - 8 },
+          document.createTextNode(graph.boundary.label),
+        ),
+      );
+    }
+  }
+
+  // Edges render under nodes. Attachment points fan out along each node's
+  // side (sorted by the far endpoint's y) so a hub like a shared database
+  // doesn't collapse every arrow into one point.
+  const edgeLayer = svgEl("g", {});
+  const descs = [];
+  for (const e of graph.edges) {
+    const a = placed.get(e.from);
+    const b = placed.get(e.to);
+    if (!a || !b) continue;
+    const same = Math.abs(a.x - b.x) < 10;
+    const ltr = a.x + a.w / 2 < b.x + b.w / 2;
+    const loopLeft = same && a.col === 2;
+    descs.push({
+      e,
+      a,
+      b,
+      same,
+      loopLeft,
+      srcSide: same ? (loopLeft ? "L" : "R") : ltr ? "R" : "L",
+      tgtSide: same ? (loopLeft ? "L" : "R") : ltr ? "L" : "R",
+    });
+  }
+  const attach = new Map();
+  const addAttach = (node, side, entry) => {
+    const k = node.key + ":" + side;
+    if (!attach.has(k)) attach.set(k, { node, list: [] });
+    attach.get(k).list.push(entry);
+  };
+  for (const d of descs) {
+    addAttach(d.a, d.srcSide, { d, isSrc: true, otherY: d.b.y + d.b.h / 2 });
+    addAttach(d.b, d.tgtSide, { d, isSrc: false, otherY: d.a.y + d.a.h / 2 });
+  }
+  for (const { node, list } of attach.values()) {
+    list.sort((p, q) => p.otherY - q.otherY);
+    list.forEach((p, i) => {
+      const f = list.length === 1 ? 0.5 : 0.2 + (0.6 * i) / (list.length - 1);
+      const y = node.y + node.h * f;
+      if (p.isSrc) p.d.srcY = y;
+      else p.d.tgtY = y;
+    });
+  }
+  let loopNth = 0;
+  for (const d of descs) edgeLayer.append(edgeEl(d, d.same ? loopNth++ : 0));
+  root.append(edgeLayer);
+
+  for (const n of placed.values()) root.append(nodeEl(n));
+
+  fitView();
+  attachPanZoom();
+
+  const wrapEl = el("div", { class: "canvas-wrap" });
+  wrapEl.append(svg);
+  wrapEl.append(
+    el(
+      "div",
+      { class: "zoombar" },
+      el("button", { text: "+", "aria-label": "zoom in", onclick: () => zoom(0.8) }),
+      el("button", { text: "−", "aria-label": "zoom out", onclick: () => zoom(1.25) }),
+      el("button", {
+        text: "⤢",
+        "aria-label": "fit",
+        onclick: () => {
+          fitView();
+          applyViewBox();
+        },
+      }),
+    ),
+    el("div", {
+      class: "canvas-hint",
+      text: "drag to pan · wheel to zoom · click a node to inspect",
+    }),
+  );
+  return wrapEl;
+}
+
+function marker(id, color) {
+  const m = svgEl("marker", {
+    id,
+    viewBox: "0 0 10 10",
+    refX: 9,
+    refY: 5,
+    markerWidth: 7,
+    markerHeight: 7,
+    orient: "auto-start-reverse",
+  });
+  m.append(svgEl("path", { d: "M 0 0 L 10 5 L 0 10 z", fill: color }));
+  return m;
+}
+
+const pointOnCubic = (p0, p1, p2, p3, t) => {
+  const u = 1 - t;
+  return {
+    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+  };
+};
+
+function edgeEl(d, loopNth) {
+  const { e, a, b } = d;
+  const g = svgEl("g", { class: "edge " + e.provenance, "data-from": e.from, "data-to": e.to });
+  // Redundant sid: "binds CommerceDatabase" on an arrow INTO Commerce DB says
+  // nothing the target doesn't; compress to the verb.
+  let label = e.label;
+  const targetId = (b.key.split("/").pop() || "").toLowerCase();
+  const suffix = (label.split(" ").pop() || "").toLowerCase();
+  if (
+    (label.startsWith("binds ") || label.startsWith("env ")) &&
+    targetId.includes(suffix.replace(/_/g, ""))
+  ) {
+    label = label.split(" ")[0] === "env" ? "env" : "binds";
+  }
+  const y1 = d.srcY ?? a.y + a.h / 2;
+  const y2 = d.tgtY ?? b.y + b.h / 2;
+  if (d.same) {
+    // Same column: bulge into the emptier side (left of the compute column,
+    // right otherwise) so the loop doesn't cross the neighbouring column.
+    const left = d.loopLeft;
+    const sx = left ? a.x : a.x + a.w;
+    const tx = left ? b.x : b.x + b.w;
+    const bulge = (34 + loopNth * 16) * (left ? -1 : 1);
+    const p0 = { x: sx, y: y1 };
+    const p1 = { x: sx + bulge, y: y1 };
+    const p2 = { x: tx + bulge, y: y2 };
+    const p3 = { x: tx + (left ? -3 : 3), y: y2 };
+    const path = svgEl("path", {
+      d: `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y}`,
+      "marker-end": "url(#arr)",
+    });
+    const lp = pointOnCubic(p0, p1, p2, p3, 0.5);
+    g.append(path, edgeLabel(lp.x + bulge * 0.4, lp.y, label, left ? "end" : "start"));
+    return g;
+  }
+  const ltr = d.srcSide === "R";
+  const p0 = { x: ltr ? a.x + a.w : a.x, y: y1 };
+  const p3 = { x: ltr ? b.x : b.x + b.w, y: y2 };
+  const dx = (p3.x - p0.x) / 2;
+  const p1 = { x: p0.x + dx, y: p0.y };
+  const p2 = { x: p3.x - dx, y: p3.y };
+  const path = svgEl("path", {
+    d: `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y}`,
+    "marker-end": "url(#arr)",
+  });
+  // Label rides the curve near the source — the middle of the canvas is
+  // where curves cross, the first third is usually clear.
+  const lp = pointOnCubic(p0, p1, p2, p3, 0.32);
+  g.append(path, edgeLabel(lp.x, lp.y - 6, label, "middle"));
+  return g;
+}
+function edgeLabel(x, y, text, anchor) {
+  const t = svgEl("text", { x, y, "text-anchor": anchor || "middle" });
+  t.textContent = text;
+  return t;
+}
+
+function nodeEl(n) {
+  const g = svgEl("g", {
+    class: `node role-${n.role}` + (n.key === selectedKey ? " selected" : ""),
+    tabindex: 0,
+    role: "button",
+    "aria-label": n.name,
+    "data-key": n.key,
+  });
+  g.append(
+    svgEl("rect", {
+      class: "box",
+      x: n.x,
+      y: n.y,
+      width: n.w,
+      height: n.h,
+      rx: n.role === "person" ? 20 : 8,
+    }),
+  );
+  const cx = n.x + n.w / 2;
+  let ty = n.y + 20;
+  g.append(
+    svgEl(
+      "text",
+      { class: "name", x: cx, y: ty, "text-anchor": "middle" },
+      document.createTextNode(n.name),
+    ),
+  );
+  ty += 13;
+  if (n.kindLine) {
+    g.append(
+      svgEl(
+        "text",
+        { class: "kind", x: cx, y: ty, "text-anchor": "middle" },
+        document.createTextNode(n.kindLine),
+      ),
+    );
+    ty += 14;
+  }
+  if (!n.compact && n.desc) {
+    const maxChars = Math.floor((n.w - 22) / 5.4);
+    for (const line of wrap(n.desc, maxChars, n.role.startsWith("system") ? 3 : 2)) {
+      g.append(
+        svgEl(
+          "text",
+          { class: "desc", x: cx, y: ty, "text-anchor": "middle" },
+          document.createTextNode(line),
+        ),
+      );
+      ty += 12;
+    }
+  }
+  if (n.domain) {
+    g.append(
+      svgEl(
+        "text",
+        { class: "domain", x: cx, y: n.y + n.h - 8, "text-anchor": "middle" },
+        document.createTextNode(n.domain),
+      ),
+    );
+  }
+  const select = () => {
+    selectedKey = n.key;
+    render();
+  };
+  g.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    select();
+  });
+  g.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      select();
+    }
+  });
+  g.addEventListener("mouseenter", () => highlight(n.key, true));
+  g.addEventListener("mouseleave", () => highlight(n.key, false));
+  return g;
+}
+
+function highlight(key, on) {
+  for (const edge of svg.querySelectorAll(".edge")) {
+    const touches = edge.dataset.from === key || edge.dataset.to === key;
+    edge.classList.toggle("hot", on && touches);
+    edge.classList.toggle("dim", on && !touches);
+    const p = edge.querySelector("path");
+    p.setAttribute("marker-end", on && touches ? "url(#arr-hot)" : "url(#arr)");
+  }
+  for (const node of svg.querySelectorAll(".node")) {
+    if (!on) {
+      node.classList.remove("dim");
+      continue;
+    }
+    const k = node.dataset.key;
+    const connected =
+      k === key ||
+      [...svg.querySelectorAll(".edge")].some(
+        (e) =>
+          (e.dataset.from === key && e.dataset.to === k) ||
+          (e.dataset.to === key && e.dataset.from === k),
+      );
+    node.classList.toggle("dim", !connected);
+  }
+}
+
+// ── pan & zoom ─────────────────────────────────────────────────────────────
+
+function fitView() {
+  const pad = 20;
+  viewBox = {
+    x: -pad,
+    y: -pad,
+    w: contentBounds.width + pad * 2,
+    h: contentBounds.height + pad * 2,
+  };
+  applyViewBox();
+}
+function applyViewBox() {
+  svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+}
+function zoom(factor, cx, cy) {
+  const px = cx ?? viewBox.x + viewBox.w / 2;
+  const py = cy ?? viewBox.y + viewBox.h / 2;
+  viewBox = {
+    x: px - (px - viewBox.x) * factor,
+    y: py - (py - viewBox.y) * factor,
+    w: viewBox.w * factor,
+    h: viewBox.h * factor,
+  };
+  applyViewBox();
+}
+function attachPanZoom() {
+  let panning = null;
+  svg.addEventListener("pointerdown", (ev) => {
+    if (ev.target.closest(".node")) return;
+    panning = { x: ev.clientX, y: ev.clientY, vb: { ...viewBox } };
+    svg.classList.add("panning");
+    svg.setPointerCapture(ev.pointerId);
+  });
+  svg.addEventListener("pointermove", (ev) => {
+    if (!panning) return;
+    const scale = viewBox.w / svg.clientWidth;
+    viewBox.x = panning.vb.x - (ev.clientX - panning.x) * scale;
+    viewBox.y = panning.vb.y - (ev.clientY - panning.y) * scale;
+    applyViewBox();
+  });
+  const stop = () => {
+    panning = null;
+    svg.classList.remove("panning");
+  };
+  svg.addEventListener("pointerup", stop);
+  svg.addEventListener("pointercancel", stop);
+  svg.addEventListener(
+    "wheel",
+    (ev) => {
+      ev.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const px = viewBox.x + ((ev.clientX - rect.left) / rect.width) * viewBox.w;
+      const py = viewBox.y + ((ev.clientY - rect.top) / rect.height) * viewBox.h;
+      zoom(ev.deltaY > 0 ? 1.12 : 0.89, px, py);
+    },
+    { passive: false },
+  );
+  svg.addEventListener("click", (ev) => {
+    if (!ev.target.closest(".node")) {
+      selectedKey = null;
+      render();
+    }
+  });
+}
+
+// ── inspector ──────────────────────────────────────────────────────────────
+
+function inspector() {
+  const panel = el("div", { class: "inspector" + (selectedKey ? " open" : "") });
+  if (!selectedKey) return panel;
+
+  const inner = el("div", { class: "inner" });
+  panel.append(inner);
+
+  const key = selectedKey;
+  const vmNode = nodeByKey.get(key);
+  const sysMeta = key.startsWith("sys:") ? systemByStack.get(key.slice(4)) : null;
+  const cmp = key.startsWith("cmp:")
+    ? VM.components.components.find((c) => "cmp:" + c.name === key)
+    : null;
+
+  const name = sysMeta?.name ?? cmp?.name ?? vmNode?.name ?? key;
+  const desc = sysMeta?.description ?? cmp?.description ?? vmNode?.description ?? "";
+
+  inner.append(
+    el("button", {
+      class: "close",
+      text: "✕",
+      "aria-label": "close inspector",
+      onclick: () => {
+        selectedKey = null;
+        render();
+      },
+    }),
+    el("h3", { text: name }),
+    el("div", {
+      class: "meta",
+      text: sysMeta
+        ? "software system"
+        : cmp
+          ? `component — ${cmp.kind}`
+          : `${vmNode.type ?? vmNode.technology}`,
+    }),
+    el("p", { class: "desc", text: desc }),
+  );
+
+  if (vmNode) {
+    const dl = el("dl", {});
+    const row = (k, v) => {
+      if (!v) return;
+      dl.append(el("dt", { text: k }), el("dd", { text: String(v) }));
+    };
+    row("stack", vmNode.stack);
+    row("fqn", vmNode.fqn);
+    row("type", vmNode.type);
+    row("domain", vmNode.domain);
+    row("service", vmNode.serviceName);
+    row("exported", vmNode.exported ? "yes — part of the stack's output contract" : undefined);
+    row(
+      "provenance",
+      vmNode.extracted ? "extracted from alchemy stack eval" : "asserted in overlay model",
+    );
+    inner.append(dl);
+  }
+
+  // relationships (from the full edge set, not just this view)
+  const rel = (list, dir) => {
+    const ul = el("ul", { class: "rels" });
+    for (const e of list) {
+      const otherKey = dir === "out" ? e.to : e.from;
+      const other = nodeByKey.get(otherKey);
+      const li = el("li", { class: e.provenance });
+      li.append(
+        el(
+          "div",
+          {},
+          document.createTextNode((dir === "out" ? "→ " : "← ") + (other?.name ?? otherKey)),
+          el("span", { class: "prov " + e.provenance, text: e.provenance }),
+        ),
+        el("div", {
+          class: "lbl",
+          text:
+            e.label +
+            (e.technology ? ` · ${e.technology}` : "") +
+            (e.detail ? ` · ${e.detail}` : ""),
+        }),
+      );
+      ul.append(li);
+    }
+    return ul;
+  };
+  const outs = VM.edges.filter((e) => e.from === key);
+  const ins = VM.edges.filter((e) => e.to === key);
+  if (outs.length) inner.append(el("h4", { text: "uses" }), rel(outs, "out"));
+  if (ins.length) inner.append(el("h4", { text: "used by" }), rel(ins, "in"));
+
+  if (vmNode?.extracted && vmNode.props) {
+    inner.append(
+      el("h4", { text: "extracted props" }),
+      el("pre", { text: JSON.stringify(vmNode.props, null, 2) }),
+    );
+  }
+  return panel;
+}
+
+// ── boot ───────────────────────────────────────────────────────────────────
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && selectedKey) {
+    selectedKey = null;
+    render();
+  }
+});
+
+// Deep links: #view=<id>&select=<node key>
+const boot = new URLSearchParams(location.hash.slice(1));
+if (boot.get("view") && views.some((v) => v.id === boot.get("view")))
+  currentView = boot.get("view");
+if (boot.get("select")) selectedKey = boot.get("select");
+if (boot.get("theme")) document.documentElement.dataset.theme = boot.get("theme");
+const syncHash = () => {
+  const p = new URLSearchParams();
+  p.set("view", currentView);
+  if (selectedKey) p.set("select", selectedKey);
+  history.replaceState(null, "", "#" + p.toString());
+};
+function render() {
+  renderView();
+  syncHash();
+}
+render();
+
+</script>
