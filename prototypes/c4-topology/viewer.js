@@ -65,7 +65,33 @@ const views = [
     lvl: "L3",
     title: "Component view — Commerce Core (hand-authored teaser)",
   },
+  ...Object.keys(VM.code?.containers ?? {}).map((key) => ({
+    id: "code:" + key,
+    label: (nodeByKey.get(key)?.name ?? key) + " code",
+    lvl: "L3",
+    title: `Code map — ${nodeByKey.get(key)?.name ?? key} (${VM.code.containers[key].appRoot}, via fallow)`,
+    codeKey: key,
+  })),
 ];
+
+/**
+ * Dynamic drill views (L4) aren't in the static list: `codefiles:<container>:<comp>`
+ * resolves here, keeping its parent's rail entry highlighted.
+ */
+const resolveView = (id) => {
+  const found = views.find((v) => v.id === id);
+  if (found) return { ...found, railId: id };
+  if (id.startsWith("codefiles:")) {
+    const [, key, comp] = id.split(":");
+    const name = nodeByKey.get(key)?.name ?? key;
+    return {
+      id,
+      railId: "code:" + key,
+      title: `Code — ${name} / ${comp} (files & functions, via fallow)`,
+    };
+  }
+  return { ...views[0], railId: views[0].id };
+};
 
 // ── graph shaping per view ─────────────────────────────────────────────────
 
@@ -199,6 +225,180 @@ function componentsGraph() {
   };
 }
 
+// ── code views (L3 components / L4 files, lifted from fallow) ──────────────
+
+const basename = (p) => p.split("/").pop();
+
+/** Layer nodes by import depth: roots (nothing in-view imports them) at col 0. */
+const layerByDepth = (ids, edgeList, maxCol) => {
+  // depth = longest chain from a root along from→to (importer → imported)
+  const outs = new Map(ids.map((id) => [id, []]));
+  const ins = new Map(ids.map((id) => [id, 0]));
+  for (const e of edgeList) {
+    if (!outs.has(e.from) || !outs.has(e.to)) continue;
+    outs.get(e.from).push(e.to);
+    ins.set(e.to, ins.get(e.to) + 1);
+  }
+  const depth = new Map(ids.map((id) => [id, 0]));
+  const queue = ids.filter((id) => ins.get(id) === 0);
+  const seen = new Set(queue);
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const next of outs.get(cur)) {
+      depth.set(next, Math.max(depth.get(next), depth.get(cur) + 1));
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  const cols = new Map();
+  for (const id of ids) cols.set(id, Math.min(depth.get(id), maxCol));
+  return cols;
+};
+
+const compMetrics = (fileIdxs) => {
+  const files = fileIdxs.map((i) => VM.code.files[i]);
+  const fns = files.reduce((s, f) => s + f.fn_count, 0);
+  const cx = Math.max(0, ...files.map((f) => f.max_cyclomatic));
+  const unused = files.reduce((s, f) => s + f.unused_export_count, 0);
+  return { fns, cx, unused };
+};
+
+const violationComps = (container) => {
+  const pairs = [];
+  for (const v of VM.code.violations) {
+    const from = container.components.find((c) =>
+      c.files.some((i) => VM.code.files[i].path === v.fromPath),
+    );
+    const to = container.components.find((c) =>
+      c.files.some((i) => VM.code.files[i].path === v.toPath),
+    );
+    if (from && to) pairs.push(`${from.id}→${to.id}`);
+  }
+  return new Set(pairs);
+};
+
+function codeCompGraph(key) {
+  const container = VM.code.containers[key];
+  const cols = layerByDepth(
+    container.components.map((c) => c.id),
+    container.edges,
+    3,
+  );
+  const violations = violationComps(container);
+  const nodes = container.components.map((c) => {
+    const m = compMetrics(c.files);
+    return {
+      key: `codecomp:${key}:${c.id}`,
+      name: c.id,
+      role: c.pkg ? "external" : "code",
+      kindLine: `[Module — ${c.files.length} file${c.files.length === 1 ? "" : "s"}]`,
+      desc: `${m.fns} fns · max cx ${m.cx}` + (m.unused ? ` · ${m.unused} unused exports` : ""),
+      col: c.entry ? 0 : Math.max(1, cols.get(c.id)),
+      drill: `codefiles:${key}:${c.id}`,
+      member: !c.pkg,
+    };
+  });
+  const edges = container.edges.map((e) => {
+    const violation = violations.has(`${e.from}→${e.to}`);
+    return {
+      from: `codecomp:${key}:${e.from}`,
+      to: `codecomp:${key}:${e.to}`,
+      label: violation
+        ? "boundary violation!"
+        : (e.n > 1 ? `${e.n} imports` : "imports") + (e.typeOnly ? " · types only" : ""),
+      provenance: "extracted",
+      typeOnly: e.typeOnly,
+      violation,
+    };
+  });
+  const name = nodeByKey.get(key)?.name ?? key;
+  return {
+    nodes,
+    edges,
+    boundary: { label: `${name} — ${container.appRoot} (import graph)`, memberOnly: true },
+  };
+}
+
+function codeFileGraph(key, compId) {
+  const container = VM.code.containers[key];
+  const comp = container.components.find((c) => c.id === compId);
+  if (!comp) return { nodes: [], edges: [], boundary: null };
+  const member = new Set(comp.files);
+  const fileComp = new Map();
+  for (const c of container.components) for (const i of c.files) fileComp.set(i, c.id);
+
+  const edgesRaw = [];
+  const neighborComps = new Set();
+  for (const [from, to, flags] of VM.code.edges) {
+    const fromIn = member.has(from);
+    const toIn = member.has(to);
+    if (!fromIn && !toIn) continue;
+    if (!fileComp.has(from) || !fileComp.has(to)) continue; // outside this container
+    const typeOnly = (flags & 1) === 1;
+    if (fromIn && toIn) edgesRaw.push({ from: `codefile:${from}`, to: `codefile:${to}`, typeOnly });
+    else if (fromIn) {
+      neighborComps.add(fileComp.get(to));
+      edgesRaw.push({
+        from: `codefile:${from}`,
+        to: `codecomp:${key}:${fileComp.get(to)}`,
+        typeOnly,
+      });
+    } else {
+      neighborComps.add(fileComp.get(from));
+      edgesRaw.push({
+        from: `codecomp:${key}:${fileComp.get(from)}`,
+        to: `codefile:${to}`,
+        typeOnly,
+      });
+    }
+  }
+  const ids = [...member].map((i) => `codefile:${i}`);
+  const cols = layerByDepth(
+    ids,
+    edgesRaw.filter((e) => e.from.startsWith("codefile:") && e.to.startsWith("codefile:")),
+    2,
+  );
+  const nodes = [...member].map((i) => {
+    const f = VM.code.files[i];
+    return {
+      key: `codefile:${i}`,
+      name: basename(f.path),
+      role: f.status === "unused" ? "dev" : "code",
+      kindLine: `[${f.fn_count} fns · cx ${f.max_cyclomatic}${f.is_entry ? " · entry" : ""}]`,
+      desc: f.unused_export_count ? `${f.unused_export_count} unused exports` : "",
+      col: 1 + cols.get(`codefile:${i}`),
+      member: true,
+    };
+  });
+  for (const compName of neighborComps) {
+    const incoming = edgesRaw.some((e) => e.from === `codecomp:${key}:${compName}`);
+    nodes.push({
+      key: `codecomp:${key}:${compName}`,
+      name: compName,
+      role: "external",
+      kindLine: "[Module]",
+      desc: "",
+      compact: true,
+      col: incoming ? 0 : 4,
+      drill: `codefiles:${key}:${compName}`,
+    });
+  }
+  const dedup = [...new Map(edgesRaw.map((e) => [`${e.from}→${e.to}`, e])).values()];
+  const edges = dedup.map((e) => ({
+    ...e,
+    label: e.typeOnly ? "types" : "imports",
+    provenance: "extracted",
+  }));
+  const name = nodeByKey.get(key)?.name ?? key;
+  return {
+    nodes,
+    edges,
+    boundary: { label: `${name} / ${compId} — double-click a module to jump`, memberOnly: true },
+  };
+}
+
 function containerKindLine(n) {
   const t = n.technology || n.type || "";
   const kind =
@@ -295,9 +495,15 @@ let selectedKey = null;
 let viewBox = { x: 0, y: 0, w: 1200, h: 800 };
 let svg, contentBounds;
 
+const navigate = (id) => {
+  currentView = id;
+  selectedKey = null;
+  render();
+};
+
 function renderView() {
   app.textContent = "";
-  const view = views.find((v) => v.id === currentView);
+  const view = resolveView(currentView);
 
   app.append(
     el(
@@ -311,25 +517,30 @@ function renderView() {
     ),
   );
 
-  const nav = el("nav", {});
-  for (const v of views) {
-    nav.append(
-      el(
-        "button",
-        {
-          class: "viewlink" + (v.id === currentView ? " active" : ""),
-          onclick: () => {
-            currentView = v.id;
-            selectedKey = null;
-            render();
-          },
-        },
-        el("span", { class: "lvl", text: v.lvl }),
-        document.createTextNode(v.label),
-      ),
+  const viewButton = (v) =>
+    el(
+      "button",
+      {
+        class: "viewlink" + (v.id === view.railId ? " active" : ""),
+        onclick: () => navigate(v.id),
+      },
+      el("span", { class: "lvl", text: v.lvl }),
+      document.createTextNode(v.label),
     );
+  const archNav = el("nav", {});
+  const codeNav = el("nav", {});
+  for (const v of views) {
+    (v.id.startsWith("code:") || v.id === "components" ? codeNav : archNav).append(viewButton(v));
   }
-  const rail = el("div", { class: "rail" }, el("h2", { text: "C4 views" }), nav, legend());
+  const rail = el(
+    "div",
+    { class: "rail" },
+    el("h2", { text: "Architecture" }),
+    archNav,
+    el("h2", { text: "Code maps · fallow" }),
+    codeNav,
+    legend(),
+  );
   app.append(rail);
 
   const graph =
@@ -337,7 +548,11 @@ function renderView() {
       ? landscapeGraph()
       : currentView === "components"
         ? componentsGraph()
-        : systemGraph(currentView.slice(7));
+        : currentView.startsWith("code:")
+          ? codeCompGraph(currentView.slice(5))
+          : currentView.startsWith("codefiles:")
+            ? codeFileGraph(currentView.split(":")[1], currentView.split(":").slice(2).join(":"))
+            : systemGraph(currentView.slice(7));
   app.append(canvas(graph));
   app.append(inspector());
 }
@@ -365,9 +580,12 @@ function legend() {
     item("edge", "access & wiring"),
     item("external", "external system"),
     item("person", "person / agent"),
-    stroke(false, "extracted from IaC graph"),
+    stroke(false, "extracted (IaC / import graph)"),
     stroke(true, "asserted (cited in code)"),
+    el("div", { class: "k", text: "dotted = type-only import" }),
+    el("div", { class: "k", text: "red = boundary violation" }),
     el("div", { class: "k", text: "arrows read “A → uses → B”" }),
+    el("div", { class: "k", text: "double-click a module to drill" }),
   );
 }
 function swatchStyle(role) {
@@ -377,7 +595,7 @@ function swatchStyle(role) {
 function canvas(graph) {
   const { placed, width, height } = layout(graph);
   contentBounds = { width, height };
-  svg = svgEl("svg", { role: "img", "aria-label": views.find((v) => v.id === currentView).title });
+  svg = svgEl("svg", { role: "img", "aria-label": resolveView(currentView).title });
   const defs = svgEl(
     "defs",
     {},
@@ -514,7 +732,12 @@ const pointOnCubic = (p0, p1, p2, p3, t) => {
 
 function edgeEl(d, loopNth) {
   const { e, a, b } = d;
-  const g = svgEl("g", { class: "edge " + e.provenance, "data-from": e.from, "data-to": e.to });
+  const g = svgEl("g", {
+    class:
+      "edge " + e.provenance + (e.violation ? " violation" : "") + (e.typeOnly ? " typeonly" : ""),
+    "data-from": e.from,
+    "data-to": e.to,
+  });
   // Redundant sid: "binds CommerceDatabase" on an arrow INTO Commerce DB says
   // nothing the target doesn't; compress to the verb.
   let label = e.label;
@@ -637,6 +860,12 @@ function nodeEl(n) {
     ev.stopPropagation();
     select();
   });
+  if (n.drill) {
+    g.addEventListener("dblclick", (ev) => {
+      ev.stopPropagation();
+      navigate(n.drill);
+    });
+  }
   g.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" || ev.key === " ") {
       ev.preventDefault();
@@ -745,10 +974,15 @@ function inspector() {
   const panel = el("div", { class: "inspector" + (selectedKey ? " open" : "") });
   if (!selectedKey) return panel;
 
+  const key = selectedKey;
+  if (key.startsWith("codecomp:") || key.startsWith("codefile:")) {
+    panel.append(codeInspector(key));
+    return panel;
+  }
+
   const inner = el("div", { class: "inner" });
   panel.append(inner);
 
-  const key = selectedKey;
   const vmNode = nodeByKey.get(key);
   const sysMeta = key.startsWith("sys:") ? systemByStack.get(key.slice(4)) : null;
   const cmp = key.startsWith("cmp:")
@@ -830,6 +1064,17 @@ function inspector() {
   if (outs.length) inner.append(el("h4", { text: "uses" }), rel(outs, "out"));
   if (ins.length) inner.append(el("h4", { text: "used by" }), rel(ins, "in"));
 
+  if (vmNode && VM.code?.containers?.[key]) {
+    inner.append(
+      el("h4", { text: "code" }),
+      el("button", {
+        class: "drill",
+        text: "open code map (L3 · via fallow) →",
+        onclick: () => navigate("code:" + key),
+      }),
+    );
+  }
+
   if (vmNode?.extracted && vmNode.props) {
     inner.append(
       el("h4", { text: "extracted props" }),
@@ -837,6 +1082,103 @@ function inspector() {
     );
   }
   return panel;
+}
+
+/** Inspector panel for code-level nodes (L3 modules / L4 files). */
+function codeInspector(key) {
+  const inner = el("div", { class: "inner" });
+  const close = el("button", {
+    class: "close",
+    text: "✕",
+    "aria-label": "close inspector",
+    onclick: () => {
+      selectedKey = null;
+      render();
+    },
+  });
+
+  if (key.startsWith("codecomp:")) {
+    const [, containerKey, ...rest] = key.split(":");
+    const compId = rest.join(":");
+    const container = VM.code.containers[containerKey];
+    const comp = container?.components.find((c) => c.id === compId);
+    if (!comp) return inner;
+    const m = compMetrics(comp.files);
+    inner.append(
+      close,
+      el("h3", { text: compId }),
+      el("div", { class: "meta", text: `module · ${container.appRoot}` }),
+      el("p", {
+        class: "desc",
+        text:
+          `${comp.files.length} files · ${m.fns} functions · max cyclomatic ${m.cx}` +
+          (m.unused ? ` · ${m.unused} unused exports` : ""),
+      }),
+      el("button", {
+        class: "drill",
+        text: "open files (L4) →",
+        onclick: () => navigate(`codefiles:${containerKey}:${compId}`),
+      }),
+      el("h4", { text: "files" }),
+    );
+    const ul = el("ul", { class: "rels" });
+    for (const i of comp.files) {
+      const f = VM.code.files[i];
+      const li = el("li", { class: "extracted" });
+      li.append(
+        el("div", { text: basename(f.path) + (f.is_entry ? " · entry" : "") }),
+        el("div", {
+          class: "lbl",
+          text: `${f.fn_count} fns · cx ${f.max_cyclomatic} · ${(f.size / 1024).toFixed(1)} KiB`,
+        }),
+      );
+      ul.append(li);
+    }
+    inner.append(ul);
+    return inner;
+  }
+
+  const idx = Number(key.slice("codefile:".length));
+  const f = VM.code.files[idx];
+  if (!f) return inner;
+  inner.append(
+    close,
+    el("h3", { text: basename(f.path) }),
+    el("div", { class: "meta", text: f.path }),
+  );
+  const dl = el("dl", {});
+  const row = (k, v) => {
+    if (v === undefined || v === null || v === "" || v === false) return;
+    dl.append(el("dt", { text: k }), el("dd", { text: String(v) }));
+  };
+  row("status", f.status);
+  row("size", `${(f.size / 1024).toFixed(1)} KiB`);
+  row("exports", f.export_count);
+  row("importers", f.importer_count);
+  row("imports", f.import_count);
+  row("entry point", f.is_entry ? "yes" : undefined);
+  row("in cycle", f.in_cycle ? "yes" : undefined);
+  if (f.unused_exports?.length) row("unused", f.unused_exports.join(", "));
+  row("provenance", "extracted by fallow (oxc AST)");
+  inner.append(dl);
+
+  if (f.functions?.length) {
+    inner.append(el("h4", { text: `functions (${f.functions.length})` }));
+    const ul = el("ul", { class: "rels" });
+    for (const fn of f.functions) {
+      const li = el("li", { class: "extracted" });
+      li.append(
+        el("div", { text: `${fn.name}()` }),
+        el("div", {
+          class: "lbl",
+          text: `line ${fn.line} · cyclomatic ${fn.cyclomatic} · cognitive ${fn.cognitive} · ${fn.lines} lines`,
+        }),
+      );
+      ul.append(li);
+    }
+    inner.append(ul);
+  }
+  return inner;
 }
 
 // ── boot ───────────────────────────────────────────────────────────────────
@@ -850,7 +1192,10 @@ document.addEventListener("keydown", (ev) => {
 
 // Deep links: #view=<id>&select=<node key>
 const boot = new URLSearchParams(location.hash.slice(1));
-if (boot.get("view") && views.some((v) => v.id === boot.get("view")))
+if (
+  boot.get("view") &&
+  (views.some((v) => v.id === boot.get("view")) || boot.get("view").startsWith("codefiles:"))
+)
   currentView = boot.get("view");
 if (boot.get("select")) selectedKey = boot.get("select");
 if (boot.get("theme")) document.documentElement.dataset.theme = boot.get("theme");

@@ -159,6 +159,209 @@ const finalEdges = [
   ).values(),
 ];
 
+// ── Code graph (C4 levels 3–4, lifted from fallow via codegraph.ts) ────────
+//
+// The link between the IaC level and the code level is mechanical: every
+// Worker's extracted props carry `main` (entry file) or `rootDir`. BFS over
+// fallow's import graph from that anchor yields the container's code closure;
+// folders become L3 components, files (with fallow's per-function metrics)
+// become L4 code elements.
+
+interface CgFile {
+  path: string;
+  size: number;
+  status: string;
+  export_count: number;
+  unused_export_count: number;
+  is_entry: boolean;
+  importer_count: number;
+  import_count: number;
+  zone: number;
+  fn_count: number;
+  max_cyclomatic: number;
+  max_cognitive: number;
+  in_cycle: boolean;
+  functions?: {
+    name: string;
+    line: number;
+    cyclomatic: number;
+    cognitive: number;
+    lines: number;
+  }[];
+}
+
+const codegraphPath = path.join(dir, "codegraph.json");
+const codegraph = fs.existsSync(codegraphPath)
+  ? (JSON.parse(fs.readFileSync(codegraphPath, "utf8")) as {
+      files: CgFile[];
+      edges: [number, number, number][];
+      zones: { name: string; files: number }[];
+      violations: {
+        from: number;
+        to: number;
+        from_zone: number;
+        to_zone: number;
+        line: number;
+        specifier: string;
+      }[];
+    })
+  : undefined;
+
+interface CodeContainer {
+  appRoot: string;
+  entry?: string;
+  components: { id: string; label: string; files: number[]; entry: boolean; pkg: boolean }[];
+  edges: { from: string; to: string; n: number; typeOnly: boolean }[];
+}
+
+const code: {
+  files: CgFile[];
+  edges: [number, number, number][];
+  containers: Record<string, CodeContainer>;
+  violations: {
+    fromPath: string;
+    toPath: string;
+    line: number;
+    fromZone: string;
+    toZone: string;
+  }[];
+} = { files: [], edges: [], containers: {}, violations: [] };
+
+if (codegraph) {
+  const cgFiles = codegraph.files;
+  const byPath = new Map(cgFiles.map((f, i) => [f.path, i]));
+  const outEdges = new Map<number, number[]>();
+  for (const [from, to] of codegraph.edges) {
+    if (!outEdges.has(from)) outEdges.set(from, []);
+    outEdges.get(from)!.push(to);
+  }
+
+  const rel = (p: string) =>
+    p
+      .replace(/^file:\/\//, "")
+      .replace(/^\/home\/[^/]+\/somewhatintelligent\//, "")
+      .replace(/^.*?(?=apps\/|packages\/|infra\/)/, "");
+
+  const closureFrom = (seeds: number[]) => {
+    const seen = new Set<number>(seeds);
+    const queue = [...seeds];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const next of outEdges.get(cur) ?? []) {
+        if (seen.has(next) || cgFiles[next]!.path.startsWith("prototypes/")) continue;
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+    return [...seen];
+  };
+
+  // Component id for a file within a container rooted at appRoot: the first
+  // two app-relative path segments for in-app files; whole-package nodes for
+  // workspace deps; "infra" for the shared stacks layer.
+  const componentOf = (p: string, appRoot: string) => {
+    if (p.startsWith(appRoot + "/")) {
+      const parts = p.slice(appRoot.length + 1).split("/");
+      return parts.length === 1 ? "(root)" : parts.slice(0, -1).slice(0, 2).join("/");
+    }
+    if (p.startsWith("packages/")) return p.split("/").slice(0, 2).join("/");
+    if (p.startsWith("infra/")) return "infra";
+    if (p.startsWith("apps/")) return p.split("/").slice(0, 2).join("/") + " (app)";
+    return "(external)";
+  };
+
+  const usedFiles = new Set<number>();
+  const containerAnchors: Record<string, { entry?: string; root?: string }> = {};
+  for (const n of collapsedNodes) {
+    const props = (n.props ?? {}) as Record<string, unknown>;
+    if (typeof props.main === "string") containerAnchors[n.key] = { entry: rel(props.main) };
+    else if (typeof props.rootDir === "string")
+      containerAnchors[n.key] = { root: rel(props.rootDir) };
+  }
+
+  for (const [key, anchor] of Object.entries(containerAnchors)) {
+    const appRoot = (anchor.entry ?? anchor.root)!.split("/").slice(0, 2).join("/");
+    const seeds = anchor.entry
+      ? [byPath.get(anchor.entry)].filter((i): i is number => i !== undefined)
+      : cgFiles.flatMap((f, i) => (f.path.startsWith(anchor.root! + "/") ? [i] : []));
+    if (seeds.length === 0) {
+      console.warn(`code: no seed files for ${key} (${JSON.stringify(anchor)})`);
+      continue;
+    }
+    const closure = closureFrom(seeds);
+    closure.forEach((i) => usedFiles.add(i));
+
+    const comps = new Map<string, { files: number[]; entry: boolean }>();
+    for (const i of closure) {
+      const id = componentOf(cgFiles[i]!.path, appRoot);
+      if (!comps.has(id)) comps.set(id, { files: [], entry: false });
+      comps.get(id)!.files.push(i);
+      if (anchor.entry && cgFiles[i]!.path === anchor.entry) comps.get(id)!.entry = true;
+    }
+    const compOf = new Map(
+      closure.flatMap((i) => [[i, componentOf(cgFiles[i]!.path, appRoot)] as const]),
+    );
+    // edge flag bit0: every import on the edge is type-only (fallow VizData contract)
+    const agg = new Map<string, { n: number; typeOnly: number }>();
+    for (const [from, to, flags] of codegraph.edges) {
+      const a = compOf.get(from);
+      const b = compOf.get(to);
+      if (!a || !b || a === b) continue;
+      const k = `${a}→${b}`;
+      if (!agg.has(k)) agg.set(k, { n: 0, typeOnly: 0 });
+      agg.get(k)!.n += 1;
+      if (flags & 1) agg.get(k)!.typeOnly += 1;
+    }
+    code.containers[key] = {
+      appRoot,
+      entry: anchor.entry,
+      components: [...comps.entries()].map(([id, c]) => ({
+        id,
+        label: id,
+        files: c.files,
+        entry: c.entry,
+        pkg: id.startsWith("packages/") || id === "infra" || id.endsWith("(app)"),
+      })),
+      edges: [...agg.entries()].map(([k, v]) => {
+        const [from, to] = k.split("→");
+        return { from: from!, to: to!, n: v.n, typeOnly: v.typeOnly === v.n };
+      }),
+    };
+  }
+
+  // Reindex the file table down to files some closure references.
+  const order = [...usedFiles].sort((a, b) => a - b);
+  const newIndex = new Map(order.map((old, i) => [old, i]));
+  code.files = order.map((old) => {
+    const f = cgFiles[old]!;
+    return {
+      ...f,
+      functions: (f.functions ?? []).map(({ name, line, cyclomatic, cognitive, lines }) => ({
+        name,
+        line,
+        cyclomatic,
+        cognitive,
+        lines,
+      })),
+    };
+  });
+  for (const container of Object.values(code.containers)) {
+    for (const comp of container.components) comp.files = comp.files.map((i) => newIndex.get(i)!);
+  }
+  code.edges = codegraph.edges.flatMap(([from, to, flags]) => {
+    const a = newIndex.get(from);
+    const b = newIndex.get(to);
+    return a !== undefined && b !== undefined ? [[a, b, flags] as [number, number, number]] : [];
+  });
+  code.violations = codegraph.violations.map((v) => ({
+    fromPath: cgFiles[v.from]!.path,
+    toPath: cgFiles[v.to]!.path,
+    line: v.line,
+    fromZone: codegraph.zones[v.from_zone]!.name,
+    toZone: codegraph.zones[v.to_zone]!.name,
+  }));
+}
+
 const viewmodel = {
   title: "somewhatintelligent — software topology",
   stage: topology.stage,
@@ -167,6 +370,7 @@ const viewmodel = {
   nodes: collapsedNodes,
   edges: finalEdges,
   components: commerceComponents,
+  code,
 };
 
 // ── Emit ───────────────────────────────────────────────────────────────────

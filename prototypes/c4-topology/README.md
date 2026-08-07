@@ -5,13 +5,16 @@ explorable, multi-level C4 rendering of the whole estate that both humans and
 agents can navigate, generated mechanically from the stacks themselves.
 
 ```sh
-# 1. capture the graph (no deploy, no credentials — sandbox eval only)
+# 1. capture the IaC graph (no deploy, no credentials — sandbox eval only)
 SANDBOX=1 CI=1 bun prototypes/c4-topology/extract.ts --stage dev_claude
 
-# 2. render it
+# 2. capture the code graph (fallow AST analysis → L3/L4)
+bun prototypes/c4-topology/codegraph.ts
+
+# 3. render it
 bun prototypes/c4-topology/generate.ts
 
-# 3. open
+# 4. open
 open prototypes/c4-topology/index.html   # deep links: #view=…&select=…&theme=dark
 ```
 
@@ -23,7 +26,9 @@ open prototypes/c4-topology/index.html   # deep links: #view=…&select=…&them
 | `model.ts`        | the C4 overlay: systems, people, per-resource intent, and _asserted_ runtime edges with code citations                               |
 | `generate.ts`     | merges extraction + overlay into a viewmodel, inlines `viewer.css`/`viewer.js` → self-contained `index.html`                         |
 | `viewer.{css,js}` | dependency-free renderer: layered layout, pan/zoom, hover isolation, inspector, light+dark                                           |
-| `topology.json`   | captured extraction (committed so the diagram is reproducible without running stacks)                                                |
+| `codegraph.ts`    | runs `fallow viz` and lifts its embedded `__FALLOW_DATA__` viewmodel → `codegraph.json` (files, import edges, zones, violations)     |
+| `topology.json`   | captured IaC extraction (committed so the diagram is reproducible without running stacks)                                            |
+| `codegraph.json`  | captured fallow code graph (per-file metrics incl. per-function complexity)                                                          |
 | `index.html`      | the deliverable — works from `file://`, no network                                                                                   |
 
 ## Why this shape (the research, condensed)
@@ -127,12 +132,49 @@ exist because the walker understands alchemy's internals:
   contract, captured as a real expression edge)
 - `StripeListener` correctly appears as dev-only tooling
 
+## Levels 3–4: the code graph, via fallow
+
+`fallow` (already a dependency of this repo) is a Rust/oxc static analyzer with
+a `viz` mode. Its HTML output embeds `window.__FALLOW_DATA__` — the complete
+file-level model: per-file status/exports/importer counts, **per-function
+cyclomatic + cognitive complexity**, the import edge list (flag bit0 = the
+edge is entirely type-only), bun-workspace clustering, **boundary zones**,
+cycles, clone groups, and boundary violations. That payload is richer than
+its `dot`/`mermaid` emitters (which drop clusters, flags, and violations), so
+`codegraph.ts` lifts the JSON instead. Contract source:
+`crates/engine/src/viz.rs` (`VizData`) in `fallow-rs/fallow`; the shape is
+stable across 3.10 ↔ 3.14 (`schema_version: 7`).
+
+**The L2→L4 join is mechanical.** Every Worker's extracted props carry
+`main` (entry file) or `rootDir`. `generate.ts` BFSes fallow's import graph
+from that anchor to get the container's code closure, then:
+
+- **L3** — folders (and imported workspace packages) become components, with
+  aggregated import edges, per-module fn/complexity/unused rollups, and
+  import-depth layering (entry at the left).
+- **L4** — double-click a module (or use the inspector) to drill into its
+  files: per-file nodes carry fallow's function inventory (name, line,
+  cyclomatic, cognitive), unused-export names, cycle membership. Type-only
+  imports render dotted; fallow boundary violations render red (this repo has
+  exactly one: `platform.site/src/core/product-view.ts` importing
+  `platform.commerce/domain/Contracts.ts` across zones — type-only, visible
+  on the Storefront code map).
+
+Not yet lifted (documented seams for the next pass): per-export consumer
+lists (`fallow dead-code --trace-file <path>` → every export with
+`referenced_by[{from_file, kind}]`), checker-proven symbol impact
+(`--type-aware --symbol-impact FILE:EXPORT`), and fallow's `boundaries`
+config — its `hexagonal` preset (zones `adapters→ports→domain` with
+`allowTypeOnly`) could formalize the commerce module's ports-and-adapters
+rules and fail CI on violations.
+
 ## Ideation / next steps
 
-- **Component level, mechanically.** The hexagonal interior (Effect service
-  tags, Layer composition, RPC surfaces) is statically visible to
-  `effect`-aware tooling. Extracting "which domain modules touch which
-  ports" would fill C4 level 3 the same way Output-walking filled level 2.
+- **Effect-aware components.** fallow gives folder/file/function structure;
+  an `effect`-aware pass (service tags, Layer composition, RPC surfaces)
+  would name the _ports_ those folders implement — upgrading the mechanical
+  L3 from "directories" to true hexagonal components. fallow's boundary
+  `hexagonal` preset can then enforce what the diagram shows.
 - **Seam C recorder in `infra/state.ts`** → topology captured on every real
   deploy, per stage; diff two captures to render _change_ (what a PR adds /
   removes / rewires) — a reviewable architectural diff.
