@@ -15,12 +15,12 @@
  *
  * The surface itself is in `SettlementSurface.ts`, shared by both entries.
  */
-import { Deployment, StageTier } from "@swi/infra/StandardizedStage";
+import { Deployment, StageTier } from "@swi/infra/stage/StandardizedStage";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { serviceName, telemetry } from "@swi/infra/telemetry";
+import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 
 import { Hostnames } from "../hostnames.ts";
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";

@@ -21,11 +21,11 @@
  * test stack exercises the same 30 methods this deploys.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
-import { StageTier } from "@swi/infra/StandardizedStage";
+import { StageTier } from "@swi/infra/stage/StandardizedStage";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { serviceName, telemetry } from "@swi/infra/telemetry";
+import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";
 import { environmentFor } from "../services/StripeConfig.ts";

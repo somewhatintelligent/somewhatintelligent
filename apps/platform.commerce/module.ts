@@ -13,8 +13,8 @@ import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
-import { Deployment, StageTier } from "@swi/infra/StandardizedStage";
-import { telemetryEnv } from "@swi/infra/telemetry";
+import { Deployment, StageTier } from "@swi/infra/stage/StandardizedStage";
+import { telemetryEnv } from "@swi/infra/observability/telemetry";
 
 /**
  * Operator console.

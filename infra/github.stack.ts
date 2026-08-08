@@ -6,7 +6,7 @@ import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 import * as Config from "effect/Config";
 
-import { guardStage } from "./StandardizedStage.ts";
+import { guardStage } from "./stage/StandardizedStage.ts";
 
 const DotenvxSecrets = Effect.gen(function* () {
   const production = yield* Config.redacted("DOTENV_PRIVATE_KEY_PRODUCTION");

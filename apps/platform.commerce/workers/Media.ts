@@ -27,7 +27,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { serviceName, telemetry } from "@swi/infra/telemetry";
+import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 import * as Stream from "effect/Stream";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";

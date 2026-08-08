@@ -106,7 +106,7 @@ output}` where Props still carry the **Output expression AST**. Same-stack
    mutation: this is "the plan phase minus the cloud".
 
 3. **Seam C — a recording state layer.** `State` is an ordinary Effect
-   service (`infra/state.ts` already swaps implementations under `SANDBOX`).
+   service (`infra/stage/state.ts` already swaps implementations under `SANDBOX`).
    A ~20-line wrapper that tees every `set` (each carries the full
    `ResourceState` incl. `downstream`) and every cross-stack
    `getOutput`/ref read would capture the graph **live during real
@@ -143,7 +143,7 @@ output}` where Props still carry the **Output expression AST**. Same-stack
 The viewer draws **extracted** edges solid and **asserted** edges dashed,
 and the inspector badges every relationship with its provenance plus the
 prop path (`binding:COMMERCE`, `env.AUTH_ORIGIN`) or code citation
-(`infra/telemetry.ts`). The point: an agent consuming this diagram can tell
+(`infra/observability/telemetry.ts`). The point: an agent consuming this diagram can tell
 "the machine proved this" from "a human claimed this" — which is what makes
 it safe to _act_ on.
 
@@ -265,7 +265,7 @@ the Tailwind-utility regex matching SVG attribute names (`text-anchor`,
   would name the _ports_ those folders implement — upgrading the mechanical
   L3 from "directories" to true hexagonal components. fallow's boundary
   `hexagonal` preset can then enforce what the diagram shows.
-- **Seam C recorder in `infra/state.ts`** → topology captured on every real
+- **Seam C recorder in `infra/stage/state.ts`** → topology captured on every real
   deploy, per stage; diff two captures to render _change_ (what a PR adds /
   removes / rewires) — a reviewable architectural diff.
 - **Deployment view per stage**: same model, one view per stage

@@ -44,7 +44,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 
-import type { Tier } from "@swi/infra/StandardizedStage";
+import type { Tier } from "@swi/infra/stage/StandardizedStage";
 
 import { STOREFRONT_ORIGIN } from "../hostnames.ts";
 import * as Schema from "effect/Schema";

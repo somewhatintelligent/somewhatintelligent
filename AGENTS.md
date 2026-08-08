@@ -23,7 +23,7 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 
 `SANDBOX=1` runs a stack against local state and skips the resources it has no
 standing to own, which is what lets a container without account credentials run
-one — see `infra/sandbox.ts`.
+one — see `infra/stage/sandbox.ts`.
 
 ```sh
 SANDBOX=1 CI=1 CLOUDFLARE_ACCOUNT_ID=<account> bunx alchemy dev apps/<app>/alchemy.run.ts --stage dev_<name>

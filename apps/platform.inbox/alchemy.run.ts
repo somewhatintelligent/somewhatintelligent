@@ -1,12 +1,12 @@
-import { telemetryEnv } from "@swi/infra/telemetry";
+import { telemetryEnv } from "@swi/infra/observability/telemetry";
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
-import { Deployment } from "@swi/infra/StandardizedStage";
-import { state } from "@swi/infra/state";
+import { Deployment } from "@swi/infra/stage/StandardizedStage";
+import { state } from "@swi/infra/stage/state";
 
 import { Path } from "effect/Path";
 

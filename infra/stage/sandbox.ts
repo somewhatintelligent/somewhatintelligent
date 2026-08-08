@@ -25,6 +25,6 @@ import * as Config from "effect/Config";
  *
  * A leaf module on purpose — no `alchemy` import — so a Worker can read the
  * flag without dragging the state layer's resource declarations into its
- * bundle. `telemetry.ts` is split for the same reason.
+ * bundle. `observability/telemetry.ts` is split for the same reason.
  */
 export const SANDBOX = Config.boolean("SANDBOX").pipe(Config.withDefault(false));

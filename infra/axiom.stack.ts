@@ -5,9 +5,9 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Axiom from "alchemy/Axiom";
 
 import { Effect } from "effect";
-import { guardStage } from "./StandardizedStage.ts";
-import { APPS, dashboardDocument } from "./dashboards.ts";
-import { MONITORS } from "./monitors.ts";
+import { guardStage } from "./stage/StandardizedStage.ts";
+import { APPS, dashboardDocument } from "./observability/dashboards.ts";
+import { MONITORS } from "./observability/monitors.ts";
 
 const metrics = Axiom.Dataset("Metrics", {
   name: "production-metrics",

@@ -5,7 +5,7 @@
 import * as Effect from "effect/Effect";
 import { PRODUCTION_ZONE } from "platform.names";
 
-import { Deployment } from "@swi/infra/StandardizedStage";
+import { Deployment } from "@swi/infra/stage/StandardizedStage";
 
 export const STOREFRONT_ORIGIN = `https://${PRODUCTION_ZONE}`;
 

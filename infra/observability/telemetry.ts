@@ -14,7 +14,7 @@ import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
-import { Deployment, tierOfName, type Tier } from "./StandardizedStage.ts";
+import { Deployment, tierOfName, type Tier } from "../stage/StandardizedStage.ts";
 
 const AT = { stack: "AxiomStack", stage: "production" } as const;
 

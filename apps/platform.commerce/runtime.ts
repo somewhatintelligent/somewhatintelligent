@@ -19,7 +19,7 @@ import { Stack } from "alchemy/Stack";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { workerSafeStage } from "platform.names";
-import { Deployment } from "@swi/infra/StandardizedStage";
+import { Deployment } from "@swi/infra/stage/StandardizedStage";
 
 import { migrationsDir, schemaPath } from "./paths.ts";
 import { Audit } from "./services/Audit.ts";

@@ -3,7 +3,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 
-import { SANDBOX } from "@swi/infra/sandbox";
+import { SANDBOX } from "@swi/infra/stage/sandbox";
 import { PRODUCTION_STAGE, workerSafeStage } from "platform.names";
 
 /**

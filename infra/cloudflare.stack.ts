@@ -1,7 +1,7 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
-import { guardStage } from "./StandardizedStage.ts";
+import { guardStage } from "./stage/StandardizedStage.ts";
 
 const organization = Cloudflare.Access.Organization("ZeroTrustOrganization", {
   authDomain: "somewhatintelligent.cloudflareaccess.com",

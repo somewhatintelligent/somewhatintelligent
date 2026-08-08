@@ -1,17 +1,17 @@
-import { telemetryEnv } from "@swi/infra/telemetry";
+import { telemetryEnv } from "@swi/infra/observability/telemetry";
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 
 import { InternalAccessApplication, CloudflareStack } from "@swi/infra/cloudflare.stack";
-import { state } from "@swi/infra/state";
+import { state } from "@swi/infra/stage/state";
 
 import type { Env } from "./src/server/env.ts";
 import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import { Path } from "effect/Path";
 import { PRODUCTION_ZONE } from "platform.names";
-import { Deployment } from "@swi/infra/StandardizedStage";
+import { Deployment } from "@swi/infra/stage/StandardizedStage";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
 
 const ARTIFACT_ZONE = "somewhatintelligent.dev";

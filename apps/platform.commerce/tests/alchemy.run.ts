@@ -32,7 +32,7 @@
  * no longer manages.
  */
 import * as Alchemy from "alchemy";
-import { StageTier } from "@swi/infra/StandardizedStage";
+import { StageTier } from "@swi/infra/stage/StandardizedStage";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Drizzle from "alchemy/Drizzle";
 import * as Output from "alchemy/Output";

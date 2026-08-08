@@ -3,7 +3,7 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Drizzle from "alchemy/Drizzle/Providers";
 import * as Output from "alchemy/Output";
-import { state } from "@swi/infra/state";
+import { state } from "@swi/infra/stage/state";
 import { Effect, Layer } from "effect";
 
 import { AvatarBucket } from "./api/avatars.ts";
@@ -15,7 +15,7 @@ import { DEV_PORT, ingress } from "./shared/ingress.ts";
 import { authDefines } from "./shared/surfaces.ts";
 
 import { AuthSchema } from "./api/schema.ts";
-import { telemetryEnv } from "@swi/infra/telemetry";
+import { telemetryEnv } from "@swi/infra/observability/telemetry";
 
 import type { AuthFeatures } from "lib.better-auth-manifest";
 

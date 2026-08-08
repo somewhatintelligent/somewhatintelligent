@@ -8,7 +8,7 @@ import { CommerceModule } from "platform.commerce/module";
 import * as StripeDev from "platform.commerce/infrastructure/StripeDev";
 import { AuthRouting, SiteModule } from "platform.site/module";
 
-import { state } from "@swi/infra/state";
+import { state } from "@swi/infra/stage/state";
 import { Auth } from "platform.auth/alchemy.run";
 
 const stripeArmed = await Effect.runPromise(StripeDev.armIfDev());

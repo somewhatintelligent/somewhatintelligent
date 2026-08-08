@@ -4,7 +4,7 @@ import { makeEffectAuth } from "lib.better-auth-effect";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { serviceName, telemetry } from "@swi/infra/telemetry";
+import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 
 import { ingress } from "../shared/ingress.ts";
 import { live } from "./capabilities.ts";

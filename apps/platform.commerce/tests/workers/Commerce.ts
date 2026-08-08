@@ -17,7 +17,7 @@
  * stack or not.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
-import { StageTier } from "@swi/infra/StandardizedStage";
+import { StageTier } from "@swi/infra/stage/StandardizedStage";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
