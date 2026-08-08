@@ -35,12 +35,24 @@ export const inertly = Layer.mergeAll(
   inert(Origin, { origin: UNRESOLVED_ORIGIN, cookieDomain: null }),
   inert(Signing, UNSIGNED),
   /**
-   * NOT a stand-in, and that difference is the point. The Stripe plugin is
-   * constructed unconditionally — its tables must not depend on whether a stage
-   * holds a secret — so `config.ts` legitimately reads this during schema
-   * generation. `unconfigured` is a REAL value that says "no account", the same
-   * one the Worker uses on a stage with no credentials, so there is one
-   * definition of switched-off rather than two that can differ.
+   * A REAL value rather than a stand-in, because `config.ts` legitimately reads
+   * this one: the Stripe plugin is constructed unconditionally, since its tables
+   * must not depend on whether a stage holds a secret.
+   *
+   * "NO ACCOUNT" IS ABOUT THIS RESOLUTION, NOT ABOUT THE MACHINE. The key is
+   * usually right there — dotenvx has decrypted `.env.*` into the environment of
+   * whoever runs `alchemy deploy`, and the Worker's own init reads it happily one
+   * phase later. This resolution declines to, for two reasons:
+   *
+   *  - Nothing here needs it. `getSchema` branches only on `subscription.enabled`
+   *    and `organization.enabled`, both literals, and `deriveFeatures` reads
+   *    `basePath`, `emailAndPassword.enabled`, the social keys and `plugins[].id`.
+   *    A Stripe client built here would be built for nobody.
+   *  - Reading it would drag Stripe into `vp test`. `test/surfaces.test.ts`
+   *    resolves these options, so a contributor or a CI box holding
+   *    `STRIPE_SECRET_KEY` without `STRIPE_AUTH_WEBHOOK_SIGNING_SECRET` would
+   *    have the suite die on the incomplete-configuration branch — a failure
+   *    about billing, in a test about plugin ids.
    */
   Layer.succeed(Billing, unconfigured),
   /**
