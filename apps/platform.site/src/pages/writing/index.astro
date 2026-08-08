@@ -1,18 +1,37 @@
 ---
+// PRERENDERED, unlike most of this site. The texts are files in the repository
+// and the page is the same for everyone, so it is built once and served off the
+// asset layer with no Worker invocation. `output: "server"` is forced by the
+// stack; this route opts out of it.
+//
+// The adapter prerenders inside workerd (`prerenderEnvironment: "workerd"`),
+// so the site chrome's binding reads resolve at build like they do at request
+// time. What does NOT survive prerendering is per-request state — the header's
+// market cookie — which is why `SiteHeader` sets that control client-side.
 import Base from "../../layouts/Base.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import WritingIndex from "../../components/views/WritingIndex.astro";
-import { WRITING_DOCUMENT, type PublishedTextSummary } from "../../lib/writing-document.ts";
+import { WRITING_DOCUMENT } from "../../lib/writing-document.ts";
+import { publishedRows } from "../../core/writing-view.ts";
+import { getCollection } from "astro:content";
 
-// The site this replaces read the page copy and a keyset page of published
-// texts from the Publisher service here, then keyset-paginated with a cursor
-// trail. The scaffold binds to nothing: the copy is committed and the list is
-// empty, so `WritingIndex` renders its coming-soon plate. Reintroducing the
-// read means filling `texts` (and the two pager hrefs) — the view is a pure
-// function of them and needs no change.
+export const prerender = true;
+
 const doc = WRITING_DOCUMENT;
-const texts: readonly PublishedTextSummary[] = [];
+const rows = publishedRows(
+  (await getCollection("writing")).map((entry) => ({
+    slug: entry.id,
+    title: entry.data.title,
+    deck: entry.data.deck,
+    kind: entry.data.kind,
+    date: entry.data.date,
+    updated: entry.data.updated,
+    draft: entry.data.draft,
+    body: entry.body ?? "",
+  })),
+  { includeDrafts: import.meta.env.DEV },
+);
 ---
 
 <Base title={doc.seo.title} description={doc.seo.description} theme="light">
@@ -20,15 +39,7 @@ const texts: readonly PublishedTextSummary[] = [];
     <div data-theme="dark" style="display: contents;">
       <SiteHeader />
     </div>
-    <WritingIndex
-      heading={doc.heading}
-      deck={doc.deck}
-      emptyMessage={doc.emptyMessage}
-      texts={texts}
-      tagFilter={null}
-      olderHref={null}
-      newerHref={null}
-    />
+    <WritingIndex heading={doc.heading} emptyMessage={doc.emptyMessage} rows={rows} />
     <div data-theme="dark" style="display: contents;">
       <SiteFooter />
     </div>

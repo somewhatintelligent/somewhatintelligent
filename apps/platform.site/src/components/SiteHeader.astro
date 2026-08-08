@@ -110,6 +110,25 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
    * the same choice.
    */
   const select = document.getElementById("site-market") as HTMLSelectElement | null;
+
+  /**
+   * THE SELECTED OPTION, corrected on load — because not every page carrying
+   * this header is rendered per request any more. The writing routes prerender,
+   * and a prerendered page bakes in whatever `parseMarket(undefined)` returns
+   * at build, so the control would sit on the default no matter what the
+   * shopper had chosen. Reading the cookie here makes the switch tell the truth
+   * on a static page without making the page dynamic.
+   *
+   * SSR pages are unaffected: the server already marked the right option and
+   * this sets it to the value it is on. Same reason as the cart count above —
+   * server-rendered chrome, corrected by the client where only the client
+   * knows.
+   */
+  if (select) {
+    const cookie = document.cookie.match(/(?:^|;\s*)si_market=(CA|US)\b/);
+    if (cookie) select.value = cookie[1]!;
+  }
+
   select?.addEventListener("change", () => {
     const value = select.value === "US" ? "US" : "CA";
     document.cookie = `si_market=${value}; path=/; max-age=31536000; samesite=lax`;

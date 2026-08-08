@@ -1,0 +1,70 @@
+---
+// One text. Prerendered from the collection, same as the index — `getStaticPaths`
+// enumerates the published texts at build and each one deploys as a static
+// asset.
+//
+// DRAFTS ARE NOT GIVEN A PATH. Because these routes prerender, a draft that
+// merely went unlisted on the index would still deploy as a reachable URL;
+// `publishedRows` drops them, so in a production build the file is not
+// published at all. It still gets a path in dev, where laying an unfinished
+// text out on the real page is the point.
+import Base from "../../layouts/Base.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import WritingArticle from "../../components/views/WritingArticle.astro";
+import { publishedRows } from "../../core/writing-view.ts";
+import { getCollection, render } from "astro:content";
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const entries = await getCollection("writing");
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+
+  return publishedRows(
+    entries.map((entry) => ({
+      slug: entry.id,
+      title: entry.data.title,
+      deck: entry.data.deck,
+      kind: entry.data.kind,
+      date: entry.data.date,
+      updated: entry.data.updated,
+      draft: entry.data.draft,
+      body: entry.body ?? "",
+    })),
+    { includeDrafts: import.meta.env.DEV },
+  ).map((row) => ({
+    params: { slug: row.slug },
+    props: { row, entry: byId.get(row.slug)! },
+  }));
+}
+
+const { row, entry } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<Base
+  title={`${row.title} — somewhatintelligent`}
+  description={entry.data.description}
+  ogType="article"
+  theme="light"
+>
+  <div class="site-frame">
+    <div data-theme="dark" style="display: contents;">
+      <SiteHeader />
+    </div>
+    <WritingArticle
+      title={row.title}
+      deck={row.deck}
+      kind={row.kind}
+      publishedAt={row.publishedAt}
+      updatedAt={row.updatedAt}
+      readingMinutes={row.readingMinutes}
+    >
+      <Content />
+    </WritingArticle>
+    <div data-theme="dark" style="display: contents;">
+      <SiteFooter />
+    </div>
+  </div>
+</Base>

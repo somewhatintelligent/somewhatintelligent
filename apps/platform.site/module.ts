@@ -47,7 +47,7 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
       ...(production ? { name: "platformcommerce-site-production-rgrpfsan2olmqfri" } : {}),
       rootDir: import.meta.dirname,
       sessionKVBindingName: false,
-      compatibility: { date: "2026-04-15" },
+      compatibility: { date: "2026-04-15", flags: ["nodejs_compat"] },
       ...(claimsApex ? { domain: PRODUCTION_ZONE } : {}),
       workersDev: true,
       env: {

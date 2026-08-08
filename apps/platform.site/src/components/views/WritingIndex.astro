@@ -1,44 +1,37 @@
 ---
-// The writing index, carried over verbatim: a light cold-paper editorial page
-// under the dark site chrome — WRITING masthead, index table of arguments, and
-// the active entry populating the deck panel, excerpt block, revision history,
-// and EVIDENCE rail. One entry is "active" (expanded): the most recent on load;
-// hovering/focusing any table row makes that entry active with a crossfade.
-// Scroll never resizes rows. The light treatment is a token island: the route's
-// root carries data-theme="light" so the generated token set's :root (cold
-// paper) values apply inside it only.
+// The writing index: a light cold-paper editorial page under the dark site
+// chrome — WRITING masthead, an index table of arguments, and a panel beside
+// the masthead carrying the active entry. One entry is active: the most recent
+// on load; hovering or focusing any row makes that entry active with a
+// crossfade. The light treatment is a token island — the route's root carries
+// data-theme="light" so the generated token set's :root (cold paper) values
+// apply inside it only.
+//
+// WHAT USED TO BE HERE AND IS NOT: an EVIDENCE rail of photographs down the
+// right edge, and a REVISION column reading "revised" on every row above a
+// three-entry changelog. The rail illustrated texts with objects that were not
+// in them, and the changelog was a ledger nothing wrote to. What survived of
+// revision is honest and lives on the text's own page: an "Updated" line, shown
+// only when that text was actually revised.
 //
 // A pure function of its props — no binding, no fetch. Hand it an empty list
-// and the coming-soon plate renders; hand it a page of texts and the full
-// index does.
-import type { PublishedTextSummary } from "../../lib/writing-document.ts";
+// and the coming-soon plate renders; hand it rows and the index does.
+import type { WritingRow } from "../../core/writing-view.ts";
 import { formatDate } from "../../lib/format.ts";
 
 interface Props {
   heading: string;
-  deck: string;
   emptyMessage: string;
-  texts: readonly PublishedTextSummary[];
-  tagFilter?: string | null;
-  olderHref?: string | null;
-  newerHref?: string | null;
+  rows: readonly WritingRow[];
 }
 
-const {
-  heading,
-  deck,
-  emptyMessage,
-  texts,
-  tagFilter = null,
-  olderHref = null,
-  newerHref = null,
-} = Astro.props;
+const { heading, emptyMessage, rows } = Astro.props;
 
-const kind = (t: PublishedTextSummary): string => t.tags[0] ?? "text";
-// The initially-active entry (most recent). Server-renders the panels; the
-// hover script re-populates them from the JSON payload.
-const active = texts.length > 0 ? texts[0]! : null;
-const activeIndex = 0;
+// The initially-active entry (most recent). Server-renders the panel; the hover
+// script re-populates it from the JSON payload. With scripting off this is
+// where the panel stays, which is a correct resting state rather than a
+// degraded one.
+const active = rows.length > 0 ? rows[0]! : null;
 ---
 
 <main class="writing-index">
@@ -50,144 +43,87 @@ const activeIndex = 0;
         <p class="writing-empty-message">{emptyMessage}</p>
       </div>
     ) : (
-      <>
-        <div class="writing-content">
-          <header class="writing-masthead">
-            <div class="writing-masthead-left">
-              <h1>{heading}</h1>
-              <p class="writing-masthead-deck">{deck}</p>
-              {tagFilter && (
-                <p class="writing-tagline">
-                  tagged “{tagFilter}” — <a href="/writing/">clear</a>
-                </p>
-              )}
-            </div>
-            <div class="writing-masthead-active" data-fade>
-              <p class="active-kicker" data-role="kicker">{active.title}</p>
-              <p class="active-deck" data-role="deck">{active.deck ?? active.excerpt}</p>
-              <aside class="writing-revisions" aria-label="Revision history">
-                <p class="revisions-kicker">Revision history</p>
-                <p class="revisions-row">
-                  <span class="revisions-dot" aria-hidden="true" />
-                  <span class="row-mono" data-role="date">{formatDate(active.publishedAt)}</span>
-                  <span class="row-mono revisions-version" data-role="version">{active.version}</span>
-                </p>
-                <a class="revisions-link" data-role="href" href={`/writing/${active.slug}`}>
-                  View full history →
-                </a>
-              </aside>
-            </div>
-          </header>
-
-          <div class="writing-table" role="table" aria-label="Published texts">
-            <div class="writing-table-head" role="row">
-              <span role="columnheader">Title</span>
-              <span role="columnheader">Date ↓</span>
-              <span role="columnheader">Kind</span>
-              <span role="columnheader">Revision</span>
-              <span aria-hidden="true" />
-            </div>
-            {texts.map((t, i) => (
-              <a
-                class:list={["writing-row", { "is-active": i === activeIndex }]}
-                data-entry={t.slug}
-                href={`/writing/${t.slug}`}
-                role="row"
-              >
-                <span class="row-title" role="cell">
-                  {t.title}
-                </span>
-                <span class="row-mono" role="cell">
-                  {formatDate(t.publishedAt)}
-                </span>
-                <span class="row-mono" role="cell">
-                  {kind(t)}
-                </span>
-                <span class="row-mono row-revision" role="cell">
-                  {t.version}
-                </span>
-                <span class="row-chevron" aria-hidden="true">
-                  ›
-                </span>
-              </a>
-            ))}
+      <div class="writing-content">
+        <header class="writing-masthead">
+          <div class="writing-masthead-left">
+            <h1>{heading}</h1>
           </div>
+          <div class="writing-masthead-active" data-fade>
+            <p class="active-kicker" data-role="kicker">{active.title}</p>
+            <p class="active-deck" data-role="deck">{active.deck}</p>
+            <p class="active-meta">
+              <span class="row-mono" data-role="meta">
+                {formatDate(active.publishedAt)} · {active.kind} · {active.readingMinutes} min
+              </span>
+              <a class="active-link" data-role="href" href={active.href}>
+                Read text →
+              </a>
+            </p>
+          </div>
+        </header>
 
-          {(olderHref || newerHref) && (
-            <nav class="writing-pager" aria-label="Pagination">
-              {newerHref ? <a href={newerHref}>← Newer</a> : <span>← Newer</span>}
-              {olderHref ? <a href={olderHref}>Older →</a> : <span>Older →</span>}
-            </nav>
-          )}
-
-        </div>
-
-        <aside class="writing-preview" aria-label="Reading preview">
-          <header>
-            <span>Preview</span>
-            <span class="row-mono">Text / public record</span>
-          </header>
-          <article class="preview-stage" data-fade>
-            <img
-              class="preview-image"
-              data-role="image"
-              src={active.heroMedia?.href}
-              alt={active.heroMedia ? active.heroMedia.alt || active.title : ""}
-              hidden={!active.heroMedia}
-            />
-            <div class="preview-body">
-              <p class="preview-kicker" data-role="meta">
-                {formatDate(active.publishedAt)} · {kind(active)} · {active.version}
-              </p>
-              <h2 class="preview-title" data-role="title">{active.title}</h2>
-              <p class="preview-deck" data-role="deck" hidden={!active.deck}>
-                {active.deck}
-              </p>
-              <p class="preview-excerpt" data-role="excerpt">{active.excerpt}</p>
-            </div>
-            <a class="preview-read" data-role="href" href={`/writing/${active.slug}`}>
-              Read text →
+        <div class="writing-table" role="table" aria-label="Published texts">
+          <div class="writing-table-head" role="row">
+            <span role="columnheader">Title</span>
+            <span role="columnheader">Date ↓</span>
+            <span role="columnheader">Kind</span>
+            <span role="columnheader">Reading time</span>
+            <span aria-hidden="true" />
+          </div>
+          {rows.map((row, i) => (
+            <a
+              class:list={["writing-row", { "is-active": i === 0 }]}
+              data-entry={row.slug}
+              href={row.href}
+              role="row"
+            >
+              <span class="row-title" role="cell">
+                {row.title}
+              </span>
+              <span class="row-mono" role="cell">
+                {formatDate(row.publishedAt)}
+              </span>
+              <span class="row-mono" role="cell">
+                {row.kind}
+              </span>
+              <span class="row-mono row-reading" role="cell">
+                {row.readingMinutes} min
+              </span>
+              <span class="row-chevron" aria-hidden="true">
+                ›
+              </span>
             </a>
-          </article>
-        </aside>
+          ))}
+        </div>
 
         <script
           type="application/json"
           data-writing-entries
           set:html={JSON.stringify(
-            texts.map((t) => ({
-              slug: t.slug,
-              title: t.title,
-              deck: t.deck,
-              excerpt: t.excerpt,
-              date: formatDate(t.publishedAt),
-              kind: kind(t),
-              version: t.version,
-              image: t.heroMedia ? { href: t.heroMedia.href, alt: t.heroMedia.alt } : null,
+            rows.map((row) => ({
+              slug: row.slug,
+              href: row.href,
+              title: row.title,
+              deck: row.deck,
+              meta: `${formatDate(row.publishedAt)} · ${row.kind} · ${row.readingMinutes} min`,
             })),
           )}
         />
-      </>
+      </div>
     )
   }
 </main>
 
 <script>
-  // Hovering or focusing a table row makes its entry active: the masthead deck,
-  // revision history, and preview rail are single panels re-populated from the
-  // page's JSON payload (entries render once — the panels are not duplicated per
-  // entry). Delegation binds on `document`, so it survives a full body swap on
-  // pager navigation — each new page ships its own payload and a server-rendered
-  // active first row.
+  // Hovering or focusing a row makes its entry active: the masthead panel is a
+  // SINGLE panel re-populated from the page's JSON payload, not one panel per
+  // entry. Delegation binds on `document` so nothing has to be rebound.
   interface Entry {
     slug: string;
+    href: string;
     title: string;
-    deck: string | null;
-    excerpt: string;
-    date: string;
-    kind: string;
-    version: string;
-    image: { href: string; alt: string | null } | null;
+    deck: string;
+    meta: string;
   }
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -198,73 +134,37 @@ const activeIndex = 0;
     if (!(payload instanceof HTMLElement) || !payload.textContent) return null;
     let map = parsed.get(payload);
     if (!map) {
-      map = new Map<string, Entry>(
-        (JSON.parse(payload.textContent) as Entry[]).map((e) => [e.slug, e]),
-      );
+      map = new Map((JSON.parse(payload.textContent) as Entry[]).map((e) => [e.slug, e]));
       parsed.set(payload, map);
     }
     return map;
   }
 
-  const setText = (el: HTMLElement | null, text: string) => {
-    if (el) el.textContent = text;
-  };
-  const setHref = (el: HTMLElement | null, href: string) => {
-    if (el instanceof HTMLAnchorElement) el.href = href;
-  };
-  const fade = (el: HTMLElement | null) => {
-    if (el && !reducedMotion.matches)
-      el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
-  };
-
   function activate(root: HTMLElement, slug: string | undefined) {
     if (!slug) return;
-    const e = entriesFor(root)?.get(slug);
-    if (!e) return;
+    const entry = entriesFor(root)?.get(slug);
+    if (!entry) return;
 
-    const region = (sel: string) => root.querySelector<HTMLElement>(sel);
-    const role = (scope: HTMLElement | null, name: string) =>
-      scope?.querySelector<HTMLElement>(`[data-role="${name}"]`) ?? null;
-
-    const masthead = region(".writing-masthead-active");
-    const revisions = region(".writing-revisions");
-    const preview = region(".preview-stage");
+    const panel = root.querySelector<HTMLElement>(".writing-masthead-active");
+    if (!panel) return;
+    const role = (name: string) => panel.querySelector<HTMLElement>(`[data-role="${name}"]`);
 
     for (const row of root.querySelectorAll<HTMLElement>(".writing-row")) {
       row.classList.toggle("is-active", row.dataset.entry === slug);
     }
 
-    setText(role(masthead, "kicker"), e.title);
-    setText(role(masthead, "deck"), e.deck ?? e.excerpt);
+    const kicker = role("kicker");
+    if (kicker) kicker.textContent = entry.title;
+    const deck = role("deck");
+    if (deck) deck.textContent = entry.deck;
+    const meta = role("meta");
+    if (meta) meta.textContent = entry.meta;
+    const href = role("href");
+    if (href instanceof HTMLAnchorElement) href.href = entry.href;
 
-    setText(role(revisions, "date"), e.date);
-    setText(role(revisions, "version"), e.version);
-    setHref(role(revisions, "href"), `/writing/${e.slug}`);
-
-    const img = role(preview, "image");
-    if (img instanceof HTMLImageElement) {
-      if (e.image) {
-        img.src = e.image.href;
-        img.alt = e.image.alt || e.title;
-        img.hidden = false;
-      } else {
-        img.hidden = true;
-        img.removeAttribute("src");
-      }
+    if (!reducedMotion.matches) {
+      panel.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
     }
-    setText(role(preview, "meta"), `${e.date} · ${e.kind} · ${e.version}`);
-    setText(role(preview, "title"), e.title);
-    const deckEl = role(preview, "deck");
-    if (deckEl) {
-      deckEl.hidden = e.deck === null;
-      if (e.deck !== null) deckEl.textContent = e.deck;
-    }
-    setText(role(preview, "excerpt"), e.excerpt);
-    setHref(role(preview, "href"), `/writing/${e.slug}`);
-
-    fade(masthead);
-    fade(revisions);
-    fade(preview);
   }
 
   function activateFromEvent(target: EventTarget | null) {
@@ -280,25 +180,22 @@ const activeIndex = 0;
 
 <style>
   .writing-index {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 34%);
     min-height: 0;
-    overflow: hidden;
     background: var(--color-background);
     color: var(--color-foreground);
   }
 
-  /* Fixed masthead/pager/panels; the index table is the ONLY scroll region. */
+  /* Fixed masthead; the index table is the ONLY scroll region. */
   .writing-content {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    height: 100%;
     overflow: hidden;
     padding: clamp(20px, 3vw, 44px) clamp(20px, 3vw, 48px);
   }
 
-  .writing-masthead,
-  .writing-pager {
+  .writing-masthead {
     flex-shrink: 0;
   }
 
@@ -306,6 +203,7 @@ const activeIndex = 0;
     flex: 1;
     min-height: 180px;
     overflow-y: auto;
+    border-top: 1px solid var(--color-border-strong);
   }
 
   .writing-table-head {
@@ -315,16 +213,20 @@ const activeIndex = 0;
     background: var(--color-background);
   }
 
-  /* ── Masthead: FIXED height — content clamps inside it, the band never
-     resizes with the active entry's text (pagination keeps a stable frame). */
+  /* ── Masthead: FIXED height — content clamps inside it, so the band never
+     resizes as the active entry changes under the cursor.
+
+     Sized to the TALLEST thing it must hold, which is the right column at a
+     three-line pull-quote (~190px), not to the wordmark. Anything more is gap
+     between the wordmark and the table. */
   .writing-masthead {
     display: grid;
     grid-template-columns: minmax(0, 55%) minmax(0, 1fr);
     gap: clamp(20px, 3vw, 48px);
     align-items: start;
-    height: clamp(220px, 30vh, 320px);
+    height: clamp(158px, 21vh, 222px);
     overflow: hidden;
-    padding-bottom: clamp(14px, 2vw, 24px);
+    padding-bottom: clamp(10px, 1.4vw, 18px);
   }
 
   .writing-masthead h1 {
@@ -337,37 +239,18 @@ const activeIndex = 0;
     text-transform: uppercase;
   }
 
-  .writing-masthead-deck {
-    margin: 14px 0 0;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    color: var(--color-muted-foreground);
-  }
-
-  .writing-tagline {
-    margin: 10px 0 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-  }
-
-  .writing-tagline a {
-    color: var(--color-primary);
-  }
-
+  /* Stretch to the band's fixed height so the hairline is constant even though
+     the deck text inside varies. */
   .writing-masthead-active {
-    /* Stretch to the band's fixed height so the hairline is constant even
-       though the deck text inside varies (align-items: start would otherwise
-       size this box — and its border — to content). */
+    display: flex;
+    flex-direction: column;
     align-self: stretch;
     border-left: 1px solid var(--color-border);
     padding-left: clamp(16px, 2vw, 32px);
     padding-top: 8px;
   }
 
-  .active-kicker,
-  .revisions-kicker {
+  .active-kicker {
     margin: 0 0 12px;
     font-family: var(--font-mono);
     font-size: 11px;
@@ -387,11 +270,31 @@ const activeIndex = 0;
     line-height: 1.25;
   }
 
-  /* ── Index table ──────────────────────────────────────────────────────── */
-  .writing-table {
-    border-top: 1px solid var(--color-border-strong);
+  .active-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: baseline;
+    margin: auto 0 0;
+    padding-top: 16px;
   }
 
+  .active-link {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .active-link:hover,
+  .active-link:focus-visible {
+    color: var(--color-primary);
+  }
+
+  /* ── Index table ──────────────────────────────────────────────────────── */
   .writing-table-head,
   .writing-row {
     display: grid;
@@ -431,7 +334,7 @@ const activeIndex = 0;
     color: var(--color-muted-foreground);
   }
 
-  .writing-row.is-active .row-revision {
+  .writing-row.is-active .row-reading {
     color: var(--color-primary);
   }
 
@@ -446,161 +349,8 @@ const activeIndex = 0;
     color: var(--color-muted-foreground);
   }
 
-  .writing-pager {
-    display: flex;
-    justify-content: space-between;
-    padding: 12px 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-  }
-
-  .writing-pager a {
-    color: inherit;
-    text-decoration: none;
-  }
-
-  .writing-pager a:hover {
-    color: var(--color-primary);
-  }
-
-  .writing-pager span {
-    color: var(--color-muted-foreground);
-    opacity: 0.5;
-  }
-
-  /* Revision history sits below the active deck inside the masthead column. */
-  .writing-revisions {
-    margin-top: clamp(16px, 2vh, 28px);
-  }
-
-  .revisions-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 10px;
-  }
-
-  .revisions-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 9999px;
-    background: var(--color-primary);
-  }
-
-  .revisions-version {
-    color: var(--color-foreground);
-  }
-
-  .revisions-link {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
-
-  /* ── Reading-preview rail: the active entry as it reads, not artwork ──── */
-  .writing-preview {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    border-left: 1px solid var(--color-border-strong);
-    background: var(--color-card);
-  }
-
-  .writing-preview > header {
-    display: flex;
-    flex-shrink: 0;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px clamp(16px, 2vw, 28px);
-    border-bottom: 1px solid var(--color-border);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-muted-foreground);
-  }
-
-  /* The stage IS the article: full-height flex column so .preview-read pins
-     to the rail's bottom edge regardless of content height. */
-  .preview-stage {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .preview-image {
-    flex-shrink: 0;
-    width: 100%;
-    max-height: 34%;
-    object-fit: cover;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .preview-body {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    padding: clamp(18px, 2.4vw, 32px) clamp(16px, 2vw, 28px);
-  }
-
-  .preview-kicker {
-    margin: 0 0 14px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-muted-foreground);
-  }
-
-  .preview-title {
-    margin: 0;
-    font-family: var(--font-editorial);
-    font-size: clamp(22px, 2vw, 30px);
-    font-weight: 700;
-    line-height: 1.1;
-  }
-
-  .preview-deck {
-    margin: 12px 0 0;
-    font-family: var(--font-editorial);
-    font-style: italic;
-    font-size: clamp(15px, 1.3vw, 18px);
-    line-height: 1.4;
-    color: var(--color-muted-foreground);
-  }
-
-  .preview-excerpt {
-    margin: 16px 0 0;
-    font-family: var(--font-editorial);
-    font-size: 15px;
-    line-height: 1.6;
-  }
-
-  .preview-read {
-    flex-shrink: 0;
-    padding: 14px clamp(16px, 2vw, 28px);
-    border-top: 1px solid var(--color-border);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: inherit;
-    text-decoration: none;
-  }
-
-  .preview-read:hover,
-  .preview-read:focus-visible {
-    color: var(--color-primary);
-  }
-
   /* ── Empty state ──────────────────────────────────────────────────────── */
   .writing-empty {
-    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -618,28 +368,19 @@ const activeIndex = 0;
     letter-spacing: -0.02em;
   }
 
-  .writing-empty-kicker {
+  .writing-empty-kicker,
+  .writing-empty-message {
     margin: 0;
     font-size: 11px;
     text-transform: uppercase;
     color: var(--color-muted-foreground);
   }
 
-  .writing-empty-message {
-    margin: 0;
-    font-size: 12px;
-    color: var(--color-muted-foreground);
-  }
-
-  /* ── Narrow screens: single column, rail below, natural page flow ─────── */
+  /* ── Narrow screens: natural page flow, nothing pinned ────────────────── */
   @media (max-width: 1023px) {
-    .writing-index {
-      display: block;
-      overflow: visible;
-    }
-
     .writing-content {
       display: block;
+      height: auto;
       overflow: visible;
     }
 
@@ -649,11 +390,18 @@ const activeIndex = 0;
 
     .writing-masthead {
       grid-template-columns: 1fr;
+      height: auto;
+      overflow: visible;
     }
 
     .writing-masthead-active {
       border-left: 0;
       padding-left: 0;
+      margin-top: 24px;
+    }
+
+    .active-meta {
+      margin-top: 16px;
     }
 
     .writing-table-head,
@@ -664,17 +412,6 @@ const activeIndex = 0;
     .writing-table-head span:nth-child(3),
     .writing-row .row-mono:nth-of-type(2) {
       display: none;
-    }
-
-    .writing-preview {
-      border-left: 0;
-      border-top: 1px solid var(--color-border-strong);
-      min-height: 320px;
-    }
-
-    .writing-masthead {
-      height: auto;
-      overflow: visible;
     }
   }
 </style>

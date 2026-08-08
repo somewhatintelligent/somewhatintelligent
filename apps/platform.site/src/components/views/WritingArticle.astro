@@ -1,0 +1,270 @@
+---
+// One text, in a reading column.
+//
+// THE MEASURE IS THE DESIGN. Everything else here is scaffolding around a
+// single column of Source Serif at a width you can actually read — the brand
+// study asks for "a true text face, generous side-notes, source links", and the
+// margin the meta rail occupies is what makes the second of those possible
+// later without a reflow.
+//
+// The rendered Markdown arrives through the default slot, so its elements are
+// not scoped to this component's stylesheet — hence `:global()` on everything
+// under `.prose`.
+import { formatDate } from "../../lib/format.ts";
+
+interface Props {
+  title: string;
+  deck: string;
+  kind: string;
+  publishedAt: number;
+  updatedAt: number | null;
+  readingMinutes: number;
+}
+
+const { title, deck, kind, publishedAt, updatedAt, readingMinutes } = Astro.props;
+---
+
+<main class="writing-article">
+  <div class="article-scroll">
+    <article class="article-body">
+      <aside class="article-meta" aria-label="Text details">
+        <a class="article-back" href="/writing/">← Writing</a>
+        <dl>
+          <div><dt>Kind</dt><dd>{kind}</dd></div>
+          <div>
+            <dt>Published</dt>
+            <dd><time datetime={new Date(publishedAt).toISOString()}>{formatDate(publishedAt)}</time></dd>
+          </div>
+          {
+            /* Only when the text was actually revised — this is what is left of
+               the mockup's REVISION column, and it stays honest by being absent
+               the rest of the time. */
+            updatedAt !== null && (
+              <div>
+                <dt>Updated</dt>
+                <dd>
+                  <time datetime={new Date(updatedAt).toISOString()}>{formatDate(updatedAt)}</time>
+                </dd>
+              </div>
+            )
+          }
+          <div><dt>Reading time</dt><dd>{readingMinutes} min</dd></div>
+        </dl>
+      </aside>
+
+      <div class="article-column">
+        <header class="article-head">
+          <h1>{title}</h1>
+          <p class="article-deck">{deck}</p>
+        </header>
+        <div class="prose">
+          <slot />
+        </div>
+      </div>
+    </article>
+  </div>
+</main>
+
+<style>
+  .writing-article {
+    min-height: 0;
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  /* The frame is a fixed-height grid with overflow hidden, so the article's
+     scroll lives in here rather than on the document. */
+  .article-scroll {
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .article-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(24px, 4vw, 64px);
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(28px, 5vw, 72px) clamp(20px, 4vw, 48px) clamp(64px, 10vh, 140px);
+  }
+
+  /* ── Meta rail ────────────────────────────────────────────────────────── */
+  .article-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  .article-back {
+    display: inline-block;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .article-back:hover,
+  .article-back:focus-visible {
+    color: var(--color-primary);
+  }
+
+  .article-meta dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    margin: 0;
+  }
+
+  .article-meta dt {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-muted-foreground);
+  }
+
+  .article-meta dd {
+    margin: 4px 0 0;
+  }
+
+  /* ── Title block ──────────────────────────────────────────────────────── */
+  .article-head {
+    padding-bottom: clamp(20px, 3vw, 36px);
+    border-bottom: 1px solid var(--color-border-strong);
+  }
+
+  .article-head h1 {
+    margin: 0;
+    font-family: var(--font-editorial);
+    font-size: clamp(34px, 5.5vw, 68px);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+  }
+
+  .article-deck {
+    margin: clamp(14px, 2vw, 22px) 0 0;
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: clamp(18px, 2vw, 26px);
+    line-height: 1.35;
+    color: var(--color-muted-foreground);
+  }
+
+  /* ── The prose ────────────────────────────────────────────────────────── */
+  .prose {
+    max-width: 68ch;
+    font-family: var(--font-editorial);
+    font-size: clamp(17px, 1.25vw, 19px);
+    line-height: 1.65;
+  }
+
+  .prose :global(p) {
+    margin: 1.15em 0;
+  }
+
+  .prose :global(h2) {
+    margin: 2.2em 0 0.6em;
+    font-family: var(--font-display);
+    font-size: clamp(24px, 2.4vw, 34px);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .prose :global(h3) {
+    margin: 1.8em 0 0.5em;
+    font-size: 1.15em;
+    font-weight: 700;
+  }
+
+  /* Block quotes carry the epigraph and the long citations, so they are set as
+     a distinct voice rather than an indent. */
+  .prose :global(blockquote) {
+    margin: 1.6em 0;
+    padding-left: clamp(16px, 2vw, 28px);
+    border-left: 2px solid var(--color-border-strong);
+    font-size: 0.96em;
+    color: var(--color-muted-foreground);
+  }
+
+  .prose :global(blockquote p) {
+    margin: 0.6em 0;
+  }
+
+  .prose :global(hr) {
+    margin: 2.6em 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .prose :global(a) {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+
+  .prose :global(a:hover),
+  .prose :global(a:focus-visible) {
+    color: var(--color-primary);
+  }
+
+  .prose :global(em) {
+    font-style: italic;
+  }
+
+  .prose :global(strong) {
+    font-weight: 700;
+  }
+
+  /* The Works Cited section: mono, small, hanging — a list of sources reads as
+     a record, not as more prose. */
+  .prose :global(h2 + p) {
+    margin-top: 1em;
+  }
+
+  .prose :global(ul),
+  .prose :global(ol) {
+    margin: 1.15em 0;
+    padding-left: 1.4em;
+  }
+
+  .prose :global(li) {
+    margin: 0.4em 0;
+  }
+
+  .prose :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+  }
+
+  /* ── Wide: the meta rail moves into the margin and stays put ──────────── */
+  @media (min-width: 1100px) {
+    .article-body {
+      grid-template-columns: 190px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .article-meta {
+      position: sticky;
+      top: clamp(28px, 5vw, 72px);
+    }
+
+    .article-meta dl {
+      display: block;
+    }
+
+    .article-meta dd {
+      margin: 4px 0 16px;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .article-scroll {
+      height: auto;
+      overflow-y: visible;
+    }
+  }
+</style>
