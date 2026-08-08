@@ -51,3 +51,23 @@ export const renderMarkdown = (markdown: string | null | undefined): string | nu
   if (!hasProse(markdown)) return null;
   return marked.parse(markdown as string, { async: false });
 };
+
+/**
+ * The prose paragraphs of a field, AS MARKDOWN — not as HTML.
+ *
+ * The crawl surfaces are the callers: `/llms.txt` wants a one-paragraph summary
+ * of an object, and the `.md` twins reproduce a page's prose in a markdown
+ * document. Handing either of those `renderMarkdown`'s output would put `<p>`
+ * tags inside a file whose whole promise is that it is markdown.
+ *
+ * THROUGH THE LEXER, not through a blank-line split. Splitting on `\n{2,}` is a
+ * second, worse Markdown parser living beside the real one: it reads a fenced
+ * code block containing a blank line as two paragraphs, and it reports a
+ * heading or a list item as prose. `marked` already knows what a paragraph is,
+ * and it is the only thing here allowed to decide.
+ */
+export const paragraphs = (markdown: string | null | undefined): string[] =>
+  marked
+    .lexer(markdown ?? "")
+    .flatMap((token) => (token.type === "paragraph" ? [token.raw.trim()] : []))
+    .filter((paragraph) => paragraph.length > 0);

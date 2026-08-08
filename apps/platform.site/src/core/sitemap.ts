@@ -67,6 +67,8 @@ export const NOT_INDEXED: readonly string[] = [
   "/shop/[slug].md",
   /** The dynamic product route — its members come from the catalogue, not this list. */
   "/shop/[slug]",
+  /** The dynamic text route — its members come from the content collection. */
+  "/writing/[slug]",
 ];
 
 /** The five characters XML cannot carry raw. A slug is not trusted to lack them. */
@@ -79,17 +81,27 @@ export const escapeXml = (value: string): string =>
     .replace(/'/g, "&apos;");
 
 /**
- * Every address on the site, static routes first and objects in the order the
- * catalogue returned them.
+ * Every address on the site, static routes first, then objects in the order the
+ * catalogue returned them, then texts in the order the collection did.
  *
- * Slugs are DEDUPED because the caller unions two markets: a product on sale in
- * both Canada and the United States is one URL, not two — the market changes
- * the prices a page renders, never its address.
+ * Product slugs are DEDUPED because the caller unions two markets: a product on
+ * sale in both Canada and the United States is one URL, not two — the market
+ * changes the prices a page renders, never its address. Text slugs come from
+ * one filesystem read and cannot repeat, but they are passed through the same
+ * `Set` so the two members of this list behave identically.
+ *
+ * TEXTS ARE A SECOND PARAMETER RATHER THAN A SECOND CALL, because a sitemap is
+ * the complete address list or it is a bug: composing it in one place is what
+ * makes "did we forget a route" a question `crawl-surfaces.test.ts` can answer.
  */
-export const sitemapPaths = (slugs: readonly string[]): readonly string[] => [
+export const sitemapPaths = (
+  slugs: readonly string[],
+  textSlugs: readonly string[] = [],
+): readonly string[] => [
   ...STATIC_PATHS,
   /** `Set` preserves insertion order, so the catalogue's ordering survives. */
   ...new Set(slugs).values().map((slug) => `/shop/${slug}`),
+  ...new Set(textSlugs).values().map((slug) => `/writing/${slug}`),
 ];
 
 export const sitemapXml = (origin: string, paths: readonly string[]): string =>

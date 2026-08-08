@@ -14,8 +14,11 @@
  */
 import type { APIRoute } from "astro";
 
+import { getCollection } from "astro:content";
+
 import { sitemapPaths, sitemapXml } from "../core/sitemap.ts";
 import { isProductionHost } from "../core/site.ts";
+import { publishedRows } from "../core/writing-view.ts";
 import { listStorefront } from "../lib/commerce.ts";
 import { CACHE_HOURLY, textResponse } from "../lib/text-response.ts";
 
@@ -43,7 +46,28 @@ export const GET: APIRoute = async ({ url }) => {
     return new Response(null, { status: 503 });
   }
 
-  return textResponse(sitemapXml(url.origin, sitemapPaths(slugs)), {
+  /**
+   * The texts, read AFTER the catalogue and outside its `try`: this is a
+   * compiled data store bundled into the Worker, not a binding, so it has no
+   * transient failure to be forgiving of — and `includeDrafts: false` is
+   * unconditional here rather than keyed to the build, because a sitemap is a
+   * production artifact and an unfinished text has no business in one.
+   */
+  const textSlugs = publishedRows(
+    (await getCollection("writing")).map((entry) => ({
+      slug: entry.id,
+      title: entry.data.title,
+      deck: entry.data.deck,
+      kind: entry.data.kind,
+      date: entry.data.date,
+      updated: entry.data.updated,
+      draft: entry.data.draft,
+      body: entry.body ?? "",
+    })),
+    { includeDrafts: false },
+  ).map((row) => row.slug);
+
+  return textResponse(sitemapXml(url.origin, sitemapPaths(slugs, textSlugs)), {
     type: "application/xml",
     maxAge: CACHE_HOURLY,
   });

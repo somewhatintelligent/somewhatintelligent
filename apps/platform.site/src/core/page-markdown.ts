@@ -31,7 +31,7 @@ import type { ProductCardDTO, StorefrontProductDTO } from "platform.commerce/con
 
 import { brand } from "platform.design/logo";
 
-import { formatPrice } from "../lib/format.ts";
+import { formatDate, formatPrice } from "../lib/format.ts";
 import { paragraphs } from "./markdown.ts";
 import { absoluteUrl } from "./site.ts";
 
@@ -179,3 +179,41 @@ export const placeholderMarkdown = (
   description: string,
   note: string,
 ): string => [...header(origin, path, title, description), note, ""].join("\n");
+
+/** One row of the writing index, as the twin needs it. */
+export interface ListedText {
+  readonly slug: string;
+  readonly title: string;
+  readonly kind: string;
+  readonly deck: string;
+  readonly publishedAt: number;
+  readonly readingMinutes: number;
+}
+
+/**
+ * The writing index as markdown.
+ *
+ * LINKS POINT AT THE HTML PAGE, not at a `.md` twin — unlike the shop, which
+ * links object to object. There is no `/writing/<slug>.md` route yet, and a
+ * twin that advertises addresses which 404 is worse than one that sends an
+ * agent to the page that exists. The texts are markdown in the repository, so
+ * per-text twins are nearly free; this line is what changes when they land.
+ */
+export const writingMarkdown = (
+  origin: string,
+  heading: string,
+  description: string,
+  texts: readonly ListedText[],
+  emptyMessage: string,
+): string =>
+  [
+    ...header(origin, "/writing", heading, description),
+    ...(texts.length > 0
+      ? texts.map((text) => {
+          const link = `[${text.title}](${absoluteUrl(origin, `/writing/${text.slug}`)})`;
+          const meta = `${formatDate(text.publishedAt)}, ${text.kind}, ${text.readingMinutes} min`;
+          return `- ${link} — ${meta}: ${text.deck}`;
+        })
+      : [emptyMessage]),
+    "",
+  ].join("\n");
