@@ -50,8 +50,8 @@ export default Alchemy.Stack(
       Object.entries({
         CLOUDFLARE_ACCOUNT_ID: Redacted.make(accountId),
         CLOUDFLARE_API_TOKEN: apiToken.value,
-        DOTENVX_PRIVATE_KEY_PRODUCTION: production,
-        DOTENVX_PRIVATE_KEY_DEVELOPMENT: development,
+        DOTENV_PRIVATE_KEY_PRODUCTION: production,
+        DOTENV_PRIVATE_KEY_DEVELOPMENT: development,
       }).map(([name, value]) =>
         GitHub.Secret(name, {
           owner: "somewhatintelligent",
