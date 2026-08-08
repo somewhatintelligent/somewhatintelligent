@@ -18,7 +18,7 @@ import { describe, expect, test } from "vite-plus/test";
 
 import { authConfig } from "../api/config.ts";
 import { inertly } from "../api/inert.ts";
-import { UNRESOLVED_ORIGIN } from "../api/origin.ts";
+import { Origin, UNRESOLVED_ORIGIN } from "../api/origin.ts";
 import { decodeAudiences, encodeAudiences, Resources } from "../api/resources.ts";
 import { AUTH_BASE_PATH } from "../shared/ingress.ts";
 import { mezesAudience, mezesOrigin } from "../shared/resources.ts";
@@ -46,10 +46,20 @@ interface ProviderOptions {
  * below goes red rather than quiet — the empty list they would then see is not
  * a value any of them expect.
  */
-const configure = (audiences: ReadonlyArray<string>): Promise<BetterAuthOptions> =>
+const configure = (
+  audiences: ReadonlyArray<string>,
+  cookieDomain: string | null = null,
+): Promise<BetterAuthOptions> =>
   Effect.runPromise(
     Effect.scoped(
-      Effect.provide(authConfig, Layer.mergeAll(inertly, Layer.succeed(Resources, { audiences }))),
+      Effect.provide(
+        authConfig,
+        Layer.mergeAll(
+          inertly,
+          Layer.succeed(Resources, { audiences }),
+          Layer.succeed(Origin, { origin: UNRESOLVED_ORIGIN, cookieDomain }),
+        ),
+      ),
     ).pipe(Effect.orDie),
   );
 
@@ -112,6 +122,35 @@ describe("what a self-registering client may ask for", () => {
     // decide whether to enforce its 5/60s on that endpoint — and every rule
     // beside it — from `NODE_ENV`, which nothing in this deploy sets.
     expect((await configure([])).rateLimit?.enabled).toBe(true);
+  });
+
+  test("and counts against a client address it can trust", async () => {
+    /**
+     * Without a resolvable address every rule shares ONE bucket per path, and
+     * a limit everybody shares is a limit anybody can spend: three failed
+     * logins from a stranger would shut `/sign-in/email` for every user.
+     *
+     * `cf-connecting-ip` and nothing else. `x-forwarded-for` arrives from the
+     * client, so accepting it would let an attacker mint a fresh bucket per
+     * request — a limit that is worse than none, because it reads as enforced.
+     */
+    const advanced = (await configure([])).advanced;
+
+    expect(advanced?.ipAddress?.ipAddressHeaders).toEqual(["cf-connecting-ip"]);
+    expect(advanced?.ipAddress?.disableIpTracking).toBeFalsy();
+  });
+
+  test("without evicting the cookie domain that shares the same key", async () => {
+    /**
+     * `advanced` used to be spread in entirely or not at all, on whether the
+     * stage had a cookie domain. `ipAddress` had to go in beside it, and the
+     * lazy version of that edit drops `crossSubDomainCookies` — which only
+     * PRODUCTION sets, so every stage a test runs on would have looked fine.
+     */
+    const advanced = (await configure([], ".example.test")).advanced;
+
+    expect(advanced?.crossSubDomainCookies).toEqual({ enabled: true, domain: ".example.test" });
+    expect(advanced?.ipAddress?.ipAddressHeaders).toEqual(["cf-connecting-ip"]);
   });
 });
 

@@ -93,10 +93,31 @@ export const authConfig = Effect.gen(function* () {
     secret,
     baseURL: origin,
     basePath: AUTH_BASE_PATH,
-    /** Production alone has a cookie domain — see `Ingress.cookieDomain`. */
-    ...(cookieDomain === null
-      ? {}
-      : { advanced: { crossSubDomainCookies: { enabled: true, domain: cookieDomain } } }),
+    advanced: {
+      /**
+       * WHO A RATE LIMIT COUNTS AGAINST. Without this Better Auth cannot
+       * resolve a client address and falls back to ONE SHARED BUCKET PER PATH,
+       * which turns every rule below into a denial-of-service tool: three failed
+       * logins from anyone, anywhere, and `/sign-in/email` is shut for everybody
+       * for ten seconds. Found by running the integration suite and reading the
+       * warning it printed, not by reasoning about the config.
+       *
+       * `cf-connecting-ip` ALONE. Cloudflare's edge sets it and a client cannot
+       * forge it; `x-forwarded-for` is client-supplied on the way in, so
+       * accepting it as a fallback would let an attacker mint a fresh bucket per
+       * request and walk straight through the limit it is meant to enforce.
+       *
+       * It survives the service-binding hop from `app/worker.ts`, which passes
+       * the request through with its headers — including the rewritten
+       * discovery requests, which copy them. Locally there is no such header and
+       * no meaningful client address either; the fallback is correct there.
+       */
+      ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+      /** Production alone has a cookie domain — see `Ingress.cookieDomain`. */
+      ...(cookieDomain === null
+        ? {}
+        : { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }),
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,

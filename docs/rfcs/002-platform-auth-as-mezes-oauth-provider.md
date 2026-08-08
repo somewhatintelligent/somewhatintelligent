@@ -277,6 +277,37 @@ that was never claimed, and this is the change that makes something depend on it
 handler, and only `/api/auth/*` does. `test/discovery.test.ts` fetches the
 metadata through the live limiter, so the path is exercised rather than assumed.
 
+### ADR-7a — …and it counts against `cf-connecting-ip`
+
+**Decision.** `advanced.ipAddress.ipAddressHeaders: ["cf-connecting-ip"]`.
+
+**Why this is not optional.** Turning the limiter on without it makes things
+**worse than leaving it off**. Better Auth could not resolve a client address
+and said so on the first real boot of this branch:
+
+> Rate limiting could not determine a client IP and is falling back to a single
+> shared per-path bucket.
+
+One bucket per path, shared by everyone. `/sign-in/email` at 3/10s then means
+any stranger can fail three logins every ten seconds and shut sign-in for the
+entire account. The rule reads as protection and functions as a denial-of-service
+tool. `/oauth2/register` at 5/60s is the same story for MCP clients.
+
+Found by RUNNING the integration suite and reading its output — not visible in
+the configuration, not caught by any unit test that existed, and not something
+the previous ADR's reasoning would ever have reached.
+
+**Why only that header.** Cloudflare's edge sets `cf-connecting-ip` and a client
+cannot forge it. `x-forwarded-for` arrives from the client, so accepting it as a
+fallback would let an attacker mint a fresh bucket per request and walk through
+the limit — which is the failure this ADR is about, reintroduced through the
+door left open for it.
+
+**Consequence.** The header survives the service-binding hop from
+`app/worker.ts`, including the rewritten discovery requests, which copy headers.
+Locally there is no such header and no meaningful client address; the shared
+bucket is correct there. Re-running the suite confirms the warning is gone.
+
 ## Schema
 
 **No migration.** `@better-auth/oauth-provider` was already installed, so
@@ -361,6 +392,9 @@ is how a client ends up trusting the wrong `aud`; `oauthMetadataTarget` returns
 - **INV-17** — Every well-known spelling answers 200 through the deployed
   ingress, not just through the handler.
   `integ/oauth-provider.integ.test.ts`.
+- **INV-18** — Rate limits are keyed on `cf-connecting-ip` and nothing else, and
+  the cookie domain still survives beside it under `advanced`.
+  `test/oauth-provider.test.ts`.
 
 ## Threat model
 
@@ -371,7 +405,8 @@ is how a client ends up trusting the wrong `aud`; `oauthMetadataTarget` returns
 | Intercept an authorization code from a public client                                      | PKCE `S256` is mandatory for public clients, and `S256` is the only method advertised or accepted                                                                                         |
 | Send a victim to `/oauth2/authorize` with a real `client_id` and their own `redirect_uri` | The URI must be one that client registered; anything else redirects to this server's error page, never to the one supplied                                                                |
 | Register a client called "somewhatintelligent" and send someone its authorize link        | The consent screen leads with "Nobody has vouched for this app" whenever `user_id` and `reference_id` are both null (ADR-1). The name is still theirs to choose; the line above it is not |
-| Flood `/oauth2/register` to fill the clients table                                        | 5/60s on that endpoint, in force because ADR-7 says so rather than because `NODE_ENV` happened to; the rows carry no authority                                                            |
+| Flood `/oauth2/register` to fill the clients table                                        | 5/60s per client IP, in force because ADR-7 says so rather than because `NODE_ENV` happened to, and per-IP because of ADR-7a; the rows carry no authority                                 |
+| Spend everyone's rate-limit budget to lock the account out of sign-in                     | Buckets are keyed on `cf-connecting-ip`, which the edge sets and a client cannot forge (ADR-7a). Without that key this is a one-line attack the limiter itself hands you                  |
 | Read a token intended for mezes and replay it against `accounts`                          | `aud` is the mezes MCP URL; the auth server's own audience is a different string                                                                                                          |
 | Set `MEZES_ORIGIN` to an attacker's host on a real stage                                  | Not prevented. It is a deploy-time setting, and whoever sets it is already deploying. It is validated as an origin, not as a host we trust                                                |
 
