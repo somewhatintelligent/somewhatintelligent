@@ -21,10 +21,17 @@ export interface ScopeCopy {
 }
 
 /**
- * The scopes about the PERSON. Every client that authenticates someone here
- * asks for some of these, whatever it goes on to talk to.
+ * ONE map, in two groups.
+ *
+ * Not exported, and neither is either group. Everything outside wants one of
+ * the projections below — the names, or the copy for one name — and an escape
+ * hatch onto the map is how a second reading of it starts. A test that wants to
+ * know `mezes:write` is offered should say `"mezes:write"`, not iterate a list
+ * that would agree with itself after the scope was deleted.
  */
-const IDENTITY = {
+const SCOPES = {
+  // ── The person. Every client that authenticates someone here asks for some
+  //    of these, whatever it goes on to talk to.
   openid: {
     label: "Verify your identity",
     description: "Confirms who you are. The minimum.",
@@ -41,17 +48,10 @@ const IDENTITY = {
     label: "Stay signed in",
     description: "Keeps access after you close the app, until you revoke it.",
   },
-} as const satisfies Record<string, ScopeCopy>;
 
-/**
- * The scopes about MEZES — see `shared/resources.ts` for the surface they
- * describe.
- *
- * Split at the line mezedes' own MCP tools already draw: `search` and `inspect`
- * read, `create` writes. An agent that only needs to find what exists asks for
- * `mezes:read` and cannot publish over the top of anything.
- */
-export const MEZES_SCOPES = {
+  // ── mezes. Split at the line mezedes' own MCP tools already draw: `search`
+  //    and `inspect` read, `create` writes. An agent that only needs to find
+  //    what exists asks for `mezes:read` and cannot publish over anything.
   "mezes:read": {
     label: "Browse your mezes",
     description: "List what you have published and read the files inside it.",
@@ -61,13 +61,6 @@ export const MEZES_SCOPES = {
     description: "Create new versions, and change which one a link serves.",
   },
 } as const satisfies Record<string, ScopeCopy>;
-
-/**
- * Not exported. Everything outside wants one of the two projections below —
- * the names, or the copy for one name — and an escape hatch onto the whole map
- * is how a second reading of it starts.
- */
-const SCOPES = { ...IDENTITY, ...MEZES_SCOPES } as const;
 
 type ScopeName = keyof typeof SCOPES;
 

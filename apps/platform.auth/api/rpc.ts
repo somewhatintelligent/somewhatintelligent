@@ -1,6 +1,7 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
 import type { AuthApiError } from "lib.better-auth-effect";
+import { isManaged } from "../shared/clients.ts";
 import { ALLOWED_AVATAR_TYPES, AVATAR_PREFIX, MAX_AVATAR_BYTES } from "../shared/ingress.ts";
 import { AvatarBucket } from "./avatars.ts";
 import { AuthDatabase } from "./database.ts";
@@ -388,9 +389,15 @@ export const authRpc = function* (auth: Auth) {
      * Registration is open (see `allowUnauthenticatedClientRegistration` in
      * `api/config.ts`), so `client_name` is an attacker-controlled string and
      * the screen that renders it needs to say so. `user_id` is null exactly
-     * when nobody was signed in at registration, and `reference_id` carries the
-     * organisation when one owns the client — either is a human this account
-     * can name, and neither is present for a stranger.
+     * when nobody was signed in at registration; a managed `reference_id` means
+     * this account provisioned it. Either is a human who can be named, and a
+     * stranger has neither.
+     *
+     * `isManaged`, not `reference_id !== null`: the admin console already reads
+     * this column that way (`shared/clients.ts`), and one column with two
+     * readings is how two screens come to disagree about one client. It is also
+     * the conservative direction — an unrecognised reference reads as unvouched
+     * and shows the warning.
      *
      * THROUGH SQL, not `getOAuthClientPublicPrelogin`: that endpoint returns
      * the seven fields a client supplied about itself and deliberately no
@@ -413,8 +420,8 @@ export const authRpc = function* (auth: Auth) {
 
         return {
           ok: true as const,
-          /** Nobody signed in registered it, and no organisation owns it. */
-          selfRegistered: row.user_id === null && row.reference_id === null,
+          /** Nobody signed in registered it, and this account does not manage it. */
+          selfRegistered: row.user_id === null && !isManaged(row.reference_id),
         };
       }),
 

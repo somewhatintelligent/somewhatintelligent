@@ -111,6 +111,16 @@ describe("that client at the authorize endpoint", () => {
     expect(clientId).toBeTruthy();
   });
 
+  /** What a correct request looks like; each test below varies one thing in it. */
+  const VALID = {
+    response_type: "code",
+    redirect_uri: REDIRECT_URI,
+    scope: "openid mezes:read",
+    state: "opaque-to-us",
+    code_challenge: CHALLENGE,
+    code_challenge_method: "S256",
+  } as const;
+
   const authorize = (params: Record<string, string>): Promise<Response> =>
     instance.ask(
       `/api/auth/oauth2/authorize?${new URLSearchParams({ client_id: clientId, ...params }).toString()}`,
@@ -118,14 +128,7 @@ describe("that client at the authorize endpoint", () => {
     );
 
   test("with no session, is sent to the sign-in page rather than refused", async () => {
-    const response = await authorize({
-      response_type: "code",
-      redirect_uri: REDIRECT_URI,
-      scope: "openid mezes:read",
-      state: "opaque-to-us",
-      code_challenge: CHALLENGE,
-      code_challenge_method: "S256",
-    });
+    const response = await authorize({ ...VALID });
 
     expect(response.status).toBe(302);
     // The whole request rides along, signed, so consent can be reconstructed
@@ -134,12 +137,8 @@ describe("that client at the authorize endpoint", () => {
   });
 
   test("with no PKCE, never reaches a login page at all", async () => {
-    const response = await authorize({
-      response_type: "code",
-      redirect_uri: REDIRECT_URI,
-      scope: "openid mezes:read",
-      state: "opaque-to-us",
-    });
+    const { code_challenge, code_challenge_method, ...noPkce } = VALID;
+    const response = await authorize(noPkce);
 
     const location = response.headers.get("location") ?? "";
     expect(location).not.toContain("/sign-in");
@@ -147,28 +146,17 @@ describe("that client at the authorize endpoint", () => {
   });
 
   test("asking for a scope it did not register for is refused, not silently narrowed", async () => {
-    const response = await authorize({
-      response_type: "code",
-      redirect_uri: REDIRECT_URI,
-      // Registered for `openid mezes:read`. `mezes:write` is a scope the server
-      // issues and this client was never granted.
-      scope: "openid mezes:write",
-      state: "opaque-to-us",
-      code_challenge: CHALLENGE,
-      code_challenge_method: "S256",
-    });
+    // Registered for `openid mezes:read`. `mezes:write` is a scope the server
+    // issues and this client was never granted.
+    const response = await authorize({ ...VALID, scope: "openid mezes:write" });
 
     expect(response.headers.get("location") ?? "").toContain("error=invalid_scope");
   });
 
   test("naming a redirect_uri it did not register is refused", async () => {
     const response = await authorize({
-      response_type: "code",
+      ...VALID,
       redirect_uri: "https://somewhere-else.example.test/callback",
-      scope: "openid mezes:read",
-      state: "opaque-to-us",
-      code_challenge: CHALLENGE,
-      code_challenge_method: "S256",
     });
 
     // Never to the unregistered URL: the error goes to this server's own page.

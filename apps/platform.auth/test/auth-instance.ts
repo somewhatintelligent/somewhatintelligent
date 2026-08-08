@@ -27,9 +27,13 @@ import { Resources } from "../api/resources.ts";
 
 export const ORIGIN = "https://accounts.example.test";
 
-/** mezes, as this instance is told to know it. */
-export const MEZES_ORIGIN = "https://mezedes.example.test";
-export const MEZES = `${MEZES_ORIGIN}/mcp`;
+/**
+ * mezes, as this instance is told to know it. Written out rather than built
+ * with `mezesAudience` — a harness that derives its fixture from the function
+ * under test cannot notice the function changing. `test/oauth-provider.test.ts`
+ * owns the derivation's own assertions.
+ */
+export const MEZES = "https://mezedes.example.test/mcp";
 
 /**
  * The models a request through the auth handler can touch.
@@ -84,17 +88,34 @@ export const authInstance = (): AuthInstance => {
     Layer.succeed(Resources, { audiences: [MEZES] }),
   );
 
-  const ask = (pathname: string, init?: RequestInit): Promise<Response> =>
-    Effect.runPromise(
-      Effect.scoped(
-        Effect.provide(
-          Effect.flatMap(makeHandler(authConfig), ({ handle }) =>
-            handle(new Request(`${ORIGIN}${pathname}`, init)),
-          ),
-          capabilities,
+  /**
+   * ONE HANDLER, built on first use and kept.
+   *
+   * `makeHandler` resolves `authConfig` — thirteen plugin constructors and a
+   * `betterAuth()` — and `makeAuth` memoises per handler, so building it inside
+   * `ask` meant every request paying for a fresh instance and throwing it away.
+   * Measured at 7-9x per request across this suite's ~23 calls.
+   *
+   * Sharing it changes nothing a test can observe: the state that matters lives
+   * in `store` below, not in the instance, so the rate-limit counters and the
+   * registered clients behave exactly as they did.
+   */
+  let handler: Promise<(request: Request) => Promise<Response>> | null = null;
+  const handle = () =>
+    (handler ??= Effect.runPromise(
+      Effect.provide(
+        Effect.map(
+          makeHandler(authConfig),
+          ({ handle: run }) =>
+            (request: Request) =>
+              Effect.runPromise(Effect.provide(run(request), capabilities).pipe(Effect.orDie)),
         ),
+        capabilities,
       ).pipe(Effect.orDie),
-    );
+    ));
+
+  const ask = async (pathname: string, init?: RequestInit): Promise<Response> =>
+    (await handle())(new Request(`${ORIGIN}${pathname}`, init));
 
   return {
     ask,

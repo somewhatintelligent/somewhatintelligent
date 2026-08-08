@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Alert } from "platform.ui/components/alert";
+import { Alert, AlertDescription, AlertTitle } from "platform.ui/components/alert";
 import { Card, CardContent } from "platform.ui/components/card";
-import { scopeCopy } from "@/lib/scopes";
+import { scopeCopy } from "../../../shared/scopes";
 import { ConsentActions } from "@/components/auth/consent-actions";
-import { resolveConsentingClient } from "@/lib/oauth-clients.functions";
+import { resolveConsentingClient, UNVOUCHED_CLIENT } from "@/lib/oauth-clients.functions";
 
 interface ConsentSearch {
   client_id?: string;
@@ -37,17 +37,12 @@ export const Route = createFileRoute("/_auth/consent")({
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ deps }) => {
     const { search } = deps;
-    /**
-     * A FAILED LOOKUP IS `selfRegistered: true`. The warning exists to be shown
-     * when we cannot vouch for a client, and "the lookup broke" is a case of
-     * not being able to vouch for it. Defaulting the other way would make an
-     * outage silently remove the warning.
-     */
-    const client = search.client_id
-      ? await resolveConsentingClient({
-          data: { client_id: search.client_id, oauth_query: buildOAuthQuery(search) },
-        }).catch(() => ({ name: null, selfRegistered: true }))
-      : { name: null, selfRegistered: true };
+    // `beforeLoad` has already redirected when `client_id` is missing, so it is
+    // present here. The fallback on failure is `UNVOUCHED_CLIENT`, and which way
+    // that one defaults is argued where it is defined rather than here.
+    const client = await resolveConsentingClient({
+      data: { client_id: search.client_id!, oauth_query: buildOAuthQuery(search) },
+    }).catch(() => UNVOUCHED_CLIENT);
     return {
       client,
       scope: search.scope ?? "openid profile email",
@@ -85,11 +80,11 @@ function ConsentPage() {
           */}
           {client.selfRegistered && (
             <Alert variant="destructive" className="mb-8">
-              <div className="font-medium">Nobody has vouched for this app</div>
-              <div className="text-xs">
+              <AlertTitle>Nobody has vouched for this app</AlertTitle>
+              <AlertDescription>
                 It registered itself and picked its own name, which may imitate one you trust. Only
                 continue if you started this from the app yourself.
-              </div>
+              </AlertDescription>
             </Alert>
           )}
           <div className="mb-8 flex items-center gap-3 rounded-sm bg-surface-sunken px-4 py-3">

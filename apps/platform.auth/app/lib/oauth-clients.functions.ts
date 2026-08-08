@@ -19,11 +19,27 @@ export interface ConsentingClient {
 }
 
 /**
+ * What the consent screen falls back to when it cannot learn anything.
+ *
+ * THE SECURITY DEFAULT, exported so it is decided once. The warning exists for
+ * the case where we cannot vouch for a client, and "the lookup broke" is such a
+ * case — so an outage shows the warning rather than quietly removing it. A
+ * caller writing this literal itself is a caller that can get it backwards.
+ */
+export const UNVOUCHED_CLIENT: ConsentingClient = { name: null, selfRegistered: true };
+
+/**
  * The client, as the consent screen needs to describe it.
  *
- * BOTH FACTS IN ONE ROUND TRIP, because they are read together and shown
- * together: a name with no provenance beside it is the phishing surface, so
- * they should not be separately fetchable and separately forgettable.
+ * BOTH FACTS TOGETHER, because they are read together and shown together: a
+ * name with no provenance beside it is the phishing surface, so they should not
+ * be separately fetchable and separately forgettable.
+ *
+ * Two calls rather than one, concurrently, so the wait is the slower of them
+ * rather than the sum. They are not merged into a single row read on purpose:
+ * `publicClientPrelogin` verifies the signed `oauth_query` before it will say
+ * anything about a client, and reading the row directly would answer the same
+ * question without that check.
  */
 export const resolveConsentingClient = createServerFn({ method: "POST" })
   .validator((data: { client_id: string; oauth_query: string }) => data)

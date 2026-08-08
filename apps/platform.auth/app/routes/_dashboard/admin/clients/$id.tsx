@@ -27,7 +27,7 @@ import { Label } from "platform.ui/components/label";
 import { Field, FieldDescription } from "platform.ui/components/field";
 import { Alert } from "platform.ui/components/alert";
 import { Badge } from "platform.ui/components/badge";
-import { isManaged } from "@/lib/clients";
+import { isManaged } from "../../../../../shared/clients";
 import { deleteClient, getClient, rotateSecret, updateClient } from "@/lib/admin-clients.functions";
 
 export const Route = createFileRoute("/_dashboard/admin/clients/$id")({

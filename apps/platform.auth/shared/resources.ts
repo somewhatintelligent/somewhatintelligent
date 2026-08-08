@@ -12,10 +12,12 @@ import { PRODUCTION_STAGE, PRODUCTION_ZONE } from "platform.names";
  * is not a smaller grant, it is a different token format the other side cannot
  * verify at all.
  *
- * Kept in `shared/` because mezes is entitled to read it: the audience it
- * publishes in its own `/.well-known/oauth-protected-resource` has to be
- * byte-identical to the one this server will accept, and two hand-written
- * copies of a URL are two chances to disagree.
+ * In `shared/` rather than `api/` on ONE bet, named so it can be called: mezes
+ * is the intended second reader, because the audience it publishes in its own
+ * `/.well-known/oauth-protected-resource` has to be byte-identical to the one
+ * this server accepts. It does not read it yet — RFC-002 stage 2 is where that
+ * lands. If that stage is abandoned, this belongs in `api/resources.ts` beside
+ * the binding, and nothing here needs to reach a browser bundle.
  */
 
 /**
@@ -46,15 +48,22 @@ export const mezesAudience = (origin: string): string | null => {
  * Where mezes answers on a stage, or `null` when only the deploy knows.
  *
  * Production is derivable because mezedes claims a hostname there — the same
- * `mezedes.<zone>` its own stack pins. No other stage is: mezedes runs on
- * `*.workers.dev` under a name alchemy derives, which nothing in this package
- * can compute. Those stages say so themselves through `MEZES_ORIGIN`; see
- * `api/worker.ts`.
+ * `mezedes.<zone>` its own stack pins at `apps/mezedes/alchemy.run.ts`. No
+ * other stage is: mezedes runs on `*.workers.dev` under a name alchemy derives,
+ * which nothing in this package can compute. Those stages say so themselves
+ * through `MEZES_ORIGIN`; see `api/worker.ts`.
+ *
+ * `zone` IS A PARAMETER, and that is the whole guard against the failure this
+ * derivation invites. mezedes takes its zone from `MEZEDES_ZONE`, defaulting to
+ * `PRODUCTION_ZONE` — so a hard-coded zone here would keep minting
+ * `aud: https://mezedes.somewhatintelligent.ca/mcp` after mezedes had moved,
+ * and the only symptom would be tokens mezes refuses. `api/worker.ts` reads the
+ * same variable, so the two move together or neither does.
  *
  * A stage that says nothing gets no mezes audience, and the token endpoint
  * refuses `resource` for it. That is the right failure: a stage quietly minting
  * tokens for PRODUCTION mezes, because that was the only derivable answer,
  * is worse than a stage that cannot mint them at all.
  */
-export const mezesOrigin = (stage: string): string | null =>
-  stage === PRODUCTION_STAGE ? `https://mezedes.${PRODUCTION_ZONE}` : null;
+export const mezesOrigin = (stage: string, zone: string = PRODUCTION_ZONE): string | null =>
+  stage === PRODUCTION_STAGE ? `https://mezedes.${zone}` : null;

@@ -23,7 +23,7 @@ import {
 import { toast } from "platform.ui/components/sonner";
 import { cn } from "platform.ui/lib/utils";
 import { authClient } from "@/lib/auth-client";
-import { scopeLabel } from "@/lib/scopes";
+import { scopeLabel } from "../../../shared/scopes";
 import { fetchConnections } from "@/lib/connections.functions";
 
 export const Route = createFileRoute("/_dashboard/connections")({

@@ -17,12 +17,13 @@ import * as Layer from "effect/Layer";
 import { describe, expect, test } from "vite-plus/test";
 
 import { authConfig } from "../api/config.ts";
+import { authOptions } from "../api/options.ts";
 import { inertly } from "../api/inert.ts";
 import { Origin, UNRESOLVED_ORIGIN } from "../api/origin.ts";
 import { decodeAudiences, encodeAudiences, Resources } from "../api/resources.ts";
 import { AUTH_BASE_PATH } from "../shared/ingress.ts";
 import { mezesAudience, mezesOrigin } from "../shared/resources.ts";
-import { MEZES_SCOPES, SCOPE_NAMES, scopeCopy } from "../shared/scopes.ts";
+import { SCOPE_NAMES, scopeCopy } from "../shared/scopes.ts";
 
 /** What the plugin normalises its options into, of which this asserts a corner. */
 interface ProviderOptions {
@@ -75,6 +76,17 @@ const providerOf = (options: BetterAuthOptions): ProviderOptions => {
   return (plugin as unknown as { options: ProviderOptions }).options;
 };
 
+/**
+ * The default stage, resolved ONCE.
+ *
+ * `inertly` already answers `Resources` with no audiences and `Origin` with
+ * `UNRESOLVED_ORIGIN` and no cookie domain, so `authOptions` — which `api/`
+ * memoises with `Effect.cached` expressly so its readers share one answer — IS
+ * `configure([])`. Calling `configure` for it rebuilt the whole plugin set per
+ * test. `configure` is still what the two stages that need an override use.
+ */
+const base = Effect.runPromise(authOptions).then(providerOf);
+
 const MEZES_HOST = "https://mezedes.example.test";
 /** Written out rather than derived: the audience tests below check the derivation. */
 const MEZES = `${MEZES_HOST}/mcp`;
@@ -82,7 +94,7 @@ const AUTH_ISSUER = `${UNRESOLVED_ORIGIN}${AUTH_BASE_PATH}`;
 
 describe("what a self-registering client may ask for", () => {
   test("registration is open, and open to clients with no account behind them", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     // Both, or neither works: the first opens the endpoint, the second is what
     // lets a client reach it with no session — and forces it to be public,
@@ -92,27 +104,31 @@ describe("what a self-registering client may ask for", () => {
   });
 
   test("no grant that issues a token without a person", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     expect([...provider.grantTypes].sort()).toEqual(["authorization_code", "refresh_token"]);
     expect(provider.grantTypes).not.toContain("client_credentials");
   });
 
   test("every scope the server offers has words the consent screen can use", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     expect([...provider.scopes].sort()).toEqual([...SCOPE_NAMES].sort());
     for (const scope of provider.scopes) expect(scopeCopy(scope)).not.toBeNull();
   });
 
   test("the mezes scopes are among them, or nothing can be granted for mezes", async () => {
-    const provider = providerOf(await configure([]));
+    // NAMED, not iterated off the map they come from — a loop over that map
+    // agrees with itself after a scope is deleted, which is the one change
+    // this test exists to catch.
+    const provider = await base;
 
-    for (const scope of Object.keys(MEZES_SCOPES)) expect(provider.scopes).toContain(scope);
+    expect(provider.scopes).toContain("mezes:read");
+    expect(provider.scopes).toContain("mezes:write");
   });
 
   test("`offline_access` is offered, because an agent outlives the browser tab", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     expect(provider.scopes).toContain("offline_access");
   });
@@ -121,7 +137,7 @@ describe("what a self-registering client may ask for", () => {
     // `/oauth2/register` takes no credential. Better Auth would otherwise
     // decide whether to enforce its 5/60s on that endpoint — and every rule
     // beside it — from `NODE_ENV`, which nothing in this deploy sets.
-    expect((await configure([])).rateLimit?.enabled).toBe(true);
+    expect((await Effect.runPromise(authOptions)).rateLimit?.enabled).toBe(true);
   });
 
   test("and counts against a client address it can trust", async () => {
@@ -134,7 +150,7 @@ describe("what a self-registering client may ask for", () => {
      * client, so accepting it would let an attacker mint a fresh bucket per
      * request — a limit that is worse than none, because it reads as enforced.
      */
-    const advanced = (await configure([])).advanced;
+    const advanced = (await Effect.runPromise(authOptions)).advanced;
 
     expect(advanced?.ipAddress?.ipAddressHeaders).toEqual(["cf-connecting-ip"]);
     expect(advanced?.ipAddress?.disableIpTracking).toBeFalsy();
@@ -186,13 +202,13 @@ describe("the advertised claims", () => {
     // upstream — a REPLACE, not a merge, whatever the docs say. Advertising
     // `role` alone dropped all fourteen of these, and an assertion that only
     // looked for `role` passed anyway.
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     expect(provider.advertisedMetadata?.claims_supported).toEqual(expect.arrayContaining(derived));
   });
 
   test("and add the custom one both claim callbacks inject", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     expect(provider.advertisedMetadata?.claims_supported).toContain("role");
   });
@@ -200,7 +216,7 @@ describe("the advertised claims", () => {
 
 describe("what a token may be made out to", () => {
   test("the server's own issuer, always — `/oauth2/userinfo` is addressed by it", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     expect(provider.validAudiences).toContain(AUTH_ISSUER);
   });
@@ -212,7 +228,7 @@ describe("what a token may be made out to", () => {
   });
 
   test("a stage that serves nothing accepts nothing but its own issuer", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     expect(provider.validAudiences).toEqual([AUTH_ISSUER]);
   });
@@ -227,7 +243,7 @@ describe("what a token may be made out to", () => {
 
 describe("the pages the flow sends people to", () => {
   test("are the ones this app actually routes", async () => {
-    const provider = providerOf(await configure([]));
+    const provider = await base;
 
     // `app/routes/_auth/sign-in.tsx` and `app/routes/_auth/consent.tsx`. The
     // `_auth` segment is a layout, not a path.
@@ -259,10 +275,14 @@ describe("the mezes audience", () => {
 });
 
 describe("the binding that carries them", () => {
-  test("survives the round trip", () => {
-    const audiences = ["https://mezedes.example.test/mcp", "https://other.example.test/mcp"];
-
-    expect(decodeAudiences(encodeAudiences(audiences))).toEqual(audiences);
+  test("is the space-separated form the audience list is written in", () => {
+    // The FORMAT, not the round trip: `split(" ")` undoing `join(" ")` is a
+    // property of the standard library, and asserting it proves nothing about
+    // this module. What matters is that the wire form is what a reader outside
+    // this file would expect.
+    expect(encodeAudiences(["https://a.test/mcp", "https://b.test/mcp"])).toBe(
+      "https://a.test/mcp https://b.test/mcp",
+    );
   });
 
   test("reads an unset binding as a stage with no resources, not as a fault", () => {

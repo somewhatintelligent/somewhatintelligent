@@ -77,10 +77,6 @@ describe("the RFC 8414 root alias", () => {
     expect(OAUTH_METADATA_PATH).toBe("/.well-known/oauth-authorization-server/api/auth");
   });
 
-  test("resolves to a path the auth worker answers", () => {
-    expect(oauthMetadataTarget(OAUTH_METADATA_PATH)).toBe(`${AUTH_BASE_PATH}${AUTH_SERVER}`);
-  });
-
   /**
    * THE COUPLING THAT IS EASY TO BREAK FROM A DISTANCE.
    *
@@ -109,35 +105,25 @@ describe("the RFC 8414 root alias", () => {
   });
 });
 
-describe("the authorization server document", () => {
-  const canonical = `${AUTH_BASE_PATH}${AUTH_SERVER}`;
+/**
+ * Both documents, both spelt three ways. The rules differ by specification —
+ * OpenID Discovery appends the segment to the issuer, RFC 8414 §3.1 inserts the
+ * issuer path after it, and a client holding only an origin tries neither — but
+ * the mapping is one rule, so it is asserted as one.
+ */
+describe.each([AUTH_SERVER, OPENID])("%s", (document) => {
+  const canonical = `${AUTH_BASE_PATH}${document}`;
 
   test("under the issuer path, which is where Better Auth serves it", () => {
     expect(oauthMetadataTarget(canonical)).toBe(canonical);
   });
 
   test("at the root, which is where a client with only an origin looks", () => {
-    expect(oauthMetadataTarget(AUTH_SERVER)).toBe(canonical);
-  });
-
-  test("with the issuer path inserted after it — RFC 8414 §3.1's spelling", () => {
-    expect(oauthMetadataTarget(`${AUTH_SERVER}${AUTH_BASE_PATH}`)).toBe(canonical);
-  });
-});
-
-describe("the OpenID configuration", () => {
-  const canonical = `${AUTH_BASE_PATH}${OPENID}`;
-
-  test("under the issuer path — OpenID Discovery's own spelling", () => {
-    expect(oauthMetadataTarget(canonical)).toBe(canonical);
-  });
-
-  test("at the root", () => {
-    expect(oauthMetadataTarget(OPENID)).toBe(canonical);
+    expect(oauthMetadataTarget(document)).toBe(canonical);
   });
 
   test("with the issuer path inserted after it", () => {
-    expect(oauthMetadataTarget(`${OPENID}${AUTH_BASE_PATH}`)).toBe(canonical);
+    expect(oauthMetadataTarget(`${document}${AUTH_BASE_PATH}`)).toBe(canonical);
   });
 });
 

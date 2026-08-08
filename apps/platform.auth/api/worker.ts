@@ -6,6 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
+import { PRODUCTION_ZONE } from "platform.names";
 
 import { ingress } from "../shared/ingress.ts";
 import { mezesAudience, mezesOrigin } from "../shared/resources.ts";
@@ -40,7 +41,13 @@ const addressing = Effect.gen(function* () {
 const resources = Effect.gen(function* () {
   const { stage } = yield* Stack;
   const declared = yield* Config.string("MEZES_ORIGIN").pipe(Config.withDefault(""));
-  const origin = declared === "" ? mezesOrigin(stage) : declared;
+  /**
+   * The SAME variable mezedes' own stack reads, so a zone move carries both
+   * sides. Ignored entirely once `MEZES_ORIGIN` is set — that names the origin
+   * outright and there is nothing left to derive.
+   */
+  const zone = yield* Config.string("MEZEDES_ZONE").pipe(Config.withDefault(PRODUCTION_ZONE));
+  const origin = declared === "" ? mezesOrigin(stage, zone) : declared;
   if (origin === null) return [];
 
   const audience = mezesAudience(origin);

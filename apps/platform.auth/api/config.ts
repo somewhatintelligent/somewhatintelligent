@@ -36,18 +36,21 @@ interface UserLookup {
 /**
  * The claims discovery advertises.
  *
- * Written out because `advertisedMetadata.claims_supported` REPLACES the
- * plugin's derived list (see its use below), so this file has to restate what
- * the plugin would have computed — and what it computes depends on the scopes
- * in `shared/scopes.ts`.
+ * Restated here because `advertisedMetadata.claims_supported` REPLACES the
+ * plugin's derived list (see its use below) rather than adding to it, so
+ * naming the one custom claim would drop every standard one.
  *
- * `OIDC_CLAIMS` is exactly the plugin's own rule for that list: eight
- * unconditional claims, plus `email`/`email_verified` because `email` is
- * granted, plus the four profile claims because `profile` is. The mezes scopes
- * add none — they are not OIDC scopes and carry no claims of their own.
- * `test/oauth-provider.test.ts` pins the whole set against the resolved
- * configuration, so granting a scope and forgetting its claims fails before it
- * reaches discovery.
+ * THE RULE, NOT ITS OUTPUT. What the plugin derives depends on `SCOPE_NAMES`:
+ * eight unconditional claims, plus `email`/`email_verified` iff `email` is
+ * granted, plus four profile claims iff `profile` is. Freezing the resulting
+ * fourteen strings would couple this list to `shared/scopes.ts` through prose
+ * alone — drop `profile` there and this file would go on advertising four
+ * claims nothing issues, with nothing to catch it. Written as the same
+ * conditional the plugin applies, the two move together.
+ *
+ * The mezes scopes contribute none: they are not OIDC scopes and carry no
+ * claims. `test/oauth-provider.test.ts` pins the resulting set against the
+ * resolved configuration.
  */
 const OIDC_CLAIMS = [
   "sub",
@@ -58,16 +61,9 @@ const OIDC_CLAIMS = [
   "sid",
   "scope",
   "azp",
-  "email",
-  "email_verified",
-  "name",
-  "picture",
-  "family_name",
-  "given_name",
-] as const;
-
-/** Injected by `customIdTokenClaims` / `customUserInfoClaims` below. */
-const CUSTOM_CLAIMS = ["role"] as const;
+  ...(SCOPE_NAMES.includes("email") ? ["email", "email_verified"] : []),
+  ...(SCOPE_NAMES.includes("profile") ? ["name", "picture", "family_name", "given_name"] : []),
+];
 
 /** What `databaseHooks.user.create.before` is handed. */
 type NewUser = Record<string, unknown>;
@@ -230,14 +226,15 @@ export const authConfig = Effect.gen(function* () {
          * Measured against a running server, not reasoned about — and the first
          * version of this line shipped exactly that regression.
          *
-         * So the derived set has to be repeated beside the custom one. Both are
-         * `OIDC_CLAIMS` / `CUSTOM_CLAIMS` above.
+         * So the derived set is restated beside the custom one — as the RULE
+         * that produces it, see `OIDC_CLAIMS` above. `role` is the custom one,
+         * injected by both claim callbacks below.
          *
          * `scopes_supported` is deliberately NOT overridden beside it: it
          * defaults to the whole scope list, which is what a client needs to see
          * to know `mezes:write` can be asked for.
          */
-        advertisedMetadata: { claims_supported: [...OIDC_CLAIMS, ...CUSTOM_CLAIMS] },
+        advertisedMetadata: { claims_supported: [...OIDC_CLAIMS, "role"] },
         customUserInfoClaims: ({ user }) => ({
           role: (user as Record<string, unknown>).role ?? "user",
         }),
@@ -275,8 +272,24 @@ export const authConfig = Effect.gen(function* () {
      * (see the OAuth provider above), and a rule that silently is not in force is
      * the failure this whole file is written in the style of.
      *
-     * The cost is one storage round trip per request that reaches the auth
-     * handler. Only `/api/auth/*` does.
+     * THE COST, measured rather than assumed, because the first version of this
+     * comment said "one storage round trip" and that was wrong. `consume` reads
+     * the row and then increments it — two D1 queries — and on the first request
+     * of a new window it also awaits `deleteExpiredRows`, a `DELETE … WHERE
+     * last_request < cutoff` over a column with no index. Window rollover is the
+     * common case for real traffic, so a typical request pays three serialised
+     * round trips.
+     *
+     * Only `/api/auth/*` pays it, and page loads do not: the app reads its
+     * session through `toRpcAsync(env.AUTH).getSession`, not `auth.handler`. So
+     * the bill falls on sign-in, token and register — endpoints that are already
+     * doing database work and are not hot paths.
+     *
+     * Not yet done, deliberately, because each changes behaviour rather than
+     * cost: `advanced.backgroundTasks.handler` would move the prune off the
+     * response path (and the transactional emails with it), and a
+     * `customStorage` over a Durable Object would make the whole thing atomic
+     * and free of D1. Either is a change to make on purpose, not in passing.
      */
     rateLimit: {
       enabled: true,

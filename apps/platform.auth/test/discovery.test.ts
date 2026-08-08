@@ -16,9 +16,7 @@
 import { beforeAll, describe, expect, test } from "vite-plus/test";
 
 import { AUTH_BASE_PATH, oauthMetadataTarget } from "../shared/ingress.ts";
-import { mezesAudience } from "../shared/resources.ts";
-import { MEZES_SCOPES } from "../shared/scopes.ts";
-import { authInstance, MEZES, MEZES_ORIGIN, ORIGIN } from "./auth-instance.ts";
+import { authInstance, ORIGIN } from "./auth-instance.ts";
 
 const ISSUER = `${ORIGIN}${AUTH_BASE_PATH}`;
 
@@ -84,7 +82,8 @@ describe.each([["/.well-known/oauth-authorization-server"], ["/.well-known/openi
 
     test("lists the mezes scopes, so a client knows to ask for them", () => {
       const scopes = metadata(document).scopes_supported;
-      for (const scope of Object.keys(MEZES_SCOPES)) expect(scopes).toContain(scope);
+      expect(scopes).toContain("mezes:read");
+      expect(scopes).toContain("mezes:write");
       expect(scopes).toContain("offline_access");
     });
   },
@@ -108,17 +107,9 @@ describe("the paths app/worker.ts rewrites onto", () => {
       "/.well-known/openid-configuration/api/auth",
     ]) {
       const target = oauthMetadataTarget(spelling);
-      expect(target, `${spelling} resolves to nothing`).not.toBeNull();
-      const response = await ask(target!);
+      if (target === null) throw new Error(`${spelling} resolves to nothing`);
+      const response = await ask(target);
       expect(response.status, `${target} answered ${response.status}`).toBe(200);
     }
-  });
-});
-
-describe("the mezes audience this stage was given", () => {
-  test("is the one shared/resources.ts derives, byte for byte", () => {
-    // The harness writes the audience out; this is what stops it drifting from
-    // the function the deploy actually calls.
-    expect(mezesAudience(MEZES_ORIGIN)).toBe(MEZES);
   });
 });
