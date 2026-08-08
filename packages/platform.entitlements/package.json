@@ -1,0 +1,25 @@
+{
+  "name": "platform.entitlements",
+  "version": "0.0.0",
+  "private": true,
+  "description": "What a subscription tier buys, and the pure resolution from a subscription row to a capability.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vp test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -22,6 +22,7 @@ export const user = sqliteTable("user", {
   twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).default(
     false,
   ),
+  stripeCustomerId: text("stripe_customer_id"),
 });
 
 export const session = sqliteTable(
@@ -298,6 +299,28 @@ export const oauthConsent = sqliteTable(
   ],
 );
 
+export const subscription = sqliteTable("subscription", {
+  id: text("id").primaryKey(),
+  plan: text("plan").notNull(),
+  referenceId: text("reference_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").default("incomplete").notNull(),
+  periodStart: integer("period_start", { mode: "timestamp_ms" }),
+  periodEnd: integer("period_end", { mode: "timestamp_ms" }),
+  trialStart: integer("trial_start", { mode: "timestamp_ms" }),
+  trialEnd: integer("trial_end", { mode: "timestamp_ms" }),
+  cancelAtPeriodEnd: integer("cancel_at_period_end", {
+    mode: "boolean",
+  }).default(false),
+  cancelAt: integer("cancel_at", { mode: "timestamp_ms" }),
+  canceledAt: integer("canceled_at", { mode: "timestamp_ms" }),
+  endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+  seats: integer("seats"),
+  billingInterval: text("billing_interval"),
+  stripeScheduleId: text("stripe_schedule_id"),
+});
+
 export const organization = sqliteTable("organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -356,7 +379,7 @@ export const rateLimit = sqliteTable("rate_limit", {
 });
 
 export const relations = defineRelations(
-  { user, session, account, verification, jwks, twoFactor, passkey, deviceCode, apikey, oauthClient, oauthRefreshToken, oauthAccessToken, oauthConsent, organization, member, invitation, rateLimit },
+  { user, session, account, verification, jwks, twoFactor, passkey, deviceCode, apikey, oauthClient, oauthRefreshToken, oauthAccessToken, oauthConsent, subscription, organization, member, invitation, rateLimit },
   (r) => ({
     user: {
       sessions: r.many.session(),

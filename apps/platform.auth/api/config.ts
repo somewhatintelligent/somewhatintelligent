@@ -6,6 +6,8 @@ import { deliverWith } from "./email/deliver.ts";
 import { apiKey } from "@better-auth/api-key";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
+import { stripe } from "@better-auth/stripe";
+import { PURCHASABLE_PLANS } from "platform.entitlements";
 import { admin } from "better-auth/plugins/admin";
 import { bearer } from "better-auth/plugins/bearer";
 import { deviceAuthorization } from "better-auth/plugins/device-authorization";
@@ -16,8 +18,10 @@ import { twoFactor } from "better-auth/plugins/two-factor";
 import { username } from "better-auth/plugins/username";
 
 import * as Effect from "effect/Effect";
+import * as Redacted from "effect/Redacted";
 
 import { AUTH_BASE_PATH } from "../shared/ingress.ts";
+import { Billing } from "./billing.ts";
 import { Signing } from "./capabilities.ts";
 import { Origin } from "./origin.ts";
 import { allocateUsername, USERNAME_LIMITS } from "./username.ts";
@@ -48,6 +52,12 @@ export const authConfig = Effect.gen(function* () {
    * keeps carrying `never`.
    */
   const deliver = deliverWith(yield* Mail, yield* EmailTemplates, origin);
+  /**
+   * The Stripe account, resolved here for the same reason as the three above:
+   * it is a capability the configuration is built FROM, and it has to answer on
+   * the deploy host too — see `api/billing.ts`.
+   */
+  const billing = yield* Billing;
   const run = yield* makeRequestBoundary<never>();
   return yield* bae.configure({
     /** See `api/secret.ts` for what happens when this is omitted. */
@@ -108,6 +118,63 @@ export const authConfig = Effect.gen(function* () {
         customIdTokenClaims: ({ user }) => ({
           role: (user as Record<string, unknown>).role ?? "user",
         }),
+      }),
+      /**
+       * SUBSCRIPTIONS, against the same Stripe account the store settles on.
+       *
+       * MOUNTED UNCONDITIONALLY, even where `billing.configured` is `false`, and
+       * that is the single most important line in this block. The plugin's
+       * schema — the `subscription` table and `user.stripeCustomerId` — is
+       * derived from these options by the generator on the deploy host, so
+       * mounting it only when a secret is present would make the DATABASE SHAPE
+       * depend on a secret: a stage without the key would generate a schema with
+       * no `subscription` table, and `drizzle-kit` would dutifully emit a
+       * migration DROPPING it. Endpoints that refuse are recoverable. A dropped
+       * table is not.
+       *
+       * NO `authorizeReference`, and its absence is load-bearing rather than an
+       * omission. With no organization billing, a subscription's reference id is
+       * always the caller's own user id, and the plugin's `referenceMiddleware`
+       * REFUSES any explicit `referenceId` that is not the session's own when no
+       * `authorizeReference` is configured. Writing one would replace a deny by
+       * default with a predicate that has to be right — for five actions,
+       * forever. See `packages/stripe/src/middleware.ts` upstream.
+       *
+       * `limits` is not set on any plan either; entitlements come from
+       * `platform.entitlements`, never off the wire. The reasoning is in that
+       * package's `Catalog.ts`.
+       */
+      stripe({
+        stripeClient: billing.client,
+        stripeWebhookSecret: Redacted.value(billing.webhookSecret),
+        /**
+         * Only where there is an account to create one in. The plugin swallows
+         * failures in this hook — a sign-up must not fail because Stripe is
+         * down — so leaving it on with a refusing client would turn every
+         * sign-up into a logged error that means nothing.
+         */
+        createCustomerOnSignUp: billing.configured,
+        subscription: {
+          enabled: true,
+          plans: [...PURCHASABLE_PLANS],
+          /**
+           * The one place this deployment is stricter than sign-in, which does
+           * not require verification. A 14-day trial handed to an unverified
+           * address is a trial farm: the plugin's own abuse prevention is
+           * per-CUSTOMER, and an unverified address mints a fresh customer every
+           * time. Verification is the cheapest thing that makes that cost
+           * something.
+           */
+          requireEmailVerification: true,
+        },
+        /**
+         * ORGANIZATION BILLING IS OFF, deliberately, even though the
+         * organization plugin runs. Nothing sells to an organisation yet, and
+         * `allowUserToCreateOrganization` is `false`, so switching it on would
+         * add an `organization.stripeCustomerId` column and a seat-sync hook
+         * serving nobody. Turning it on later is one nullable column — cheap,
+         * and cheaper than removing it.
+         */
       }),
       organization({
         allowUserToCreateOrganization: false,

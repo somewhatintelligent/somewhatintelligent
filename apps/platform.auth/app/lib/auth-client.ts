@@ -14,6 +14,7 @@
 import { apiKeyClient } from "@better-auth/api-key/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
+import { stripeClient } from "@better-auth/stripe/client";
 import { createAuthClient } from "better-auth/react";
 import {
   adminClient,
@@ -43,5 +44,17 @@ export const authClient = createAuthClient({
     magicLinkClient(),
     oauthProviderClient(),
     organizationClient(),
+    /**
+     * `subscription: true` is what mounts `subscription.upgrade`, `.cancel`,
+     * `.restore`, `.list` and `.billingPortal` on this client. Without it the
+     * plugin adds nothing a browser can call, and — as with every plugin here —
+     * the missing method is simply absent rather than an error at the seam.
+     *
+     * Reading a subscription for a CAPABILITY check is not what these are for:
+     * `subscription.list` answers "what is this person paying for", and
+     * `platform.entitlements` turns that into what they may do. The account
+     * screens call these; feature gates never do.
+     */
+    stripeClient({ subscription: true }),
   ],
 });

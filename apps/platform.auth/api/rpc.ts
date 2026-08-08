@@ -1,8 +1,10 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
 import type { AuthApiError } from "lib.better-auth-effect";
+import { decodeMembership, type Membership } from "platform.entitlements";
 import { ALLOWED_AVATAR_TYPES, AVATAR_PREFIX, MAX_AVATAR_BYTES } from "../shared/ingress.ts";
 import { AvatarBucket } from "./avatars.ts";
+import { Billing } from "./billing.ts";
 import { AuthDatabase } from "./database.ts";
 import type { Auth } from "./config.ts";
 
@@ -52,6 +54,7 @@ const attempt = <A, E extends { readonly _tag: string }>(effect: Effect.Effect<A
 export const authRpc = function* (auth: Auth) {
   const connection = yield* Cloudflare.D1.QueryDatabase(AuthDatabase);
   const avatars = yield* Cloudflare.R2.ReadWriteBucket(AvatarBucket);
+  const billing = yield* Billing;
 
   const query = <T>(sql: string, ...bindings: ReadonlyArray<unknown>) =>
     Effect.flatMap(connection.raw, (d1) =>
@@ -88,6 +91,87 @@ export const authRpc = function* (auth: Auth) {
     getProviders: () =>
       Effect.succeed({
         social: { google: false, microsoft: false, facebook: false, linkedin: false },
+      }),
+
+    /**
+     * WHAT THIS PERSON IS PAYING FOR — the fact, not the conclusion.
+     *
+     * The IdP owns "who is subscribed to what, until when" and stops there.
+     * Turning that into capabilities is `platform.entitlements`, which every
+     * caller runs for itself; see that package's `Membership.ts` for why the
+     * resolved entitlements deliberately do not travel.
+     *
+     * READ FROM THE TABLE, not from `auth.api.listActiveSubscriptions`. That
+     * endpoint filters to `active | trialing`, which would silently drop
+     * `past_due` — and `past_due` is exactly the row the grace policy exists to
+     * keep granting while Stripe retries a card. Filtering here would put the
+     * policy in two places and let this one win.
+     *
+     * NEVER FAILS. No session, no rows, or a row this build cannot read all
+     * answer `[]`, which resolves to the base tier. An error return would make
+     * every caller write a `catch`, and the tempting body of that catch is the
+     * one that grants everything.
+     */
+    getMembership: (input: { readonly cookie: string }) =>
+      Effect.gen(function* () {
+        const current = yield* attempt(auth.api.getSession({ headers: headers(input.cookie) }));
+        const userId = current.ok ? current.value?.user?.id : undefined;
+        if (userId === undefined) {
+          return {
+            memberships: [] as ReadonlyArray<Membership>,
+            stripeSubscriptionId: null,
+            billing: billing.configured,
+          };
+        }
+
+        const rows = yield* query<{
+          plan: string;
+          status: string;
+          periodEnd: number | null;
+          cancelAtPeriodEnd: number | null;
+          stripeSubscriptionId: string | null;
+        }>(
+          `SELECT "plan", "status", "period_end" AS "periodEnd",
+                  "cancel_at_period_end" AS "cancelAtPeriodEnd",
+                  "stripe_subscription_id" AS "stripeSubscriptionId"
+             FROM "subscription"
+            WHERE "reference_id" = ?1
+            ORDER BY "period_end" DESC
+            LIMIT 10`,
+          userId,
+        );
+
+        const memberships = rows.results
+          .map((row) => decodeMembership(row))
+          .filter((membership): membership is Membership => membership !== null);
+
+        if (memberships.length !== rows.results.length) {
+          yield* Effect.logWarning(
+            `auth: dropped ${rows.results.length - memberships.length} subscription row(s) ` +
+              `this build cannot decode — a status Stripe added, or a corrupt row`,
+          );
+        }
+
+        return {
+          memberships,
+          /**
+           * THE SUBSCRIPTION AN UPGRADE MUST REPLACE, and the reason it is here
+           * rather than on `Membership`: it names Stripe, and `Membership` is
+           * the vendor-free fact that entitlement resolution runs on. This is
+           * billing plumbing — `subscription.upgrade` without it opens a SECOND
+           * checkout beside the running subscription and bills the customer for
+           * both.
+           *
+           * Newest period first, and never a `canceled` row: that one is
+           * finished, and handing it to `upgrade` names a subscription Stripe
+           * will refuse to modify.
+           */
+          stripeSubscriptionId:
+            rows.results.find(
+              (row) => row.status !== "canceled" && row.stripeSubscriptionId !== null,
+            )?.stripeSubscriptionId ?? null,
+          billing: billing.configured,
+        };
       }),
 
     getConnections: (input: { readonly cookie: string }) =>

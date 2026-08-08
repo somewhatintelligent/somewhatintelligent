@@ -2,6 +2,7 @@ import { Database, EmailTemplates, Mail } from "lib.better-auth-effect";
 import * as Context from "effect/Context";
 import * as Layer from "effect/Layer";
 
+import { Billing, unconfigured } from "./billing.ts";
 import { dialect, Signing, UNSIGNED } from "./capabilities.ts";
 import { Origin, UNRESOLVED_ORIGIN } from "./origin.ts";
 
@@ -48,6 +49,18 @@ export const inertly = Layer.mergeAll(
   }),
   inert(Origin, { origin: UNRESOLVED_ORIGIN, cookieDomain: null }),
   inert(Signing, UNSIGNED),
+  /**
+   * NOT a tripwire, and that difference is the point. The Stripe plugin is
+   * constructed unconditionally — its tables must not depend on whether a stage
+   * holds a secret — so `config.ts` legitimately reads three fields off this
+   * during schema generation. `unconfigured` answers exactly those three and
+   * hands back a CLIENT that is itself a tripwire, so a read is fine and a
+   * CALL still fails loudly.
+   *
+   * `Layer.succeed` rather than `inert(...)` because the value is the real
+   * switched-off shape the Worker also uses, defined once in `billing.ts`.
+   */
+  Layer.succeed(Billing, unconfigured("dev")),
   /**
    * Present but untouchable. Schema generation resolves the whole config,
    * which names these; reading either during it means a send was attempted on

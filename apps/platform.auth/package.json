@@ -17,6 +17,7 @@
     "@better-auth/api-key": "^1.6.25",
     "@better-auth/oauth-provider": "^1.6.25",
     "@better-auth/passkey": "^1.6.25",
+    "@better-auth/stripe": "^1.6.25",
     "@react-email/components": "^1.0.1",
     "@react-email/render": "^1.0.0",
     "@swi/infra": "workspace:*",
@@ -36,11 +37,13 @@
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
     "platform.design": "workspace:*",
+    "platform.entitlements": "workspace:*",
     "platform.names": "workspace:*",
     "platform.ui": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "simple-icons": "^16.16.0"
+    "simple-icons": "^16.16.0",
+    "stripe": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5",

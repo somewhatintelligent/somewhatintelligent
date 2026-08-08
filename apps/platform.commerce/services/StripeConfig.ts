@@ -37,19 +37,37 @@
  * `livemode` is derived rather than configured, because it must agree with the
  * key in use — a live key with test-mode gating would settle real charges
  * against fake events, and the inverse would ignore real ones.
+ *
+ * THE ACCOUNT-LEVEL HALF MOVED OUT, to `@swi/infra/stripe`. The secret key's
+ * name, the tier→environment mapping and the livemode guard are shared with
+ * `platform.auth`, which sells subscriptions against the SAME Stripe account —
+ * and two copies of a rule whose entire job is that both surfaces agree would be
+ * the one duplication worth avoiding here. What stayed is what is the store's
+ * alone: the endpoint signing secret (Stripe mints one per endpoint, so the
+ * store's and the IdP's differ by construction), the storefront return URL, and
+ * the goods tax code.
  */
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Redacted from "effect/Redacted";
+import type * as Redacted from "effect/Redacted";
 
-import type { Tier } from "@swi/infra/stage/StandardizedStage";
+import {
+  assertKeyMatchesEnvironment,
+  livemodeOf,
+  STRIPE_SECRET_KEY,
+  type StripeEnvironment,
+} from "@swi/infra/stripe";
 
 import { STOREFRONT_ORIGIN } from "../hostnames.ts";
-import * as Schema from "effect/Schema";
 
-export type StripeEnvironment = "dev" | "preprod" | "prod";
+/**
+ * Re-exported rather than re-declared: eight call sites across this package
+ * reach for them through this module, and the account-level definitions they
+ * name now live in `@swi/infra/stripe`.
+ */
+export { environmentFor, type StripeEnvironment } from "@swi/infra/stripe";
 
 /**
  * The two variable names every environment reads, matching the keys written in
@@ -61,7 +79,13 @@ export type StripeEnvironment = "dev" | "preprod" | "prod";
  * comes out of a file selected by dotenvx anyway.
  */
 export const VARIABLES = {
-  secretKey: "STRIPE_SECRET_KEY",
+  secretKey: STRIPE_SECRET_KEY,
+  /**
+   * THE STORE'S OWN ENDPOINT SECRET, and it can never be the IdP's. Stripe signs
+   * with a secret minted per registered endpoint, so `hooks.…/webhook` and the
+   * IdP's `/api/auth/stripe/webhook` verify against different values even though
+   * both belong to this one account.
+   */
   webhookSecret: "STRIPE_WEBHOOK_SIGNING_SECRET",
 } as const;
 
@@ -82,36 +106,6 @@ const DEV_STOREFRONT_URL = "http://localhost:5173";
  */
 const GOODS_TAX_CODE_VARIABLE = "STORE_TAX_CODE_GOODS";
 const DEFAULT_GOODS_TAX_CODE = "txcd_99999999";
-
-/**
- * A key that does not match the environment asking for it.
- *
- * Separate from a missing key on purpose: absent secrets are a normal state on a
- * contributor's machine, but a live key in a preprod slot is a mistake nobody
- * should be allowed to deploy past.
- */
-class StripeKeyMismatch extends Schema.TaggedErrorClass<StripeKeyMismatch>()("StripeKeyMismatch", {
-  environment: Schema.String,
-  detail: Schema.String,
-}) {}
-
-/**
- * Map a deploy TIER onto a Stripe environment.
- *
- * A tier, not a raw stage string, and that is the whole point: `Tier` is decoded
- * from a validated {@link StandardizedStage}, so the set of inputs is closed and
- * the mapping is total. The previous version matched `stage === "prod"` — a
- * string that is not a legal stage under the standard at all — which meant a
- * typo'd or invented stage name fell through to `dev` while a deliberately
- * crafted one could claim `prod` and load a live key.
- *
- * Read with `environmentFor(yield* StageTier)`, which validates the stage on the
- * way past. Combined with the `livemode` guard below, LIVE KEYS ARE REACHABLE
- * ONLY FROM THE `production` TIER: a live key resolved anywhere else refuses to
- * deploy, and a test key on production does too.
- */
-export const environmentFor = (tier: Tier): StripeEnvironment =>
-  tier === "production" ? "prod" : tier === "staging" ? "preprod" : "dev";
 
 export class StripeConfig extends Context.Service<
   StripeConfig,
@@ -180,25 +174,20 @@ export class StripeConfig extends Context.Service<
           : Config.string(STOREFRONT_URL_VARIABLE);
 
       // `sk_live_…` is the only prefix that settles real money.
-      const livemode = Redacted.value(secretKey).startsWith("sk_live_");
+      const livemode = livemodeOf(secretKey);
 
       /**
        * The guard that makes the naming scheme load-bearing rather than
        * decorative. Without it a live key pasted into the sandbox slot deploys
        * happily and starts taking real payments on a staging storefront.
+       *
+       * FATAL HERE, and that is this surface's decision rather than the guard's:
+       * a store that cannot settle correctly has nothing left to do. The IdP
+       * makes the opposite call with the same check, because it has sign-in to
+       * keep serving — see `apps/platform.auth/api/billing.ts`.
        */
-      if (environment === "prod" && !livemode) {
-        return yield* new StripeKeyMismatch({
-          environment,
-          detail: `${VARIABLES.secretKey} does not hold a live key; prod must not run on test keys`,
-        });
-      }
-      if (environment !== "prod" && livemode) {
-        return yield* new StripeKeyMismatch({
-          environment,
-          detail: `${VARIABLES.secretKey} holds a LIVE key; ${environment} must use a test key`,
-        });
-      }
+      const mismatch = assertKeyMatchesEnvironment(environment, livemode);
+      if (mismatch !== null) return yield* mismatch;
 
       const goodsTaxCode = yield* Config.string(GOODS_TAX_CODE_VARIABLE).pipe(
         Config.withDefault(DEFAULT_GOODS_TAX_CODE),
