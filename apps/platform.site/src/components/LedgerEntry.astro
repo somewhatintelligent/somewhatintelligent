@@ -439,6 +439,25 @@ const href = `/shop/${slug}`;
     line-height: 1.2;
   }
 
+  /*
+   * THE BULLETS SIT WITH THE PROSE, NOT LEFT OF IT. The reset zeroes `padding`
+   * on everything, and a marker positioned `outside` an unpadded list is drawn
+   * in the margin — so a description with bullets rendered them hanging to the
+   * left of the paragraphs above. The 1.1em is the product page's, which fixed
+   * the same thing for the same markdown in `styles/product.css`.
+   */
+  .ledger-entry-prose :global(ul),
+  .ledger-entry-prose :global(ol) {
+    margin-top: 8px;
+    margin-bottom: 12px;
+    padding-left: 1.1em;
+  }
+
+  .ledger-entry-prose :global(li) {
+    margin-top: 4px;
+    list-style: revert;
+  }
+
   /* A code span in prose already set in mono needs a ground, not a face. */
   .ledger-entry-prose :global(code) {
     padding: 0 4px;
