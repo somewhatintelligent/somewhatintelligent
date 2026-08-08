@@ -21,6 +21,7 @@ import ProductSheet from "../../components/ProductSheet.astro";
 import ProductZoom from "../../components/ProductZoom.astro";
 import { getStorefrontProduct } from "../../lib/commerce.ts";
 import { availabilityLine, productView } from "../../core/product-view.ts";
+import { paragraphs } from "../../core/markdown.ts";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
 import { absoluteUrl } from "../../core/site.ts";
 import {
@@ -59,7 +60,16 @@ if (!product) return new Response(null, { status: 404 });
  */
 const view = productView(product);
 const availability = availabilityLine(product.variants);
-const seoDescription = view.description[0] ?? `${product.title} — object by somewhatintelligent.`;
+/**
+ * `view.description` IS A STRING, and both readers of it here used to treat it
+ * as an array of paragraphs — it was one until `product-view.ts` started
+ * carrying the raw Markdown instead. Indexing a string gave `<meta>` the first
+ * CHARACTER of the description, and calling `.join` on one threw, which is what
+ * took this page to a 500. The paragraph split belongs to whoever wants
+ * paragraphs.
+ */
+const summary = paragraphs(view.description)[0];
+const seoDescription = summary ?? `${product.title} — object by somewhatintelligent.`;
 
 const origin = Astro.url.origin;
 const path = `/shop/${product.slug}`;
@@ -102,7 +112,7 @@ const jsonLd = graph([
     product,
     market,
     /** The whole description, not the first paragraph the `<meta>` is capped to. */
-    description: view.description.join(" "),
+    description: view.description ?? seoDescription,
   }),
 ]);
 ---
