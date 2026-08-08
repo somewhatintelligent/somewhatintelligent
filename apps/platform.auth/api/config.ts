@@ -18,8 +18,10 @@ import { username } from "better-auth/plugins/username";
 import * as Effect from "effect/Effect";
 
 import { AUTH_BASE_PATH } from "../shared/ingress.ts";
+import { SCOPE_NAMES } from "../shared/scopes.ts";
 import { Signing } from "./capabilities.ts";
 import { Origin } from "./origin.ts";
+import { Resources } from "./resources.ts";
 import { allocateUsername, USERNAME_LIMITS } from "./username.ts";
 
 /**
@@ -40,6 +42,7 @@ interface CreateContext {
 export const authConfig = Effect.gen(function* () {
   const bae = yield* Bae;
   const { origin, cookieDomain } = yield* Origin;
+  const { audiences } = yield* Resources;
   const { secret } = yield* Signing;
   /**
    * Resolved HERE, beside `Origin` and `Signing`, because they are the same
@@ -100,8 +103,54 @@ export const authConfig = Effect.gen(function* () {
       oauthProvider({
         loginPage: `/sign-in`,
         consentPage: `/consent`,
-        scopes: ["openid", "profile", "email", "offline_access"],
+        /**
+         * See `shared/scopes.ts`: the same list the consent screen has words
+         * for. Spread because the plugin takes a mutable array and the list is
+         * `readonly` — nothing here should be able to push a scope onto it.
+         */
+        scopes: [...SCOPE_NAMES],
+        /**
+         * What a token may be MADE OUT TO. Naming this list at all replaces the
+         * default — Better Auth otherwise accepts its own base URL and nothing
+         * else — so the base URL is restated here rather than assumed. It has to
+         * be: `/oauth2/userinfo` is addressed by it on every `openid` grant.
+         *
+         * A `resource` outside this list is refused at the token endpoint. That
+         * refusal is the security property: it is what stops a client that
+         * talked a user into consenting from pointing the resulting token at
+         * some other service on the internet.
+         */
+        validAudiences: [`${origin}${AUTH_BASE_PATH}`, ...audiences],
+        /**
+         * MCP clients bring no credentials and no operator. A coding agent
+         * discovers this server from mezes' protected-resource metadata,
+         * registers itself, and runs the browser flow — all before any human
+         * has seen a settings page, which is the entire reason there is nothing
+         * to paste. Registration by itself grants NOTHING: the client can only
+         * ever hold what the person in the browser then consents to.
+         *
+         * `allowUnauthenticated` forces every self-registered client to
+         * `token_endpoint_auth_method: "none"`, which makes it public, which
+         * makes PKCE mandatory on its authorize request. It also refuses
+         * `client_credentials` at registration, so nobody can register their
+         * way to a user-less token.
+         */
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        /**
+         * NO `client_credentials`, for anyone — including the clients an admin
+         * creates by hand. Machine-to-machine callers here use API keys, so the
+         * grant is a second, unused way to obtain a token that carries no user
+         * and passes no consent screen. An unused path is an unwatched one.
+         */
+        grantTypes: ["authorization_code", "refresh_token"],
         allowPublicClientPrelogin: true,
+        /**
+         * Both documents are served, at the root of this origin, by
+         * `app/worker.ts` — the plugin cannot know that and warns on every cold
+         * start otherwise. `test/ingress.test.ts` is what keeps the claim true.
+         */
+        silenceWarnings: { oauthAuthServerConfig: true, openidConfig: true },
         customUserInfoClaims: ({ user }) => ({
           role: (user as Record<string, unknown>).role ?? "user",
         }),
@@ -129,8 +178,21 @@ export const authConfig = Effect.gen(function* () {
      * already has. The per-route rules are si's, carried over verbatim: a
      * global 100/60s would let an attacker spend the whole budget guessing at
      * `/sign-in/email`.
+     *
+     * `enabled` IS STATED. Better Auth infers it from `NODE_ENV === "production"`,
+     * and nothing in this deploy sets `NODE_ENV` — alchemy's bundler defines
+     * `globalThis.__ALCHEMY_RUNTIME__` and nothing else — so left inferred, every
+     * rule below applies or does not according to a variable no one here
+     * controls. That was survivable while the endpoints behind them all needed a
+     * password to be interesting. `/oauth2/register` takes no credential at all
+     * (see the OAuth provider above), and a rule that silently is not in force is
+     * the failure this whole file is written in the style of.
+     *
+     * The cost is one storage round trip per request that reaches the auth
+     * handler. Only `/api/auth/*` does.
      */
     rateLimit: {
+      enabled: true,
       storage: "database" as const,
       window: 60,
       max: 100,

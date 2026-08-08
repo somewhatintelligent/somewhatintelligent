@@ -16,6 +16,39 @@ export const ALLOWED_AVATAR_TYPES = ["image/webp", "image/png", "image/jpeg"] as
 
 export type AvatarContentType = (typeof ALLOWED_AVATAR_TYPES)[number];
 
+/** The two documents a client reads to learn this is an OAuth server at all. */
+const DISCOVERY_DOCUMENTS = [
+  "/.well-known/oauth-authorization-server",
+  "/.well-known/openid-configuration",
+] as const;
+
+/**
+ * Where a client is entitled to look for a discovery document, resolved to the
+ * one path Better Auth answers on.
+ *
+ * The issuer is `<origin>${AUTH_BASE_PATH}`, so the plugin serves both
+ * documents under that path — and a client that has only ever been handed the
+ * issuer looks at the ROOT of the origin first. RFC 8414 §3.1 inserts the
+ * issuer's path AFTER the well-known segment; OpenID Discovery appends the
+ * segment to the issuer; MCP clients try the suffix-less form too, because most
+ * issuers have no path at all. All of them mean the same document, and a server
+ * that answers some of them is one a client discovers or does not depending on
+ * which it tried first.
+ *
+ * `null` for anything else. `app/worker.ts` is what acts on the answer — the
+ * canonical form already reaches the auth worker on the `AUTH_BASE_PATH`
+ * prefix, and is matched here anyway so this function answers the whole
+ * question rather than the half that needed rewriting.
+ */
+export const oauthMetadataTarget = (pathname: string): string | null => {
+  for (const document of DISCOVERY_DOCUMENTS) {
+    const canonical = `${AUTH_BASE_PATH}${document}`;
+    if (pathname === canonical || pathname === document) return canonical;
+    if (pathname === `${document}${AUTH_BASE_PATH}`) return canonical;
+  }
+  return null;
+};
+
 export interface Ingress {
   readonly name: string;
   /**

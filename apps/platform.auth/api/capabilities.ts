@@ -12,6 +12,7 @@ import * as Redacted from "effect/Redacted";
 import { AuthDatabase } from "./database.ts";
 import * as generated from "./schema.gen.ts";
 import { AUTH_COOKIE_DOMAIN, AUTH_ORIGIN, Origin, UNRESOLVED_ORIGIN } from "./origin.ts";
+import { decodeAudiences, OAUTH_RESOURCES, Resources } from "./resources.ts";
 import { AuthSecret } from "./secret.ts";
 import { mail } from "./email/Mail.ts";
 import { templates } from "./email/render.tsx";
@@ -135,6 +136,19 @@ export const live = Layer.mergeAll(
       }
       return Effect.succeed({ origin: UNRESOLVED_ORIGIN, cookieDomain });
     }),
+  ),
+  /**
+   * Unbound is EMPTY, not a failure, and unlike `AUTH_ORIGIN` that is true in
+   * the deployed Worker too: a stage may legitimately serve no protected
+   * resource. The consequence is contained — `resource` on a token request is
+   * refused and the client gets an opaque token for this server alone — where a
+   * missing origin would corrupt every URL Better Auth mints.
+   */
+  Layer.effect(
+    Resources,
+    Effect.map(Cloudflare.Workers.WorkerEnvironment, (env) => ({
+      audiences: decodeAudiences(env[OAUTH_RESOURCES]),
+    })),
   ),
 ).pipe(
   Layer.provideMerge(

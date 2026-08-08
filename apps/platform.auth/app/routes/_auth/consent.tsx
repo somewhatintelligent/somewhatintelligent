@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Card, CardContent } from "platform.ui/components/card";
-import { getScopeLabel } from "@/lib/scopes";
+import { scopeCopy } from "@/lib/scopes";
 import { ConsentActions } from "@/components/auth/consent-actions";
 import { resolveClientName } from "@/lib/oauth-clients.functions";
 
@@ -81,15 +81,26 @@ function ConsentPage() {
           <div className="mb-8">
             <div className="type-mono-label mb-3 text-muted-foreground/80">Permissions</div>
             <div className="flex flex-col gap-2">
-              {requestedScopes.map((s) => (
-                <div
-                  key={s}
-                  className="flex items-center gap-2.5 rounded-sm bg-surface-sunken px-4 py-3 text-sm"
-                >
-                  <span className="text-success">✓</span>
-                  {getScopeLabel(s)}
-                </div>
-              ))}
+              {requestedScopes.map((s) => {
+                const copy = scopeCopy(s);
+                return (
+                  <div
+                    key={s}
+                    className="flex items-start gap-2.5 rounded-sm bg-surface-sunken px-4 py-3 text-sm"
+                  >
+                    <span className="text-success">✓</span>
+                    <div>
+                      {/* The raw scope when there is no copy — a client may ask
+                          for one this build does not know, and showing the
+                          string is honest where inventing a sentence is not. */}
+                      <div>{copy?.label ?? s}</div>
+                      {copy && (
+                        <div className="text-xs text-muted-foreground/80">{copy.description}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

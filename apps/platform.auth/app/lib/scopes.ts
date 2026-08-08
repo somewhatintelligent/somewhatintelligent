@@ -1,18 +1,10 @@
-const SCOPES = {
-  openid: {
-    label: "Verify your identity",
-    description: "Confirms who you are. The minimum.",
-  },
-  profile: {
-    label: "View your profile",
-    description: "Name and avatar, such as they are.",
-  },
-  email: {
-    label: "Access your email",
-    description: "Your email address and whether it has been verified.",
-  },
-} as const;
-
-export function getScopeLabel(scope: string): string {
-  return (SCOPES as Record<string, { label: string }>)[scope]?.label ?? scope;
-}
+/**
+ * The app-side door onto `shared/scopes.ts`.
+ *
+ * The list itself lives in `shared/` because the auth server declares the same
+ * scopes to Better Auth, and a consent screen with its own copy of them is a
+ * consent screen that eventually describes a scope the server no longer issues.
+ * This file exists so routes keep importing `@/lib/scopes` rather than reaching
+ * three directories up.
+ */
+export { scopeCopy, scopeLabel } from "../../shared/scopes.ts";
