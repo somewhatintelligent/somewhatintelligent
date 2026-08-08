@@ -63,6 +63,28 @@ describe("a client with no credentials registering itself", () => {
     expect(response.status).toBe(200);
     for (const asked of scope.split(" ")) expect(client.scope?.split(" ")).toContain(asked);
   });
+
+  /**
+   * THE FACT THE CONSENT WARNING IS DRAWN FROM.
+   *
+   * `client_name` is whatever the registrant typed, so the consent screen's
+   * headline is attacker-controlled and open registration would be consent
+   * phishing without something beside it that the client did not choose. That
+   * something is this: no `user_id`, because nobody was signed in. `api/rpc.ts`
+   * reads the same absence off the row as `selfRegistered`.
+   *
+   * If a future upstream starts attributing anonymous registrations to someone,
+   * this goes red and the warning silently stops appearing — which is exactly
+   * when you want to be told.
+   */
+  test("carries no owner, which is how the consent screen knows to warn", async () => {
+    const response = await register({ client_name: "somewhatintelligent" });
+    const client = (await response.json()) as Record<string, unknown>;
+
+    expect(client.user_id).toBeUndefined();
+    // The name went through untouched — nothing sanitises it, and nothing could.
+    expect(client.client_name).toBe("somewhatintelligent");
+  });
 });
 
 describe("what registration refuses", () => {

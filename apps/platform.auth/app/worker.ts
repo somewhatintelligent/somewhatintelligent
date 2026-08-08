@@ -5,7 +5,7 @@ import { within } from "lib.observability/tanstack-start/server";
 import type { IdentitySession } from "./lib/session";
 import type { AppVersion } from "./lib/version";
 import type { IdentityEnv } from "./identity-env";
-import { AUTH_BASE_PATH, AVATAR_PREFIX, oauthMetadataTarget } from "../shared/ingress.ts";
+import { AVATAR_PREFIX, oauthMetadataTarget, servedByAuth } from "../shared/ingress.ts";
 
 declare module "@tanstack/react-start" {
   interface Register {
@@ -22,7 +22,7 @@ declare module "@tanstack/react-start" {
 const handler = async (request: Request, env: IdentityEnv): Promise<Response> => {
   const { pathname } = new URL(request.url);
 
-  if (pathname.startsWith(AUTH_BASE_PATH)) {
+  if (servedByAuth(pathname)) {
     return env.AUTH.fetch(request);
   }
 

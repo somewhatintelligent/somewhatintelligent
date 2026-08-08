@@ -32,6 +32,7 @@ interface ProviderOptions {
   readonly allowDynamicClientRegistration?: boolean;
   readonly allowUnauthenticatedClientRegistration?: boolean;
   readonly disableJwtPlugin?: boolean;
+  readonly advertisedMetadata?: { readonly claims_supported?: ReadonlyArray<string> };
   readonly loginPage: string;
   readonly consentPage: string;
 }
@@ -111,6 +112,50 @@ describe("what a self-registering client may ask for", () => {
     // decide whether to enforce its 5/60s on that endpoint — and every rule
     // beside it — from `NODE_ENV`, which nothing in this deploy sets.
     expect((await configure([])).rateLimit?.enabled).toBe(true);
+  });
+});
+
+describe("the advertised claims", () => {
+  /**
+   * The eight claims the plugin always derives, plus the ones the scope list
+   * earns: `email`/`email_verified` for `email`, four more for `profile`. The
+   * mezes scopes earn none — they are not OIDC scopes.
+   *
+   * Written out rather than imported from `api/config.ts`. Importing the value
+   * under test would assert it equals itself, which is the mistake the first
+   * version of `test/ingress.test.ts` made.
+   */
+  const derived = [
+    "sub",
+    "iss",
+    "aud",
+    "exp",
+    "iat",
+    "sid",
+    "scope",
+    "azp",
+    "email",
+    "email_verified",
+    "name",
+    "picture",
+    "family_name",
+    "given_name",
+  ];
+
+  test("keep every claim the plugin would have derived from the scopes", async () => {
+    // `claims_supported` is `advertisedMetadata?.claims_supported ?? claims ?? []`
+    // upstream — a REPLACE, not a merge, whatever the docs say. Advertising
+    // `role` alone dropped all fourteen of these, and an assertion that only
+    // looked for `role` passed anyway.
+    const provider = providerOf(await configure([]));
+
+    expect(provider.advertisedMetadata?.claims_supported).toEqual(expect.arrayContaining(derived));
+  });
+
+  test("and add the custom one both claim callbacks inject", async () => {
+    const provider = providerOf(await configure([]));
+
+    expect(provider.advertisedMetadata?.claims_supported).toContain("role");
   });
 });
 

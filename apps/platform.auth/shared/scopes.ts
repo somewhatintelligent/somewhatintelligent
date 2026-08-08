@@ -39,7 +39,7 @@ const IDENTITY = {
   },
   offline_access: {
     label: "Stay signed in",
-    description: "Keeps working after you close the window, until you revoke it.",
+    description: "Keeps access after you close the app, until you revoke it.",
   },
 } as const satisfies Record<string, ScopeCopy>;
 

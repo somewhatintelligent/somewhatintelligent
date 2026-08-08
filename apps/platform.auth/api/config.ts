@@ -33,6 +33,42 @@ interface UserLookup {
   findMany: (query: unknown) => Promise<ReadonlyArray<Record<string, unknown>>>;
 }
 
+/**
+ * The claims discovery advertises.
+ *
+ * Written out because `advertisedMetadata.claims_supported` REPLACES the
+ * plugin's derived list (see its use below), so this file has to restate what
+ * the plugin would have computed — and what it computes depends on the scopes
+ * in `shared/scopes.ts`.
+ *
+ * `OIDC_CLAIMS` is exactly the plugin's own rule for that list: eight
+ * unconditional claims, plus `email`/`email_verified` because `email` is
+ * granted, plus the four profile claims because `profile` is. The mezes scopes
+ * add none — they are not OIDC scopes and carry no claims of their own.
+ * `test/oauth-provider.test.ts` pins the whole set against the resolved
+ * configuration, so granting a scope and forgetting its claims fails before it
+ * reaches discovery.
+ */
+const OIDC_CLAIMS = [
+  "sub",
+  "iss",
+  "aud",
+  "exp",
+  "iat",
+  "sid",
+  "scope",
+  "azp",
+  "email",
+  "email_verified",
+  "name",
+  "picture",
+  "family_name",
+  "given_name",
+] as const;
+
+/** Injected by `customIdTokenClaims` / `customUserInfoClaims` below. */
+const CUSTOM_CLAIMS = ["role"] as const;
+
 /** What `databaseHooks.user.create.before` is handed. */
 type NewUser = Record<string, unknown>;
 interface CreateContext {
@@ -122,18 +158,29 @@ export const authConfig = Effect.gen(function* () {
          */
         validAudiences: [`${origin}${AUTH_BASE_PATH}`, ...audiences],
         /**
-         * MCP clients bring no credentials and no operator. A coding agent
+         * RFC 7591 registration, open to callers with no credentials.
+         *
+         * MCP clients bring none and no operator either. A coding agent
          * discovers this server from mezes' protected-resource metadata,
          * registers itself, and runs the browser flow — all before any human
          * has seen a settings page, which is the entire reason there is nothing
-         * to paste. Registration by itself grants NOTHING: the client can only
-         * ever hold what the person in the browser then consents to.
+         * to paste.
          *
-         * `allowUnauthenticated` forces every self-registered client to
-         * `token_endpoint_auth_method: "none"`, which makes it public, which
-         * makes PKCE mandatory on its authorize request. It also refuses
-         * `client_credentials` at registration, so nobody can register their
-         * way to a user-less token.
+         * The upstream guards bound what a self-registered client can DO:
+         * `token_endpoint_auth_method` is forced to `"none"`, which makes it
+         * public, which makes PKCE mandatory; `client_credentials` is refused
+         * at registration; `skip_consent` is `z.never()` on that endpoint, so
+         * it can never register its way past the screen. Registration by itself
+         * grants nothing — only the person in the browser does.
+         *
+         * NONE OF THAT BOUNDS WHAT IT CAN CLAIM TO BE, which is the part a
+         * person acts on: `client_name` is caller-supplied and it is the
+         * headline of the consent screen. That is consent phishing with this
+         * server's own page, and it is the reason this flag stayed off until
+         * `_auth/consent.tsx` could tell a self-registered client from a
+         * vouched-for one and say so above everything else. It can — see
+         * `clientProvenance` in `api/rpc.ts`. Take that warning away and this
+         * flag has to come off with it.
          */
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
@@ -151,6 +198,25 @@ export const authConfig = Effect.gen(function* () {
          * start otherwise. `test/ingress.test.ts` is what keeps the claim true.
          */
         silenceWarnings: { oauthAuthServerConfig: true, openidConfig: true },
+        /**
+         * The advertised claims, RESTATED IN FULL rather than added to.
+         *
+         * The docs say claims here are "in addition to the internally supported
+         * claims". They are not: upstream reads
+         * `advertisedMetadata?.claims_supported ?? claims ?? []`, so naming
+         * `role` alone REPLACES the fourteen the plugin derives from `scopes`
+         * and discovery goes from advertising all of them to advertising one.
+         * Measured against a running server, not reasoned about — and the first
+         * version of this line shipped exactly that regression.
+         *
+         * So the derived set has to be repeated beside the custom one. Both are
+         * `OIDC_CLAIMS` / `CUSTOM_CLAIMS` above.
+         *
+         * `scopes_supported` is deliberately NOT overridden beside it: it
+         * defaults to the whole scope list, which is what a client needs to see
+         * to know `mezes:write` can be asked for.
+         */
+        advertisedMetadata: { claims_supported: [...OIDC_CLAIMS, ...CUSTOM_CLAIMS] },
         customUserInfoClaims: ({ user }) => ({
           role: (user as Record<string, unknown>).role ?? "user",
         }),

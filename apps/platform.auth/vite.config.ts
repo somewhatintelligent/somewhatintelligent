@@ -21,5 +21,18 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  test: { includeTaskLocation: true, globals: true },
+  /**
+   * `integ/` is EXCLUDED, and it is not a second-class suite for it.
+   *
+   * `test/` runs under Vitest; `integ/` runs under `bun test` via the
+   * `test:integ` script, because it deploys the stack through alchemy's
+   * `Test/Bun` harness and imports `bun:test`. Left in, Vitest collects it and
+   * fails at import with `protocol 'bun:' not supported` — a red suite that
+   * says nothing about the code.
+   */
+  test: {
+    includeTaskLocation: true,
+    globals: true,
+    exclude: ["**/node_modules/**", "**/dist/**", "integ/**"],
+  },
 });

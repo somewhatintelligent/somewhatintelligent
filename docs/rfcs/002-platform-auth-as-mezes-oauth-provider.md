@@ -24,7 +24,7 @@ tenant key that owns the index and the blob prefix. It works, and it is not ours
 
 Meanwhile `platform.auth` has had `@better-auth/oauth-provider` installed since
 the app was written, with `openid profile email offline_access` and a consent
-page. What it did not have was any of the four things that make an authorization
+page. What it did not have was any of the things that make an authorization
 server usable by an MCP client:
 
 1. **Nowhere to register.** `allowDynamicClientRegistration` defaults to
@@ -43,11 +43,24 @@ server usable by an MCP client:
 4. **No scopes to grant.** `mezes:read` and `mezes:write` did not exist, so
    there was nothing for a consent screen to ask about or a resource server to
    enforce.
+5. **Nothing on the consent screen a client did not choose.** It rendered
+   `client_name` and the scopes, both supplied by the caller. Fine while only an
+   operator could create a client; a phishing surface the moment registration
+   opens.
+6. **A route predicate that over-claimed.** `startsWith("/api/auth")` also
+   swallowed `/api/authenticate` and `/api/auth-v2/*`, so some other route's 404
+   arrived as Better Auth's.
+7. **An unadvertised claim.** Both custom-claim callbacks inject `role` and
+   discovery never mentioned it.
 
 This RFC covers exactly the provider side: what `platform.auth` publishes,
 issues, and refuses. mezes' side — protected-resource metadata, token
 verification, replacing the Access gate — is a separate change against the same
 contract.
+
+Items 1, 6 and 7 were first found and fixed in PR #3, which this change
+supersedes; its commit is merged in and its integration suite is kept. Where the
+two disagreed, ADR-1 records what happened.
 
 ### Non-goals
 
@@ -63,26 +76,45 @@ contract.
 
 ## ADRs
 
-### ADR-1 — Unauthenticated dynamic client registration is on
+### ADR-1 — Unauthenticated registration is on, and the consent screen pays for it
 
 **Decision.** `allowDynamicClientRegistration` and
-`allowUnauthenticatedClientRegistration` are both `true`.
+`allowUnauthenticatedClientRegistration` are both `true`, **and** the consent
+screen leads with a warning whenever nobody has vouched for the client.
 
-**Why the alternative loses.** The alternative is a client id an operator
-creates by hand in the admin console and pastes into every machine that runs a
-coding agent. That is the thing mezes' plugin manifest was written to avoid —
+**How this decision was arrived at.** PR #3 turned the first flag on and
+deliberately left the second off, with an argument this RFC originally
+under-weighted. The upstream guards bound what a self-registered client can
+_do_ — forced public, no secret, `client_credentials` refused, PKCE mandatory,
+`skip_consent` rejected as `z.never()` — but none of them bound what it can
+**claim to be**. `client_name` is caller-supplied and it is the headline of
+`_auth/consent.tsx`. A stranger registers a client called
+"somewhatintelligent", sends someone an authorize link, and the phishing is
+done on this server's own page in this server's own styling. PR #3's position —
+the flag should go on _after_ the screen can tell a self-registered client from
+a trusted one — was correct.
+
+So the screen was fixed rather than the endpoint. `clientProvenance` in
+`api/rpc.ts` reads `oauth_client.user_id` and `reference_id`: both null exactly
+when nobody signed in registered it and no organisation owns it. The consent
+route renders that above the account, the permissions and the buttons, because
+it is the only thing on the page the client did not choose for itself.
+
+**Why the remaining alternative loses.** Leaving it off means a client id an
+operator creates by hand and pastes into every machine that runs a coding agent.
+That is the thing mezes' plugin manifest was written to avoid —
 `plugin/.mcp.json` carries a URL and nothing else — and it does not survive an
 agent that reinstalls, a second laptop, or a colleague.
-
-Registration by itself grants **nothing**. It mints a `client_id` and a row; the
-client still has to send someone to a consent screen and come back with a code.
-The plugin also forces every self-registered client to
-`token_endpoint_auth_method: "none"`, which makes it a public client, which
-makes PKCE mandatory on its authorize request.
 
 **Consequence.** `/oauth2/register` is an open endpoint on the public internet.
 The plugin declares 5/60s on it; ADR-7 is what makes that number take effect.
 The failure mode is a table of junk client rows, not a token.
+
+**The coupling to remember.** The warning is what makes the flag defensible.
+Removing it, or defaulting it the other way when the provenance lookup fails,
+puts the phishing surface back. Both are asserted: the lookup fails closed in
+`app/lib/oauth-clients.functions.ts` and in the route loader, and
+`test/registration.test.ts` pins the absent `user_id` the warning is drawn from.
 
 ### ADR-2 — The resource is a URL, and it is the MCP URL
 
@@ -136,11 +168,69 @@ admin-created client would leave open.
 **Consequence.** If a service ever needs a user-less token for mezes, this is the
 line that has to change, and it changes deliberately.
 
-### ADR-5 — Discovery is rewritten at the app worker, not redirected
+### ADR-5 — Two routing rules, not one predicate
 
-**Decision.** `app/worker.ts` matches the four well-known spellings and forwards
-them to the auth worker with the pathname rewritten to the one Better Auth
-answers on.
+**Decision.** `servedByAuth` decides whose request it is — the base path
+matched exactly or as a path **segment** prefix. `oauthMetadataTarget` decides
+what a discovery request should be **rewritten** to. `app/worker.ts` calls them
+in that order.
+
+**Why one predicate loses.** PR #3 folded the RFC 8414 root alias into
+`servedByAuth` and forwarded it unchanged, which works only because Better Auth
+happens to recognise that exact spelling. The other three do not survive it: a
+bare `/.well-known/openid-configuration` forwarded as-is reaches an auth server
+that has no such route. Forwarding and rewriting are different answers, and a
+predicate returning a boolean cannot give the second one.
+
+The segment-prefix half of `servedByAuth` is PR #3's, and is a genuine
+pre-existing bug fix: `startsWith("/api/auth")` also claimed `/api/authenticate`
+and `/api/auth-v2/*`, turning some other route's 404 into Better Auth's.
+
+**Consequence.** Neither rule can quietly absorb the other's job, and
+`test/ingress.test.ts` asserts that: the discovery paths outside the base path
+are `servedByAuth === false`, because forwarding them unchanged is the wrong
+answer even though it looks like the right one.
+
+### ADR-8 — `claims_supported` is restated in full
+
+**Decision.** `advertisedMetadata.claims_supported` lists the fourteen claims
+the plugin derives from the scope list **and** `role`.
+
+**Why.** From PR #3, measured against a running server: the docs say claims here
+are "in addition to the internally supported claims", and they are not. Upstream
+reads `advertisedMetadata?.claims_supported ?? claims ?? []` — a replace.
+Naming `role` alone takes discovery from fourteen claims to one, and an
+assertion that only looks for `role` passes anyway.
+
+`scopes_supported` is deliberately _not_ overridden beside it: its default is
+the whole scope list, which is what tells a client `mezes:write` can be asked
+for at all.
+
+**Consequence.** Granting a new OIDC scope means updating `OIDC_CLAIMS`.
+`test/oauth-provider.test.ts` asserts the derived fourteen survive, so
+forgetting fails a `vp test` rather than a deploy. The mezes scopes add no
+claims — they are not OIDC scopes.
+
+### ADR-9 — The integration suite drives the real ingress
+
+**Decision.** Keep PR #3's `integ/oauth-provider.integ.test.ts`: deploy the
+stack under workerd through `alchemy/Test/Bun`, drive it over HTTP, tear down.
+
+**Why the in-process suite is not enough.** `test/discovery.test.ts` builds the
+real Better Auth instance and asks it for the metadata, which is a strong test
+of the _handler_ — and the routing bug PR #3 found lived in `app/worker.ts`, so
+a handler test passes straight through it. The two suites cover different
+failures, and both are cheap enough to keep.
+
+**Consequence.** `integ/` runs under `bun test` via `test:integ`, so
+`vite.config.ts` excludes it from Vitest — left in, Vitest collects it and dies
+on `import "bun:test"`. It is in `tsconfig.json`'s `include` regardless, so it
+typechecks with everything else.
+
+### ADR-10 — Discovery is rewritten, not redirected, and not relocated
+
+**Decision.** The four well-known spellings are rewritten onto the one path
+Better Auth answers and forwarded across the service binding.
 
 **Why the alternatives lose.** A 302 is not something an RFC 8414 client is
 obliged to follow, and some do not. Moving Better Auth to the origin root
@@ -149,10 +239,11 @@ production's live cookies already depend on. Duplicating the document in the app
 would be a second copy of a contract to keep in sync.
 
 **Consequence.** All four spellings — root, root-with-issuer-path-appended, and
-both under the issuer path — return the same bytes.
-`oauthMetadataTarget` is pure and pinned by `test/ingress.test.ts`; the targets
-it produces are fetched for real in `test/discovery.test.ts`, so a rewrite onto
-a path the server does not serve fails a test rather than a client.
+both under the issuer path — return the same bytes. `oauthMetadataTarget` is
+pure and pinned by `test/ingress.test.ts`; the targets it produces are fetched
+for real in `test/discovery.test.ts` and over HTTP in
+`integ/oauth-provider.integ.test.ts`, so a rewrite onto a path the server does
+not serve fails a test rather than a client.
 
 ### ADR-6 — One scope list, with the words on it
 
@@ -258,25 +349,42 @@ is how a client ends up trusting the wrong `aud`; `oauthMetadataTarget` returns
   `test/registration.test.ts`.
 - **INV-13** — A client asking for a scope it did not register for is refused
   with `invalid_scope`, not quietly narrowed. `test/registration.test.ts`.
+- **INV-14** — An anonymously registered client carries no `user_id`, which is
+  the fact the consent warning is drawn from — and the provenance lookup fails
+  closed, so an outage shows the warning rather than hiding it.
+  `test/registration.test.ts`, `integ/oauth-provider.integ.test.ts`.
+- **INV-15** — `claims_supported` keeps all fourteen derived claims and adds
+  `role`. `test/oauth-provider.test.ts`, `integ/oauth-provider.integ.test.ts`.
+- **INV-16** — `servedByAuth` does not claim `/api/authenticate`, and does not
+  claim the discovery paths that need rewriting rather than forwarding.
+  `test/ingress.test.ts`.
+- **INV-17** — Every well-known spelling answers 200 through the deployed
+  ingress, not just through the handler.
+  `integ/oauth-provider.integ.test.ts`.
 
 ## Threat model
 
-| Someone could…                                                                            | What stops it                                                                                                                                                                  |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Register a client and mint a token with no user behind it                                 | `client_credentials` is off entirely (ADR-4), and unauthenticated registration refuses the grant upstream regardless                                                           |
-| Register a client, get a user to consent, then point the token at another service         | `resource` must be in `validAudiences`; anything else is refused at the token endpoint                                                                                         |
-| Intercept an authorization code from a public client                                      | PKCE `S256` is mandatory for public clients, and `S256` is the only method advertised or accepted                                                                              |
-| Send a victim to `/oauth2/authorize` with a real `client_id` and their own `redirect_uri` | The URI must be one that client registered; anything else redirects to this server's error page, never to the one supplied                                                     |
-| Register their own client with their own `redirect_uri`, to phish                         | Not prevented, and not preventable by an open registration endpoint. The consent screen names the client and the person is the check. Same posture as every DCR-enabled server |
-| Flood `/oauth2/register` to fill the clients table                                        | 5/60s on that endpoint, in force because ADR-7 says so rather than because `NODE_ENV` happened to; the rows carry no authority                                                 |
-| Read a token intended for mezes and replay it against `accounts`                          | `aud` is the mezes MCP URL; the auth server's own audience is a different string                                                                                               |
-| Set `MEZES_ORIGIN` to an attacker's host on a real stage                                  | Not prevented. It is a deploy-time setting, and whoever sets it is already deploying. It is validated as an origin, not as a host we trust                                     |
+| Someone could…                                                                            | What stops it                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Register a client and mint a token with no user behind it                                 | `client_credentials` is off entirely (ADR-4), and unauthenticated registration refuses the grant upstream regardless                                                                      |
+| Register a client, get a user to consent, then point the token at another service         | `resource` must be in `validAudiences`; anything else is refused at the token endpoint                                                                                                    |
+| Intercept an authorization code from a public client                                      | PKCE `S256` is mandatory for public clients, and `S256` is the only method advertised or accepted                                                                                         |
+| Send a victim to `/oauth2/authorize` with a real `client_id` and their own `redirect_uri` | The URI must be one that client registered; anything else redirects to this server's error page, never to the one supplied                                                                |
+| Register a client called "somewhatintelligent" and send someone its authorize link        | The consent screen leads with "Nobody has vouched for this app" whenever `user_id` and `reference_id` are both null (ADR-1). The name is still theirs to choose; the line above it is not |
+| Flood `/oauth2/register` to fill the clients table                                        | 5/60s on that endpoint, in force because ADR-7 says so rather than because `NODE_ENV` happened to; the rows carry no authority                                                            |
+| Read a token intended for mezes and replay it against `accounts`                          | `aud` is the mezes MCP URL; the auth server's own audience is a different string                                                                                                          |
+| Set `MEZES_ORIGIN` to an attacker's host on a real stage                                  | Not prevented. It is a deploy-time setting, and whoever sets it is already deploying. It is validated as an origin, not as a host we trust                                                |
 
 **What is knowingly accepted.** Access tokens live an hour, refresh tokens thirty
 days — the plugin's defaults — and `mezes:write` is not given a shorter life than
 `mezes:read`. A write scope on a publishing service is a reasonable candidate for
 `scopeExpirations` later; it is not the difference between working and not, and
 it is left out rather than guessed at.
+
+The consent warning is a warning, not a refusal: someone determined to click
+through it will. That is the accepted residue of ADR-1, and it is the same
+residue every DCR-enabled server carries. What is no longer accepted is a screen
+that gave the person nothing to go on.
 
 **What is not advertised.** Better Auth's metadata does not emit
 `resource_indicators_supported`, so a client learns to send `resource` from
