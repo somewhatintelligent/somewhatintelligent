@@ -163,12 +163,12 @@ recoverable. A dropped table is not.
 
 **Decision.** In `platform.auth`:
 
-| Configuration                                          | Outcome                       |
-| ------------------------------------------------------ | ----------------------------- |
-| neither variable set                                   | billing off, warning logged   |
-| endpoint secret only                                   | billing off, warning logged   |
-| secret key, no endpoint secret                         | **die** (`BillingIncomplete`) |
-| live key outside production, or test key on production | **die**                       |
+| Configuration                                          | Outcome                     |
+| ------------------------------------------------------ | --------------------------- |
+| neither variable set                                   | billing off, warning logged |
+| endpoint secret only                                   | billing off, warning logged |
+| secret key, no endpoint secret                         | **die**                     |
+| live key outside production, or test key on production | **die**                     |
 
 **Why this differs from the store.** `platform.commerce` dies whenever its Stripe
 config does not resolve, and that is right for a surface whose entire job is
@@ -258,22 +258,30 @@ ALTER TABLE `user` ADD `stripe_customer_id` text;
 
 `reference_id` is deliberately **not** unique — a customer must be able to
 resubscribe after cancelling, which means more than one row per user over time.
-The plugin declares no index on it; at this table's size a scan is free, and
-adding one means hand-editing a generated file. Revisit when the row count makes
-it matter.
+
+**There is no index on it, and that is a debt rather than a decision.** It is the
+only table in `schema.gen.ts` without one — `apikey_referenceId_idx`,
+`session_userId_idx` and `member_userId_idx` are the structurally identical
+cases. `@better-auth/stripe` queries `referenceId` at eight sites and
+`stripeSubscriptionId` at seven, all of them webhook and `/subscription/*`
+handlers, so every Stripe webhook is a full scan of the table plus a sort for the
+`ORDER BY period_end`. D1 bills on `rows_read`. At zero rows this costs nothing
+and it is not worth hand-editing a generated file for; the fix belongs in
+`api/drizzle-v1.ts`, which already post-processes the generator's output, and it
+should land before the table carries real subscribers.
 
 ## API surface
 
 ### `platform.entitlements` (pure, no dependencies, no clock)
 
-| Export                                          | Contract                                                                  |
-| ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `ENTITLEMENTS`                                  | the closed set of capability keys and their kind (`flag` \| `quota`)      |
-| `TIERS`, `TierId`, `BASE_TIER`                  | the catalogue; `tierIdOf` narrows a stored plan string, `null` if unknown |
-| `PURCHASABLE_PLANS`                             | the plan list the IdP hands the plugin                                    |
-| `Membership`, `decodeMembership`                | the wire fact, and a **total** decoder — `null` for a row it cannot read  |
-| `entitles`, `resolveTier`, `tierOf`, `grantFor` | resolution; every one takes `now` explicitly                              |
-| `allows`, `limitOf`, `within`, `remaining`      | the checks                                                                |
+| Export                                      | Contract                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| `ENTITLEMENTS`                              | the closed set of capability keys and their kind (`flag` \| `quota`)      |
+| `TIERS`, `TierId`, `BASE_TIER`              | the catalogue; `tierIdOf` narrows a stored plan string, `null` if unknown |
+| `PURCHASABLE_PLANS`                         | the plan list the IdP hands the plugin                                    |
+| `Membership`, `decodeMembership`            | the wire fact, and a **total** decoder — `null` for a row it cannot read  |
+| `entitles`, `resolveTier`, `grantFor`       | resolution; every one takes `now` explicitly                              |
+| `allows`, `limitOf`, `within`, `isQuotaKey` | the checks, and the guard that narrows a key to its kind                  |
 
 `within(entitlements, key, count)` answers about the **resulting** state: a
 caller creating one more passes `owned + 1`. The obvious `used < limit` is right
@@ -380,6 +388,28 @@ neither is worth designing before a client exists that needs it.
   subscriptions are blocked from deletion by the plugin; users are not. Closing
   it is a `user.deleteUser.beforeDelete` callback that refuses while a
   non-terminal Stripe subscription exists.
+- **`api/inert.ts` is a workaround, and Billing is the evidence.** Alchemy's
+  blessed model is one init Effect that runs in BOTH phases — at plantime to
+  discover bindings, at cold start to build clients — with `__ALCHEMY_RUNTIME__`
+  fencing only the deploy-time wiring. `api/capabilities.ts` is exactly that
+  shape. `inert.ts` exists because `api/options.ts` resolves `authConfig` at
+  MODULE SCOPE (`Effect.runSync`), outside any phase, where `live` cannot be used
+  because it needs `Alchemy.Stack` and the bindings — so every capability needs a
+  hand-written stand-in. Resolving the config inside the Worker's init phase, and
+  generating the schema from there, would delete the file. That is an
+  `options.ts`/`schema.ts` restructure and deliberately out of scope here.
+
+  Billing does not add to the problem: on the deploy host there genuinely is no
+  Stripe account bound, so `Option.none()` is the true answer rather than a
+  stand-in that pretends. Two routes that look blessed and are not, checked and
+  rejected: `ProviderLayer.dual` / `LocalProvider.make` model a second
+  implementation of a RESOURCE lifecycle for `alchemy dev`, and Billing is a
+  capability tag, not a resource; and colouring the client's methods with
+  `Alchemy.RuntimeContext` — which would make a deploy-host read a COMPILE error
+  rather than a throw — is closed off by `@better-auth/stripe`, which takes a
+  plain `Stripe` instance, for the same reason bae's `Database` hands back a
+  resolved value rather than a coloured Effect.
+
 - **Local development.** The store arms `stripe listen` from
   `infrastructure/StripeDev.ts` and injects the signing secret at deploy time. The
   IdP has no equivalent, so a developer exercising subscriptions locally must run

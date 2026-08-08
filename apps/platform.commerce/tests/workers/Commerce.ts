@@ -22,7 +22,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 import { commerceSurface } from "../../workers/CommerceSurface.ts";
-import { environmentFor } from "../../services/StripeConfig.ts";
+import { environmentFor } from "@swi/infra/stripe";
 import { resolveWithFake } from "../services/FakeProvider.ts";
 
 export default class TestCommerceWorker extends Cloudflare.Worker<TestCommerceWorker>()(

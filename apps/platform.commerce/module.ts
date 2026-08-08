@@ -7,7 +7,7 @@ import { PREVIEW_SCRIPTS, workerSafeStage } from "platform.names";
 import { Hostnames } from "./hostnames.ts";
 import { PACKAGE_DIR } from "./paths.ts";
 import { CommerceDatabase, CommerceSchema, MediaBucket } from "./runtime.ts";
-import { environmentFor, type StripeEnvironment } from "./services/StripeConfig.ts";
+import { environmentFor, type StripeEnvironment } from "@swi/infra/stripe";
 import CommerceWorker from "./workers/Commerce.ts";
 import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";

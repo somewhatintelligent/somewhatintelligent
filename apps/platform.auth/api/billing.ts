@@ -8,12 +8,12 @@
  * to `undefined` on the second of those and take the schema generator down with
  * it.
  *
- * THE SAME ACCOUNT AS THE STORE. `STRIPE_SECRET_KEY` is read from
- * `@swi/infra/stripe`, which `platform.commerce` reads too — a customer who buys
- * a shirt and a subscription is one Stripe Customer with one payment method, and
- * that is only true while both surfaces read the same variable. The webhook
- * signing secret is NOT shared and cannot be: Stripe mints one per registered
- * endpoint, and this Worker's endpoint is a different URL from the store's.
+ * THE SAME ACCOUNT AS THE STORE. The client comes from `@swi/infra/stripe`,
+ * which `platform.commerce` builds its own from — a customer who buys a shirt
+ * and a subscription is one Stripe Customer with one payment method, and that is
+ * only true while both surfaces read the same key through the same API version.
+ * The webhook signing secret is NOT shared and cannot be: Stripe mints one per
+ * registered endpoint, and this Worker's endpoint is a different URL.
  *
  * ─── WHAT AN OPERATOR HAS TO DO ONCE ────────────────────────────────────────
  *
@@ -30,23 +30,25 @@
  *     nothing about prices is per-stage configuration.
  *
  * Until (1) and (2) are done, a stage that HAS a Stripe secret key refuses to
- * resolve — see {@link BillingIncomplete}. That failure lands on the deploy
- * host, before anything is uploaded, which is the cheapest place for it.
+ * resolve. That failure lands on the deploy host, before anything is uploaded,
+ * which is the cheapest place for it.
  */
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import * as Redacted from "effect/Redacted";
-import Stripe from "stripe";
+import type * as Redacted from "effect/Redacted";
+import type Stripe from "stripe";
 
 import {
   assertKeyMatchesEnvironment,
   livemodeOf,
   STRIPE_SECRET_KEY,
+  stripeClient,
   type StripeEnvironment,
 } from "@swi/infra/stripe";
+
+import { tripwire } from "./stand-in.ts";
 
 /**
  * THIS DEPLOYMENT'S endpoint secret, and the reason it is not
@@ -58,105 +60,62 @@ import {
  */
 export const AUTH_WEBHOOK_SECRET_VARIABLE = "STRIPE_AUTH_WEBHOOK_SIGNING_SECRET";
 
-/** The Stripe API version this code is written against. Pinned, never floating. */
-const API_VERSION = "2026-07-29.dahlia";
+/** Everything that only exists when this deployment actually holds credentials. */
+export interface StripeAccount {
+  readonly client: Stripe;
+  /** Redacted so it cannot reach a log; unwrapped once, at the plugin. */
+  readonly webhookSecret: Redacted.Redacted<string>;
+  /** Whether this deployment moves real money. Derived from the key's prefix. */
+  readonly livemode: boolean;
+}
 
+/**
+ * ONE OPTION, NOT A RECORD OF SENTINELS. An earlier shape carried `client`,
+ * `webhookSecret` and `livemode` unconditionally with a `configured: boolean`
+ * beside them — so the type promised every `Billing` had a working `Stripe`, and
+ * three of its four fields were lies whenever that flag was false. Nothing
+ * stopped the next reader from taking the client and shipping code that
+ * typechecks and throws on any stage without a key.
+ *
+ * `Option` INSIDE the service rather than `Effect.serviceOption(Billing)` around
+ * it: an absent CAPABILITY drops the plugin, and a plugin that comes and goes
+ * takes the `subscription` table with it — the secret-dependent schema
+ * `config.ts` explains at length. The capability is always present; the account
+ * is what may be missing.
+ */
 export class Billing extends Context.Service<
   Billing,
-  {
-    readonly environment: StripeEnvironment;
-    /**
-     * Whether this deployment can actually talk to Stripe. `false` is a normal
-     * state on a contributor's machine and a deliberate one on a stage that
-     * sells nothing — the plugin still mounts (see below), its endpoints simply
-     * refuse.
-     */
-    readonly configured: boolean;
-    /** Whether this deployment moves real money. Derived from the key's prefix. */
-    readonly livemode: boolean;
-    /**
-     * The client the plugin is handed. When {@link configured} is `false` this is
-     * a stand-in that throws on any use, so an unconfigured stage makes no
-     * outbound request at all rather than authenticating with a placeholder.
-     */
-    readonly client: Stripe;
-    /** Redacted so it cannot reach a log; unwrapped once, at the plugin. */
-    readonly webhookSecret: Redacted.Redacted<string>;
-  }
+  { readonly account: Option.Option<StripeAccount> }
 >()("Auth/Billing") {}
 
 /**
  * A client that refuses.
  *
- * Modelled on `inert.ts`'s tripwire and for the same reason: answering
- * `undefined` would let a call look like it succeeded and returned nothing,
- * which for `customers.create` means a user silently without a Stripe customer.
- * A throw names the variable that is missing.
+ * Built at the ONE seam that structurally demands a `Stripe` — the plugin's
+ * `stripeClient` option, in `config.ts` — rather than stored on the service,
+ * so no other reader can reach for it by accident.
+ *
+ * A stand-in rather than a client pointed at a placeholder key: an unconfigured
+ * stage must make no outbound request at all, and answering `undefined` would
+ * let `customers.create` look like it succeeded and returned nothing.
  */
-const refusingClient = (): Stripe =>
-  new Proxy(
-    (): never => {
-      throw new Error(
-        `Stripe was called but this deployment has no ${STRIPE_SECRET_KEY}; billing is off.`,
-      );
-    },
-    {
-      get: (_target, property): unknown => {
-        /**
-         * SYMBOLS ANSWER `undefined` RATHER THAN THROWING, and the carve-out is
-         * not cosmetic: `Symbol.toPrimitive`, `Symbol.toStringTag` and the
-         * inspect symbol are read by `String()`, by a logger formatting an
-         * object, and by promise detection. Throwing there turns an incidental
-         * `console.log` into a crash whose message names Stripe, which is a
-         * worse bug than the one this stand-in exists to report.
-         */
-        if (typeof property === "symbol") return undefined;
-        throw new Error(
-          `Stripe.${property} was read but this deployment has no ${STRIPE_SECRET_KEY}. ` +
-            `Set it (and ${AUTH_WEBHOOK_SECRET_VARIABLE}) to enable subscriptions.`,
-        );
-      },
-    },
-  ) as unknown as Stripe;
+export const refusingClient = (): Stripe =>
+  tripwire<Stripe>(
+    "Stripe",
+    {},
+    `This deployment has no ${STRIPE_SECRET_KEY}; billing is off. ` +
+      `Set it (and ${AUTH_WEBHOOK_SECRET_VARIABLE}) to enable subscriptions.`,
+  );
 
 /**
- * The resolved-but-off state, shared by the deploy host and by any stage with no
- * Stripe credentials.
+ * The resolved-but-off state.
  *
- * ONE DEFINITION FOR BOTH, on purpose: `api/inert.ts` and `api/capabilities.ts`
- * must agree about the SHAPE of a Billing that is switched off, because the
- * schema generator resolves the config through the first and the Worker resolves
- * it through the second. Two stand-ins would be two chances to differ.
+ * ONE VALUE FOR BOTH HOSTS, on purpose: `api/inert.ts` and `api/capabilities.ts`
+ * must agree about what switched-off looks like, because the schema generator
+ * resolves the config through the first and the Worker resolves it through the
+ * second. Two definitions would be two chances to differ.
  */
-export const unconfigured = (environment: StripeEnvironment): Billing["Service"] =>
-  Billing.of({
-    environment,
-    configured: false,
-    livemode: false,
-    client: refusingClient(),
-    webhookSecret: Redacted.make(""),
-  });
-
-/**
- * A stage that has half a Stripe configuration.
- *
- * Fatal, and distinct from having none: nobody accidentally sets a live secret
- * key, so a key with no endpoint secret means someone intended to sell
- * subscriptions and stopped one step short. Booting anyway would mount a
- * checkout that takes money and a webhook that can never verify the result — the
- * subscription row stays `incomplete`, the customer is charged, and no error is
- * raised anywhere.
- */
-export class BillingIncomplete extends Error {
-  constructor(readonly missing: string) {
-    super(
-      `${STRIPE_SECRET_KEY} is set but ${missing} is not. Subscriptions would take payments ` +
-        `whose webhooks could never be verified. Set ${missing}, or unset ${STRIPE_SECRET_KEY} ` +
-        `to run this stage with billing off.`,
-    );
-    this.name = "BillingIncomplete";
-  }
-}
+export const unconfigured: Billing["Service"] = Billing.of({ account: Option.none() });
 
 /**
  * Resolve the account. INIT PHASE ONLY.
@@ -178,7 +137,7 @@ export class BillingIncomplete extends Error {
  *
  *   nothing set          → off, with a warning naming both variables
  *   endpoint secret only → off, with a warning (the key is what enables billing)
- *   key, no endpoint     → die: {@link BillingIncomplete}
+ *   key, no endpoint     → die
  *   key for the wrong    → die: a live key outside production, or a test key on
  *   environment            production, is the mistake nobody may deploy past
  */
@@ -193,11 +152,25 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
           `The plugin is still mounted (the schema must not depend on a secret), ` +
           `so its endpoints exist and refuse.`,
       );
-      return unconfigured(environment);
+      return unconfigured;
     }
 
+    /**
+     * Half a configuration, and it is fatal because nobody sets a live secret
+     * key by accident: this means someone intended to sell subscriptions and
+     * stopped one step short. Booting anyway would mount a checkout that takes
+     * money and a webhook that can never verify the result — the subscription
+     * row stays `incomplete`, the customer is charged, and nothing raises.
+     */
     if (Option.isNone(webhookSecret)) {
-      return yield* Effect.die(new BillingIncomplete(AUTH_WEBHOOK_SECRET_VARIABLE));
+      return yield* Effect.die(
+        new Error(
+          `${STRIPE_SECRET_KEY} is set but ${AUTH_WEBHOOK_SECRET_VARIABLE} is not. ` +
+            `Subscriptions would take payments whose webhooks could never be verified. ` +
+            `Set ${AUTH_WEBHOOK_SECRET_VARIABLE}, or unset ${STRIPE_SECRET_KEY} to run this ` +
+            `stage with billing off.`,
+        ),
+      );
     }
 
     const livemode = livemodeOf(secretKey.value);
@@ -205,25 +178,11 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
     if (mismatch !== null) return yield* Effect.die(new Error(mismatch.detail));
 
     return Billing.of({
-      environment,
-      configured: true,
-      livemode,
-      /**
-       * `createFetchHttpClient` because Workers have no Node http stack. It is
-       * also correct on the `workerd` build, which already defaults to fetch —
-       * stating it means the client is right whichever build condition the
-       * bundler resolves, and that is not a detail worth leaving to the bundler.
-       *
-       * No crypto provider is passed: the plugin owns the `constructEventAsync`
-       * call and passes none either, so the SDK picks its platform default —
-       * SubtleCrypto on the `workerd` build, `node:crypto` on the node build,
-       * and `nodejs_compat` is on, so both verify.
-       */
-      client: new Stripe(Redacted.value(secretKey.value), {
-        httpClient: Stripe.createFetchHttpClient(),
-        apiVersion: API_VERSION,
+      account: Option.some({
+        client: stripeClient(secretKey.value),
+        webhookSecret: webhookSecret.value,
+        livemode,
       }),
-      webhookSecret: webhookSecret.value,
     });
   }).pipe(
     /**
@@ -241,7 +200,3 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
       ),
     ),
   );
-
-/** The capability, for the Worker. */
-export const layer = (environment: StripeEnvironment): Layer.Layer<Billing> =>
-  Layer.effect(Billing, load(environment));

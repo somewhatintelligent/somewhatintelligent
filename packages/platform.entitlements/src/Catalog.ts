@@ -120,16 +120,17 @@ export type TierId = keyof typeof TIERS;
  * What an account holds before it holds anything. Every resolution that finds no
  * entitling subscription lands here, so "not subscribed" and "signed out" are
  * the same answer rather than two code paths.
+ *
+ * `satisfies`, NOT a `: TierId` annotation. The annotation checks the same thing
+ * and then widens the literal away, so `TIERS[BASE_TIER]` becomes the union of
+ * every tier — `.prices` types as `TierPrices | null` rather than `null`, and
+ * `entitlementsOf(BASE_TIER)` loses the free tier's actual answers.
  */
-export const BASE_TIER: TierId = "free";
+export const BASE_TIER = "free" satisfies TierId;
 
 /** Narrow a `subscription.plan` string, or `null` when the catalogue has never heard of it. */
 export const tierIdOf = (plan: string): TierId | null =>
   Object.hasOwn(TIERS, plan) ? (plan as TierId) : null;
-
-/** Highest rank wins. Ties are impossible — ranks are distinct by construction. */
-export const higherTier = (a: TierId, b: TierId): TierId =>
-  TIERS[a].rank >= TIERS[b].rank ? a : b;
 
 /**
  * A plan as the Better Auth Stripe plugin wants it.

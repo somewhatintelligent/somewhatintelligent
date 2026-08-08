@@ -10,20 +10,22 @@
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import { describe, expect, test } from "vite-plus/test";
 
-import { AUTH_WEBHOOK_SECRET_VARIABLE, load } from "../api/billing.ts";
+import { AUTH_WEBHOOK_SECRET_VARIABLE, load, refusingClient } from "../api/billing.ts";
 import { STRIPE_SECRET_KEY } from "@swi/infra/stripe";
+import type { StripeAccount } from "../api/billing.ts";
 import type { StripeEnvironment } from "@swi/infra/stripe";
 
 /**
  * ASSEMBLED, NEVER WRITTEN OUT. A key-shaped literal in a test file is a
  * literal every secret scanner has to treat as real — GitHub's push protection
  * rejects the push, and the only ways past are an exemption or a rewrite. So the
- * fixtures are built from the prefix {@link livemodeOf} actually tests, which
- * also means the test cannot drift from the rule: change the prefix the guard
- * looks for and these stop exercising it.
+ * fixtures are built from the prefix `livemodeOf` actually tests, which also
+ * means the test cannot drift from the rule: change the prefix the guard looks
+ * for and these stop exercising it.
  */
 const keyLike = (mode: "live" | "test") => `sk_${mode}_${"0".repeat(24)}`;
 const TEST_KEY = keyLike("test");
@@ -35,40 +37,66 @@ const resolve = (environment: StripeEnvironment, env: Record<string, string>) =>
     load(environment).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env)))),
   );
 
-const succeeded = (environment: StripeEnvironment, env: Record<string, string>) => {
+/** The resolved account, or `null` for a deployment with billing switched off. */
+const accountOf = (
+  environment: StripeEnvironment,
+  env: Record<string, string>,
+): StripeAccount | null => {
   const exit = resolve(environment, env);
   if (!Exit.isSuccess(exit)) throw new Error(`expected success, got ${String(exit)}`);
-  return exit.value;
+  return Option.getOrNull(exit.value.account);
+};
+
+/** The same, for the rows that are supposed to produce one. */
+const mustResolve = (
+  environment: StripeEnvironment,
+  env: Record<string, string>,
+): StripeAccount => {
+  const account = accountOf(environment, env);
+  if (account === null) throw new Error(`expected an account for ${environment}`);
+  return account;
+};
+
+const configured = {
+  [STRIPE_SECRET_KEY]: TEST_KEY,
+  [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET,
 };
 
 describe("a stage with no Stripe credentials still boots", () => {
-  test("nothing set is billing off, not a failure", () => {
-    const billing = succeeded("dev", {});
-    expect(billing.configured).toBe(false);
-    expect(billing.livemode).toBe(false);
+  test("nothing set resolves to no account, not a failure", () => {
+    expect(accountOf("dev", {})).toBeNull();
   });
 
   // The whole point of the "off" state: the IdP has sign-in, passkeys, OAuth and
   // organisation invitations to serve, none of which involve Stripe.
   test("even production boots with no credentials at all", () => {
-    expect(succeeded("prod", {}).configured).toBe(false);
+    expect(accountOf("prod", {})).toBeNull();
   });
 
   test("an endpoint secret alone is still off — the key is what enables billing", () => {
-    expect(succeeded("dev", { [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET }).configured).toBe(
-      false,
-    );
+    expect(accountOf("dev", { [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET })).toBeNull();
   });
 
-  // A refusing client, not a client pointed at a placeholder key: an
-  // unconfigured stage must make no outbound request at all.
-  test("the switched-off client throws rather than reaching Stripe", () => {
-    const billing = succeeded("dev", {});
-    expect(() => billing.client.customers).toThrow(STRIPE_SECRET_KEY);
+  // `Option.none()` rather than a record of sentinels: there is no client to
+  // take, so no reader can take one that would throw.
+  test("switched off means there is nothing to read, not a client that lies", () => {
+    const exit = resolve("dev", {});
+    expect(Exit.isSuccess(exit) && Option.isNone(exit.value.account)).toBe(true);
+  });
+});
+
+describe("the stand-in client refuses rather than reaching Stripe", () => {
+  test("any property read throws, naming the variable to set", () => {
+    expect(() => refusingClient().customers).toThrow(STRIPE_SECRET_KEY);
   });
 
-  test("the switched-off webhook secret is empty, so the route refuses first", () => {
-    expect(Redacted.value(succeeded("dev", {}).webhookSecret)).toBe("");
+  // Symbols answer `undefined` so that an incidental `String()`, a logger
+  // formatting the object, or promise detection does not crash with a message
+  // about Stripe — a worse bug than the one the stand-in exists to report.
+  test("a symbol read answers undefined rather than throwing", () => {
+    const client = refusingClient() as unknown as Record<PropertyKey, unknown>;
+    expect(client[Symbol.toStringTag]).toBeUndefined();
+    expect(client[Symbol.toPrimitive]).toBeUndefined();
   });
 });
 
@@ -85,19 +113,13 @@ describe("half a configuration is fatal", () => {
 
 describe("a key for the wrong environment is fatal", () => {
   test("a live key outside production refuses to resolve", () => {
-    const exit = resolve("preprod", {
-      [STRIPE_SECRET_KEY]: LIVE_KEY,
-      [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET,
-    });
+    const exit = resolve("preprod", { ...configured, [STRIPE_SECRET_KEY]: LIVE_KEY });
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain("LIVE");
   });
 
   test("a test key on production refuses to resolve", () => {
-    const exit = resolve("prod", {
-      [STRIPE_SECRET_KEY]: TEST_KEY,
-      [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET,
-    });
+    const exit = resolve("prod", configured);
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain("live key");
   });
@@ -105,31 +127,22 @@ describe("a key for the wrong environment is fatal", () => {
 
 describe("a complete configuration resolves", () => {
   test("test keys off production", () => {
-    const billing = succeeded("dev", {
-      [STRIPE_SECRET_KEY]: TEST_KEY,
-      [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET,
-    });
-    expect(billing.configured).toBe(true);
-    expect(billing.livemode).toBe(false);
-    expect(Redacted.value(billing.webhookSecret)).toBe(ENDPOINT_SECRET);
+    const account = mustResolve("dev", configured);
+    expect(account.livemode).toBe(false);
+    expect(Redacted.value(account.webhookSecret)).toBe(ENDPOINT_SECRET);
   });
 
   // `livemode` is derived from the key's prefix rather than configured, so it
   // cannot disagree with the account the client is actually talking to.
   test("a live key on production reports livemode", () => {
-    const billing = succeeded("prod", {
-      [STRIPE_SECRET_KEY]: LIVE_KEY,
-      [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET,
-    });
-    expect(billing.configured).toBe(true);
-    expect(billing.livemode).toBe(true);
+    expect(mustResolve("prod", { ...configured, [STRIPE_SECRET_KEY]: LIVE_KEY }).livemode).toBe(
+      true,
+    );
   });
 
+  // The shape a log line would take: an object holding the secret, serialised.
   test("the endpoint secret is redacted, so it cannot land in a log", () => {
-    const billing = succeeded("dev", {
-      [STRIPE_SECRET_KEY]: TEST_KEY,
-      [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET,
-    });
-    expect(String(billing.webhookSecret)).not.toContain(ENDPOINT_SECRET);
+    const account = mustResolve("dev", configured);
+    expect(JSON.stringify({ webhookSecret: account.webhookSecret })).not.toContain(ENDPOINT_SECRET);
   });
 });

@@ -4,8 +4,9 @@
  * READ WHAT IT DOES NOT DO. It never asks "is this person a patron". It renders
  * the tier because a tier is a thing a human buys and wants to see the name of —
  * and it renders the CAPABILITIES by iterating the catalogue, so a capability
- * added next week appears here with no edit to this file. Everywhere a decision
- * is made rather than displayed, the question is a capability.
+ * added next week appears here, with its label, with no edit to this file.
+ * Everywhere a decision is made rather than displayed, the question is a
+ * capability.
  *
  * The grant reaching a browser is a rendering input, never an authorisation. The
  * server function that produced it is the same one a mutation re-runs.
@@ -14,11 +15,15 @@ import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { CheckIcon, MinusIcon } from "lucide-react";
 import {
+  allows,
   ENTITLEMENTS,
+  isQuotaKey,
+  limitOf,
   TIERS,
   type EntitlementKey,
   type Entitlements,
-  type Membership,
+  type MembershipStatus,
+  type Quota,
   type TierId,
 } from "platform.entitlements";
 import { Badge } from "platform.ui/components/badge";
@@ -44,29 +49,19 @@ import { authClient } from "@/lib/auth-client";
 import type { MembershipView } from "@/lib/billing.functions";
 
 /**
- * How a capability reads to a person. The keys are the platform's vocabulary and
- * the labels are the product's, so this map is the one place they meet — and a
- * key with no entry renders as the key, which is ugly on purpose.
+ * The statuses worth showing, with their tone and their wording in one entry.
+ *
+ * PARTIAL, deliberately: `live` is the membership that is currently granting, so
+ * only these three can reach here, and a status with no entry renders no badge
+ * rather than a badge saying `incomplete_expired`.
  */
-const LABELS: Record<EntitlementKey, string> = {
-  "systems.mezedes": "Mezedes",
-  "systems.earlyAccess": "Systems in private alpha",
-  "mezedes.mezes": "Mezes",
-  "mezedes.serverCode": "Server-side code in a mezes",
+const STATUS_BADGE: Partial<
+  Record<MembershipStatus, { readonly tone: "success" | "warning"; readonly label: string }>
+> = {
+  active: { tone: "success", label: "Active" },
+  trialing: { tone: "success", label: "Trial" },
+  past_due: { tone: "warning", label: "Payment failed — retrying" },
 };
-
-const STATUS_TONE = {
-  active: "success",
-  trialing: "success",
-  past_due: "warning",
-} as const;
-
-const statusLabel = (membership: Membership): string =>
-  membership.status === "past_due"
-    ? "Payment failed — retrying"
-    : membership.status === "trialing"
-      ? "Trial"
-      : membership.status.replaceAll("_", " ");
 
 const dateLabel = (at: number | null): string | null =>
   at === null
@@ -79,7 +74,7 @@ const dateLabel = (at: number | null): string | null =>
 
 /**
  * A quota reads as a number, a flag as a tick. Split here rather than in the
- * package because it is a rendering decision: the package already models the
+ * package because it is a rendering decision — the package already models the
  * difference, and `String(value)` would print `true`.
  */
 function EntitlementRow({
@@ -89,20 +84,15 @@ function EntitlementRow({
   entitlements: Entitlements;
   entitlementKey: EntitlementKey;
 }) {
-  const value = entitlements[entitlementKey];
-  const held = value !== false && value !== 0;
-
   return (
     <Item variant="surface" size="sm">
       <ItemContent>
-        <ItemTitle>{LABELS[entitlementKey] ?? entitlementKey}</ItemTitle>
+        <ItemTitle>{ENTITLEMENTS[entitlementKey].label}</ItemTitle>
       </ItemContent>
       <ItemActions>
-        {ENTITLEMENTS[entitlementKey] === "quota" ? (
-          <Badge variant={held ? "secondary" : "outline"} size="sm">
-            {value === "unlimited" ? "Unlimited" : String(value)}
-          </Badge>
-        ) : held ? (
+        {isQuotaKey(entitlementKey) ? (
+          <QuotaBadge limit={limitOf(entitlements, entitlementKey)} />
+        ) : allows(entitlements, entitlementKey) ? (
           <CheckIcon className="size-4" aria-label="included" />
         ) : (
           <MinusIcon className="size-4 opacity-50" aria-label="not included" />
@@ -112,14 +102,24 @@ function EntitlementRow({
   );
 }
 
+function QuotaBadge({ limit }: { limit: Quota }) {
+  return (
+    <Badge variant={limit === 0 ? "outline" : "secondary"} size="sm">
+      {limit === "unlimited" ? "Unlimited" : String(limit)}
+    </Badge>
+  );
+}
+
 export function MembershipCard({ view }: { view: MembershipView }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const tier = TIERS[view.grant.tier];
-  const live = view.memberships.find((membership) => membership.status !== "canceled") ?? null;
+  const { live } = view;
+  const badge = live === null ? undefined : STATUS_BADGE[live.status];
+  const renews = dateLabel(live?.periodEnd ?? null);
 
   const upgrade = async (plan: TierId) => {
-    setBusy(plan);
+    setBusy(true);
     const { error } = await authClient.subscription.upgrade({
       plan,
       successUrl: "/account",
@@ -129,19 +129,17 @@ export function MembershipCard({ view }: { view: MembershipView }) {
       // ends up billed for both.
       ...(view.stripeSubscriptionId === null ? {} : { subscriptionId: view.stripeSubscriptionId }),
     });
-    setBusy(null);
+    setBusy(false);
     if (error) toast.error(error.message ?? "Could not open checkout");
   };
 
   const portal = async () => {
-    setBusy("portal");
+    setBusy(true);
     const { error } = await authClient.subscription.billingPortal({ returnUrl: "/account" });
-    setBusy(null);
+    setBusy(false);
     if (error) toast.error(error.message ?? "Could not open the billing portal");
     else await router.invalidate();
   };
-
-  const renews = dateLabel(live?.periodEnd ?? null);
 
   return (
     <Card>
@@ -149,9 +147,9 @@ export function MembershipCard({ view }: { view: MembershipView }) {
         <CardTitle>
           <span className="flex items-center gap-2">
             {tier.title}
-            {live !== null && live.status in STATUS_TONE && (
-              <Badge variant={STATUS_TONE[live.status as keyof typeof STATUS_TONE]} size="sm">
-                {statusLabel(live)}
+            {badge !== undefined && (
+              <Badge variant={badge.tone} size="sm">
+                {badge.label}
               </Badge>
             )}
           </span>
@@ -178,20 +176,21 @@ export function MembershipCard({ view }: { view: MembershipView }) {
           <div className="flex flex-wrap items-center gap-2">
             {(Object.entries(TIERS) as ReadonlyArray<[TierId, (typeof TIERS)[TierId]]>)
               .filter(([id, candidate]) => candidate.purchasable && id !== view.grant.tier)
-              .map(([id, candidate]) => (
-                <Button
-                  key={id}
-                  variant={candidate.rank > tier.rank ? "default" : "outline"}
-                  disabled={busy !== null}
-                  onClick={() => void upgrade(id)}
-                >
-                  {candidate.rank > tier.rank
-                    ? `Upgrade to ${candidate.title}`
-                    : `Switch to ${candidate.title}`}
-                </Button>
-              ))}
+              .map(([id, candidate]) => {
+                const isUpgrade = candidate.rank > tier.rank;
+                return (
+                  <Button
+                    key={id}
+                    variant={isUpgrade ? "default" : "outline"}
+                    disabled={busy}
+                    onClick={() => void upgrade(id)}
+                  >
+                    {isUpgrade ? `Upgrade to ${candidate.title}` : `Switch to ${candidate.title}`}
+                  </Button>
+                );
+              })}
             {live !== null && (
-              <Button variant="outline" disabled={busy !== null} onClick={() => void portal()}>
+              <Button variant="outline" disabled={busy} onClick={() => void portal()}>
                 Manage billing
               </Button>
             )}

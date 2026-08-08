@@ -222,6 +222,7 @@
         "alchemy": "catalog:",
         "effect": "catalog:",
         "platform.names": "workspace:*",
+        "stripe": "catalog:",
       },
       "devDependencies": {
         "typescript": "catalog:",

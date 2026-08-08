@@ -25,7 +25,8 @@
 import * as Effect from "effect/Effect";
 
 import { stripeProvider, unconfigured, type Provider } from "../../services/PaymentsProvider.ts";
-import { StripeConfig, type StripeEnvironment } from "../../services/StripeConfig.ts";
+import type { StripeEnvironment } from "@swi/infra/stripe";
+import { StripeConfig } from "../../services/StripeConfig.ts";
 import * as PaymentsFake from "./PaymentsFake.ts";
 
 /**

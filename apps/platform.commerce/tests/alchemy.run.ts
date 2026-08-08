@@ -41,7 +41,7 @@ import * as Layer from "effect/Layer";
 
 import * as StripeDev from "../infrastructure/StripeDev.ts";
 import { CommerceDatabase, CommerceSchema, MediaBucket } from "../runtime.ts";
-import { environmentFor } from "../services/StripeConfig.ts";
+import { environmentFor } from "@swi/infra/stripe";
 import TestCommerceWorker from "./workers/Commerce.ts";
 import TestMediaWorker from "./workers/Media.ts";
 import EdgeWorker from "./workers/Edge.ts";

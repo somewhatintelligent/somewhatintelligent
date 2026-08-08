@@ -18,7 +18,7 @@
  * three. Anything imported here reaches a browser.
  */
 
-/** A capability that is either held or not. */
+/** A capability that is either held or not, or one that is counted. */
 export type EntitlementKind = "flag" | "quota";
 
 /**
@@ -28,8 +28,20 @@ export type EntitlementKind = "flag" | "quota";
  */
 export type Quota = number | "unlimited";
 
+export interface Entitlement {
+  readonly kind: EntitlementKind;
+  /**
+   * What a person is shown. HERE RATHER THAN IN EACH APP: a per-app
+   * `Record<EntitlementKey, string>` is total, so adding a key below would break
+   * the build of every app that renders the list, each fixing it by writing the
+   * same English string. The catalogue already carries a tier's `title` and
+   * `summary`; a capability's name is the same kind of fact.
+   */
+  readonly label: string;
+}
+
 /**
- * EVERY capability the platform sells, and its shape.
+ * EVERY capability the platform sells.
  *
  * Namespaced by the system that enforces it, because the product is a registry
  * of systems rather than one application: `systems.*` is whether a system is
@@ -39,20 +51,20 @@ export type Quota = number | "unlimited";
  */
 export const ENTITLEMENTS = {
   /** Whether the mezedes publishing system is reachable at all. */
-  "systems.mezedes": "flag",
+  "systems.mezedes": { kind: "flag", label: "Mezedes" },
   /** Whether systems in private alpha are reachable. */
-  "systems.earlyAccess": "flag",
+  "systems.earlyAccess": { kind: "flag", label: "Systems in private alpha" },
   /** How many mezes may exist at once. */
-  "mezedes.mezes": "quota",
+  "mezedes.mezes": { kind: "quota", label: "Mezes" },
   /** Whether a mezes may carry server-side code, which costs an isolate to run. */
-  "mezedes.serverCode": "flag",
-} as const satisfies Record<string, EntitlementKind>;
+  "mezedes.serverCode": { kind: "flag", label: "Server-side code in a mezes" },
+} as const satisfies Record<string, Entitlement>;
 
 export type EntitlementKey = keyof typeof ENTITLEMENTS;
 
 /** The keys answered with a boolean. */
 export type FlagKey = {
-  [K in EntitlementKey]: (typeof ENTITLEMENTS)[K] extends "flag" ? K : never;
+  [K in EntitlementKey]: (typeof ENTITLEMENTS)[K]["kind"] extends "flag" ? K : never;
 }[EntitlementKey];
 
 /** The keys answered with a {@link Quota}. */
@@ -66,6 +78,17 @@ export type QuotaKey = Exclude<EntitlementKey, FlagKey>;
 export type Entitlements = {
   readonly [K in EntitlementKey]: K extends FlagKey ? boolean : Quota;
 };
+
+/**
+ * Which kind a key is, as a TYPE GUARD rather than a comparison.
+ *
+ * `ENTITLEMENTS[key].kind === "quota"` is a runtime discriminant that cannot
+ * narrow `key` itself, so every reader that iterates the catalogue and branches
+ * on kind would otherwise need a cast to call {@link limitOf} or {@link allows}.
+ * One guard here removes the cast from all of them.
+ */
+export const isQuotaKey = (key: EntitlementKey): key is QuotaKey =>
+  ENTITLEMENTS[key].kind === "quota";
 
 /** Whether a flag is held. */
 export const allows = (entitlements: Entitlements, key: FlagKey): boolean =>
@@ -92,14 +115,4 @@ export const limitOf = (entitlements: Entitlements, key: QuotaKey): Quota =>
 export const within = (entitlements: Entitlements, key: QuotaKey, count: number): boolean => {
   const limit = limitOf(entitlements, key);
   return limit === "unlimited" || count <= limit;
-};
-
-/**
- * How many more may be created. `Infinity` for an unlimited quota, and never
- * negative — a customer downgraded below what they already own is over their
- * cap, not owed a negative allowance.
- */
-export const remaining = (entitlements: Entitlements, key: QuotaKey, used: number): number => {
-  const limit = limitOf(entitlements, key);
-  return limit === "unlimited" ? Number.POSITIVE_INFINITY : Math.max(0, limit - used);
 };

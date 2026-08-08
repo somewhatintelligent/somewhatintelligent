@@ -24,7 +24,7 @@ import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 
 import { Hostnames } from "../hostnames.ts";
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";
-import { environmentFor } from "../services/StripeConfig.ts";
+import { environmentFor } from "@swi/infra/stripe";
 import { settlementSurface } from "./SettlementSurface.ts";
 
 /**

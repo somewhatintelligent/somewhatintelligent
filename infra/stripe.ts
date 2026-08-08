@@ -23,6 +23,7 @@
  */
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
+import Stripe from "stripe";
 
 import type { Tier } from "./stage/StandardizedStage.ts";
 
@@ -93,6 +94,32 @@ export const livemodeOf = (secretKey: Redacted.Redacted<string>): boolean =>
  * is fatal — the store refuses to deploy at all, and the IdP has sign-in to keep
  * serving. `null` means the key and the environment agree.
  */
+/**
+ * The Stripe API version every surface here is written against.
+ *
+ * ONE PIN FOR ONE ACCOUNT, and that is the reason it is not a literal in each
+ * adapter. The store and the IdP read the same Customer and Subscription
+ * objects; two versions means two shapes for one record, and the way that
+ * happens is a `stripe` catalog bump — the SDK types `apiVersion` as a literal
+ * union, so the bump type-errors wherever the constant lives and leaves any
+ * second copy stale but still legal.
+ */
+export const STRIPE_API_VERSION = "2026-07-29.dahlia";
+
+/**
+ * A Stripe client for a Cloudflare Worker.
+ *
+ * `createFetchHttpClient` because Workers have no Node http stack. It is also
+ * correct on the `workerd` build, which already defaults to fetch — stating it
+ * means the client is right whichever build condition the bundler resolves,
+ * which is not a thing to leave to the bundler.
+ */
+export const stripeClient = (secretKey: Redacted.Redacted<string>): Stripe =>
+  new Stripe(Redacted.value(secretKey), {
+    httpClient: Stripe.createFetchHttpClient(),
+    apiVersion: STRIPE_API_VERSION,
+  });
+
 export const assertKeyMatchesEnvironment = (
   environment: StripeEnvironment,
   livemode: boolean,

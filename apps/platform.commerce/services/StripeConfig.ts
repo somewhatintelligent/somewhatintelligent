@@ -63,20 +63,14 @@ import {
 import { STOREFRONT_ORIGIN } from "../hostnames.ts";
 
 /**
- * Re-exported rather than re-declared: eight call sites across this package
- * reach for them through this module, and the account-level definitions they
- * name now live in `@swi/infra/stripe`.
- */
-export { environmentFor, type StripeEnvironment } from "@swi/infra/stripe";
-
-/**
- * The two variable names every environment reads, matching the keys written in
- * `.env.development` and `.env.production`.
+ * The two variable names this deployment reads.
  *
- * Flat rather than keyed by environment: three entries resolving to identical
- * strings would read as a distinction the system no longer makes, and the next
- * person to add a stage would dutifully invent a fourth name for a value that
- * comes out of a file selected by dotenvx anyway.
+ * NOT RE-EXPORTED THROUGH THIS MODULE, and that is deliberate. `environmentFor`
+ * and `STRIPE_SECRET_KEY` are ACCOUNT-level and every call site imports them
+ * from `@swi/infra/stripe` directly, so a reader can tell an account-wide rule
+ * from a store-local one by where it came from. Behind a facade here they read
+ * as the store's to change — and changing either silently moves the IdP's Stripe
+ * environment too.
  */
 export const VARIABLES = {
   secretKey: STRIPE_SECRET_KEY,

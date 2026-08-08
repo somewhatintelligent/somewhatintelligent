@@ -38,7 +38,8 @@ import { Database } from "./Database.ts";
 import { Ids } from "./Ids.ts";
 import { Payments } from "./Payments.ts";
 import * as PaymentsStripe from "./PaymentsStripe.ts";
-import { StripeConfig, VARIABLES, type StripeEnvironment } from "./StripeConfig.ts";
+import type { StripeEnvironment } from "@swi/infra/stripe";
+import { StripeConfig, VARIABLES } from "./StripeConfig.ts";
 
 export interface Provider {
   /**

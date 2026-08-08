@@ -7,7 +7,7 @@
  * is product policy, and product policy is code that ships with the app reading
  * it. Sending a resolved {@link Entitlements} instead would mean the wire format
  * changes shape every time a capability is added, and an app on an older deploy
- * receives a record missing keys it is about to index. Sending the tier means
+ * receives a record missing keys it is about to index. Sending the plan means
  * the contract is four fields that have no reason to change, and an app that has
  * not deployed the new capability simply does not offer it — which is the
  * correct behaviour, not a degradation.
@@ -16,7 +16,7 @@
  * about what `subscriber` buys. That is accepted, and it is bounded: they cannot
  * disagree about WHO is a subscriber, which is the fact money was exchanged for.
  */
-import { BASE_TIER, higherTier, TIERS, tierIdOf, type TierId } from "./Catalog.ts";
+import { BASE_TIER, TIERS, tierIdOf, type TierId } from "./Catalog.ts";
 import type { Entitlements } from "./Entitlements.ts";
 
 /**
@@ -27,17 +27,25 @@ import type { Entitlements } from "./Entitlements.ts";
  * difference between `past_due` and `unpaid` is the difference between a card
  * that will retry and one that has stopped, and a caller that only receives
  * `entitled: true | false` cannot tell a customer which of the two they are.
+ *
+ * The ARRAY is the declaration and the type is derived from it. Written the
+ * other way round, `MembershipStatus` and a `ReadonlyArray<MembershipStatus>`
+ * are two lists nothing checks against each other — and dropping one entry from
+ * the array silently makes {@link decodeMembership} reject a valid row.
  */
-export type MembershipStatus =
-  | "none"
-  | "active"
-  | "trialing"
-  | "past_due"
-  | "paused"
-  | "incomplete"
-  | "incomplete_expired"
-  | "unpaid"
-  | "canceled";
+export const MEMBERSHIP_STATUSES = [
+  "none",
+  "active",
+  "trialing",
+  "past_due",
+  "paused",
+  "incomplete",
+  "incomplete_expired",
+  "unpaid",
+  "canceled",
+] as const;
+
+export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 
 export interface Membership {
   /**
@@ -48,7 +56,7 @@ export interface Membership {
    * older catalogue, or a tier deleted when it should have been retired. Typing
    * it as `TierId` would make that state unrepresentable in the type and
    * perfectly representable at runtime, which is the worst of both.
-   * {@link tierOf} does the narrowing, and says so.
+   * {@link resolveTier} does the narrowing, and says so.
    */
   readonly plan: string;
   readonly status: MembershipStatus;
@@ -57,27 +65,6 @@ export interface Membership {
   /** Whether it stops at {@link periodEnd} rather than renewing. */
   readonly cancelAtPeriodEnd: boolean;
 }
-
-/** No subscription, and the answer for a signed-out visitor. */
-export const NO_MEMBERSHIP: Membership = {
-  plan: BASE_TIER,
-  status: "none",
-  periodEnd: null,
-  cancelAtPeriodEnd: false,
-};
-
-/** Every status, as a value, so a decoder can check membership without a cast. */
-export const MEMBERSHIP_STATUSES: ReadonlyArray<MembershipStatus> = [
-  "none",
-  "active",
-  "trialing",
-  "past_due",
-  "paused",
-  "incomplete",
-  "incomplete_expired",
-  "unpaid",
-  "canceled",
-];
 
 /**
  * A row as a `subscription` table hands it over — every field `unknown`, because
@@ -100,28 +87,19 @@ export interface SubscriptionRow {
  * apart and opposite in effect. Dropping the row costs a customer their access
  * until this package is updated; guessing could hand out a plan nobody is paying
  * for, which is unbounded.
- *
- * `periodEnd` is `timestamp_ms` in the generated schema, so SQLite hands back a
- * number. A `Date` is accepted too, because the same row read through an ORM
- * arrives already decoded.
  */
 export const decodeMembership = (row: SubscriptionRow): Membership | null => {
   if (typeof row.plan !== "string" || row.plan === "") return null;
-  if (typeof row.status !== "string") return null;
   const status = MEMBERSHIP_STATUSES.find((known) => known === row.status);
   if (status === undefined) return null;
-
-  const periodEnd =
-    typeof row.periodEnd === "number" && Number.isFinite(row.periodEnd)
-      ? row.periodEnd
-      : row.periodEnd instanceof Date
-        ? row.periodEnd.getTime()
-        : null;
 
   return {
     plan: row.plan,
     status,
-    periodEnd,
+    // `period_end` is `timestamp_ms` in the generated schema, so SQLite hands
+    // back a number or nothing at all.
+    periodEnd:
+      typeof row.periodEnd === "number" && Number.isFinite(row.periodEnd) ? row.periodEnd : null,
     // SQLite has no boolean; the column is an integer, and `0` is false.
     cancelAtPeriodEnd: row.cancelAtPeriodEnd === true || row.cancelAtPeriodEnd === 1,
   };
@@ -183,12 +161,9 @@ export const resolveTier = (memberships: ReadonlyArray<Membership>, now: number)
   memberships.reduce<TierId>((best, membership) => {
     if (!entitles(membership, now)) return best;
     const tier = tierIdOf(membership.plan);
-    return tier === null ? best : higherTier(best, tier);
+    if (tier === null) return best;
+    return TIERS[tier].rank > TIERS[best].rank ? tier : best;
   }, BASE_TIER);
-
-/** The tier one membership resolves to. `null` is a signed-out visitor. */
-export const tierOf = (membership: Membership | null, now: number): TierId =>
-  membership === null ? BASE_TIER : resolveTier([membership], now);
 
 /** What a tier buys. */
 export const entitlementsOf = (tier: TierId): Entitlements => TIERS[tier].entitlements;

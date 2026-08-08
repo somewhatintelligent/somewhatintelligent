@@ -18,10 +18,11 @@ import { twoFactor } from "better-auth/plugins/two-factor";
 import { username } from "better-auth/plugins/username";
 
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
 import { AUTH_BASE_PATH } from "../shared/ingress.ts";
-import { Billing } from "./billing.ts";
+import { Billing, refusingClient } from "./billing.ts";
 import { Signing } from "./capabilities.ts";
 import { Origin } from "./origin.ts";
 import { allocateUsername, USERNAME_LIMITS } from "./username.ts";
@@ -145,15 +146,27 @@ export const authConfig = Effect.gen(function* () {
        * package's `Catalog.ts`.
        */
       stripe({
-        stripeClient: billing.client,
-        stripeWebhookSecret: Redacted.value(billing.webhookSecret),
+        /**
+         * THE ONE SEAM THAT STRUCTURALLY DEMANDS A CLIENT, which is why the
+         * refusal is built here rather than carried on the capability: the
+         * service says `Option.none()` and means it, and nothing else can pick
+         * up a client that would throw.
+         */
+        stripeClient: Option.match(billing.account, {
+          onNone: refusingClient,
+          onSome: (account) => account.client,
+        }),
+        stripeWebhookSecret: Option.match(billing.account, {
+          onNone: () => "",
+          onSome: (account) => Redacted.value(account.webhookSecret),
+        }),
         /**
          * Only where there is an account to create one in. The plugin swallows
          * failures in this hook — a sign-up must not fail because Stripe is
          * down — so leaving it on with a refusing client would turn every
          * sign-up into a logged error that means nothing.
          */
-        createCustomerOnSignUp: billing.configured,
+        createCustomerOnSignUp: Option.isSome(billing.account),
         subscription: {
           enabled: true,
           plans: [...PURCHASABLE_PLANS],

@@ -10,22 +10,18 @@ import {
   BASE_TIER,
   decodeMembership,
   ENTITLEMENTS,
+  isQuotaKey,
   ENTITLING_STATUSES,
   entitlementsOf,
   entitles,
   grantFor,
-  higherTier,
   limitOf,
   MEMBERSHIP_STATUSES,
   type Membership,
-  type MembershipStatus,
-  NO_MEMBERSHIP,
   PURCHASABLE_PLANS,
-  remaining,
   RENEWAL_GRACE_MS,
   resolveTier,
   tierIdOf,
-  tierOf,
   TIERS,
   within,
 } from "../src/index.ts";
@@ -62,7 +58,7 @@ describe("the catalogue is total and internally consistent", () => {
     }
   });
 
-  test("ranks are distinct, so `higherTier` is never a coin flip", () => {
+  test("ranks are distinct, so `resolveTier`'s tie-break is never a coin flip", () => {
     const ranks = Object.values(TIERS).map((tier) => tier.rank);
     expect(new Set(ranks).size).toBe(ranks.length);
   });
@@ -100,16 +96,11 @@ describe("the catalogue is total and internally consistent", () => {
 });
 
 describe("resolution never fails open", () => {
+  // A signed-out visitor and a signed-in account with nothing bought are the
+  // same call, which is the point: there is no second code path to forget.
   test("no memberships is the base tier", () => {
     expect(resolveTier([], NOW)).toBe(BASE_TIER);
-  });
-
-  test("a signed-out visitor is the base tier", () => {
-    expect(tierOf(null, NOW)).toBe(BASE_TIER);
-  });
-
-  test("the empty membership is the base tier", () => {
-    expect(tierOf(NO_MEMBERSHIP, NOW)).toBe(BASE_TIER);
+    expect(grantFor([], NOW).entitlements).toEqual(entitlementsOf(BASE_TIER));
   });
 
   // The case that motivated `tierIdOf` returning null rather than a cast: a
@@ -117,7 +108,7 @@ describe("resolution never fails open", () => {
   // retired. The customer loses the grant, which is bad — but granting an
   // unknown plan whatever the last-read tier had is worse.
   test("a plan this build has never heard of resolves to the base tier", () => {
-    expect(tierOf(membership({ plan: "enterprise-2029" }), NOW)).toBe(BASE_TIER);
+    expect(resolveTier([membership({ plan: "enterprise-2029" })], NOW)).toBe(BASE_TIER);
   });
 
   test("an unknown plan does not suppress a known one alongside it", () => {
@@ -146,19 +137,9 @@ describe("resolution never fails open", () => {
 });
 
 describe("which statuses grant", () => {
-  const statuses: ReadonlyArray<MembershipStatus> = [
-    "none",
-    "active",
-    "trialing",
-    "past_due",
-    "paused",
-    "incomplete",
-    "incomplete_expired",
-    "unpaid",
-    "canceled",
-  ];
-
-  for (const status of statuses) {
+  // Iterated, never restated: a fourth copy of the list is a fourth thing to
+  // keep in sync, and this one exists precisely to catch the others drifting.
+  for (const status of MEMBERSHIP_STATUSES) {
     const expected = ENTITLING_STATUSES.includes(status);
     test(`${status} → ${expected ? "grants" : "does not grant"}`, () => {
       expect(entitles(membership({ status }), NOW)).toBe(expected);
@@ -169,15 +150,15 @@ describe("which statuses grant", () => {
   // rather than a mapping: Stripe retries a failed card for days, and revoking
   // on the first failure is a support ticket about a card that later succeeds.
   test("past_due keeps the grant while Stripe is still retrying", () => {
-    expect(tierOf(membership({ status: "past_due" }), NOW)).toBe("subscriber");
+    expect(resolveTier([membership({ status: "past_due" })], NOW)).toBe("subscriber");
   });
 
   test("unpaid — where Stripe puts it once retries are exhausted — does not", () => {
-    expect(tierOf(membership({ status: "unpaid" }), NOW)).toBe(BASE_TIER);
+    expect(resolveTier([membership({ status: "unpaid" })], NOW)).toBe(BASE_TIER);
   });
 
   test("a pending cancellation still grants until the period ends", () => {
-    expect(tierOf(membership({ cancelAtPeriodEnd: true }), NOW)).toBe("subscriber");
+    expect(resolveTier([membership({ cancelAtPeriodEnd: true })], NOW)).toBe("subscriber");
   });
 });
 
@@ -190,7 +171,7 @@ describe("a frozen row stops granting", () => {
   test("past the grace it is not, however `active` it claims to be", () => {
     const frozen = membership({ status: "active", periodEnd: NOW - RENEWAL_GRACE_MS - 1000 });
     expect(entitles(frozen, NOW)).toBe(false);
-    expect(tierOf(frozen, NOW)).toBe(BASE_TIER);
+    expect(resolveTier([frozen], NOW)).toBe(BASE_TIER);
   });
 
   test("a membership with no period end is not aged out", () => {
@@ -220,17 +201,31 @@ describe("the checks", () => {
   test("unlimited is unlimited", () => {
     expect(limitOf(patron, "mezedes.mezes")).toBe("unlimited");
     expect(within(patron, "mezedes.mezes", 10_000)).toBe(true);
-    expect(remaining(patron, "mezedes.mezes", 10_000)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  // The guard exists so a reader iterating the catalogue can call `limitOf` or
+  // `allows` without a cast; if it ever disagreed with `kind`, both would be
+  // reachable with the wrong key type.
+  test("isQuotaKey agrees with the declared kind for every key", () => {
+    for (const key of Object.keys(ENTITLEMENTS) as ReadonlyArray<keyof typeof ENTITLEMENTS>) {
+      expect(isQuotaKey(key)).toBe(ENTITLEMENTS[key].kind === "quota");
+    }
+  });
+
+  test("every capability carries a label a person can read", () => {
+    for (const entitlement of Object.values(ENTITLEMENTS)) {
+      expect(entitlement.label.trim().length).toBeGreaterThan(0);
+    }
   });
 
   test("a zero quota refuses the first one", () => {
     expect(within(entitlementsOf(BASE_TIER), "mezedes.mezes", 1)).toBe(false);
   });
 
-  // A downgrade leaves a customer over the cap. Remaining is what a UI renders,
-  // and a negative number there reads as "we owe you three".
-  test("remaining never goes negative when a downgrade strands existing rows", () => {
-    expect(remaining(subscriber, "mezedes.mezes", 40)).toBe(0);
+  // A downgrade leaves a customer over the cap; the check simply refuses the
+  // next one rather than pretending the existing rows are gone.
+  test("a downgrade that strands existing rows refuses the next one", () => {
+    expect(within(subscriber, "mezedes.mezes", 40)).toBe(false);
   });
 });
 
@@ -272,10 +267,6 @@ describe("decoding a row off the subscription table", () => {
     expect(decodeMembership({ ...row, cancelAtPeriodEnd: null })?.cancelAtPeriodEnd).toBe(false);
   });
 
-  test("a Date decodes too, for a row that arrives through an ORM", () => {
-    expect(decodeMembership({ ...row, periodEnd: new Date(NOW) })?.periodEnd).toBe(NOW);
-  });
-
   test("a null period end stays null rather than becoming zero", () => {
     expect(decodeMembership({ ...row, periodEnd: null })?.periodEnd).toBeNull();
   });
@@ -304,16 +295,5 @@ describe("decoding a row off the subscription table", () => {
       .filter((m): m is Membership => m !== null);
     expect(decoded).toHaveLength(1);
     expect(resolveTier(decoded, NOW)).toBe("subscriber");
-  });
-});
-
-describe("higherTier", () => {
-  test("is symmetric", () => {
-    expect(higherTier("free", "patron")).toBe("patron");
-    expect(higherTier("patron", "free")).toBe("patron");
-  });
-
-  test("is reflexive", () => {
-    expect(higherTier("subscriber", "subscriber")).toBe("subscriber");
   });
 });

@@ -1,5 +1,6 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
+import * as Option from "effect/Option";
 import type { AuthApiError } from "lib.better-auth-effect";
 import { decodeMembership, type Membership } from "platform.entitlements";
 import { ALLOWED_AVATAR_TYPES, AVATAR_PREFIX, MAX_AVATAR_BYTES } from "../shared/ingress.ts";
@@ -120,7 +121,7 @@ export const authRpc = function* (auth: Auth) {
           return {
             memberships: [] as ReadonlyArray<Membership>,
             stripeSubscriptionId: null,
-            billing: billing.configured,
+            billing: Option.isSome(billing.account),
           };
         }
 
@@ -170,7 +171,7 @@ export const authRpc = function* (auth: Auth) {
             rows.results.find(
               (row) => row.status !== "canceled" && row.stripeSubscriptionId !== null,
             )?.stripeSubscriptionId ?? null,
-          billing: billing.configured,
+          billing: Option.isSome(billing.account),
         };
       }),
 
