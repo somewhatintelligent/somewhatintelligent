@@ -191,13 +191,9 @@ export interface ListedText {
 }
 
 /**
- * The writing index as markdown.
- *
- * LINKS POINT AT THE HTML PAGE, not at a `.md` twin — unlike the shop, which
- * links object to object. There is no `/writing/<slug>.md` route yet, and a
- * twin that advertises addresses which 404 is worse than one that sends an
- * agent to the page that exists. The texts are markdown in the repository, so
- * per-text twins are nearly free; this line is what changes when they land.
+ * The writing index as markdown. Links point at each text's own twin, the way
+ * the shop links object to object, so an agent can walk the whole section
+ * without ever parsing HTML.
  */
 export const writingMarkdown = (
   origin: string,
@@ -210,10 +206,44 @@ export const writingMarkdown = (
     ...header(origin, "/writing", heading, description),
     ...(texts.length > 0
       ? texts.map((text) => {
-          const link = `[${text.title}](${absoluteUrl(origin, `/writing/${text.slug}`)})`;
+          const link = `[${text.title}](${absoluteUrl(origin, `/writing/${text.slug}.md`)})`;
           const meta = `${formatDate(text.publishedAt)}, ${text.kind}, ${text.readingMinutes} min`;
           return `- ${link} — ${meta}: ${text.deck}`;
         })
       : [emptyMessage]),
+    "",
+  ].join("\n");
+
+/** One text, with the source that IS its twin. */
+export interface TextDocument extends ListedText {
+  readonly updatedAt: number | null;
+  readonly description: string;
+  /** The Markdown body exactly as committed — frontmatter already stripped. */
+  readonly body: string;
+}
+
+/**
+ * One text as markdown — which is a transcription, not a rendering.
+ *
+ * EVERY OTHER TWIN ON THIS SITE IS RECONSTRUCTED: a product's twin is assembled
+ * out of DTO fields because the source of truth is a database row, and prose
+ * has to be dug out of it. A text is already a Markdown file in this
+ * repository. So this one prints the body verbatim under the same header the
+ * others use — no round trip through HTML, nothing to lose in the conversion,
+ * and no second renderer to keep in agreement with the first.
+ */
+export const textMarkdown = (origin: string, text: TextDocument): string =>
+  [
+    ...header(origin, `/writing/${text.slug}`, text.title, text.description),
+    [
+      formatDate(text.publishedAt),
+      text.kind,
+      `${text.readingMinutes} min`,
+      ...(text.updatedAt === null ? [] : [`updated ${formatDate(text.updatedAt)}`]),
+    ].join(" · "),
+    "",
+    "---",
+    "",
+    text.body.trim(),
     "",
   ].join("\n");

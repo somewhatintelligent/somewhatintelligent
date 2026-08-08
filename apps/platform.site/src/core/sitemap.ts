@@ -65,6 +65,7 @@ export const NOT_INDEXED: readonly string[] = [
   "/writing.md",
   "/software.md",
   "/shop/[slug].md",
+  "/writing/[slug].md",
   /** The dynamic product route — its members come from the catalogue, not this list. */
   "/shop/[slug]",
   /** The dynamic text route — its members come from the content collection. */

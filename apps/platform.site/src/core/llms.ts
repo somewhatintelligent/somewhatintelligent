@@ -80,7 +80,7 @@ export const llmsTxt = ({
     "",
     link(origin, "/index.md", "Home", "the studio, in four records"),
     link(origin, "/shop.md", "Objects", "everything published and for sale"),
-    link(origin, "/writing.md", "Writing", "arguments, notes and revisions"),
+    link(origin, "/writing.md", "Texts", "essays, papers and notes"),
     link(origin, "/software.md", "Software", "systems and tools"),
     link(origin, "/about.md", "About", "who publishes this"),
     "",
