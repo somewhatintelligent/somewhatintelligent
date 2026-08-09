@@ -33,7 +33,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Declared by `infra/github.stack.ts`, restricted to `main`. A deploy gate
+    # Declared by `infra/github.stack.ts`, restricted to `trunk`. A deploy gate
     # that exists only in a settings page is one nobody can review.
     environment: production
     steps:

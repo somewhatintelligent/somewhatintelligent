@@ -2,7 +2,7 @@ name: staging
 
 on:
   push:
-    branches: [main]
+    branches: [trunk]
 
 concurrency:
   group: staging

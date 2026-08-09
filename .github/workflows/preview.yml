@@ -28,7 +28,7 @@ jobs:
   deploy:
     # A release-please PR only ever changes a changelog and a version. Standing
     # up five workers and an Access application for it is waste, and it would
-    # take a preview slot on every merge to main.
+    # take a preview slot on every merge to trunk.
     if: >
       github.event.action != 'closed' &&
       !startsWith(github.head_ref, 'release-please--')

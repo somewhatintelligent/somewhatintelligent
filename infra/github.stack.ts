@@ -12,6 +12,9 @@ import { guardStage } from "./stage/StandardizedStage.ts";
 
 const REPOSITORY = { owner: "somewhatintelligent", repository: "somewhatintelligent" } as const;
 
+/** This repository's default branch. It is `trunk`; there has never been a `main`. */
+const DEFAULT_BRANCH = "trunk";
+
 const DotenvxSecrets = Effect.gen(function* () {
   const production = yield* Config.redacted("DOTENV_PRIVATE_KEY_PRODUCTION");
   const development = yield* Config.redacted("DOTENV_PRIVATE_KEY_DEVELOPMENT");
@@ -79,14 +82,15 @@ export default Alchemy.Stack(
      * gate at all.
      *
      * NO REVIEWERS. The branch policy is the guard — production is deployable
-     * from `main` and nowhere else — and a required reviewer on a single-person
-     * account is a prompt to approve your own deploy, which teaches you to click
-     * through it. Add `reviewers` here the day a second person can approve.
+     * from the default branch and nowhere else — and a required reviewer on a
+     * single-person account is a prompt to approve your own deploy, which
+     * teaches you to click through it. Add `reviewers` here the day a second
+     * person can approve.
      */
     yield* GitHub.Environment("ProductionEnvironment", {
       ...REPOSITORY,
       name: "production",
-      deploymentBranchPolicy: { customBranchPolicies: ["main"] },
+      deploymentBranchPolicy: { customBranchPolicies: [DEFAULT_BRANCH] },
     });
 
     const { production, development } = yield* DotenvxSecrets;

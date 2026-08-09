@@ -1,8 +1,24 @@
 name: release
 
+# THE RELEASE PR ACCUMULATES; MERGING IT IS THE RELEASE.
+#
+# This fires on every push to `trunk`, but it does two different things
+# depending on what the push was, and the difference is the whole design:
+#
+#   an ordinary feature merge → release-please opens (or updates) the release
+#     PR, adding this commit to its changelog and bumping the version it
+#     proposes. `releases_created` is FALSE. Nothing deploys to production.
+#
+#   merging THAT PR         → release-please recognises its own release commit,
+#     cuts the tag and the GitHub release, and `releases_created` is TRUE. Only
+#     then does the `prod` job below run.
+#
+# So production moves when you merge the release PR, and never when you merge
+# anything else — even though both are pushes to `trunk`. `staging.yml` is what
+# tracks `trunk` continuously.
 on:
   push:
-    branches: [main]
+    branches: [trunk]
 
 concurrency:
   group: release
@@ -24,13 +40,16 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          # Explicit rather than inferred from the repository default, so a
+          # future default-branch change is a diff here rather than a release
+          # PR that silently targets somewhere else.
+          target-branch: trunk
           # The default `GITHUB_TOKEN`. It cannot fire another workflow with the
           # tag it pushes — which is exactly why `prod.yml` is CALLED below
           # rather than triggered by that tag. See the note in that file.
 
-  # Merging the release PR is what deploys production: this run cuts the tag and
-  # then deploys, in one place, so the release and the deploy cannot disagree
-  # about which commit shipped.
+  # Same run as the release, so the tag and the deploy cannot disagree about
+  # which commit shipped.
   prod:
     needs: release-please
     if: needs.release-please.outputs.released == 'true'
