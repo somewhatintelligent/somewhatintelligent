@@ -35,10 +35,13 @@ export interface PreviewAccess {
  * mechanism `apps/platform.auth/alchemy.run.ts` uses to refuse a production
  * deploy that adopted the wrong database.
  *
- * Reaching this with empty strings means the auth stack resolved as PRODUCTION
- * while this one resolved as a preview — the two disagreeing about a stage name
- * they both derive from. It should be unreachable; a Worker deployed with no
- * `aud` fails open on every request, so it is not a thing to find out later.
+ * Reaching this with empty strings means the auth stack declared no shared
+ * application while this caller expected one — the two disagreeing about a
+ * stage they both derive from, or a `SANDBOX` run that had no standing to
+ * create it. It should be unreachable, because a caller only asks when
+ * something will verify against the answer, and `alchemy dev` verifies
+ * nothing. A Worker deployed with an empty `aud` cannot verify a token, so
+ * this is not a thing to find out later.
  */
 export const requirePreview = (
   aud: Output.Output<string>,
@@ -52,9 +55,13 @@ export const requirePreview = (
 const refuseEmpty = (unit: string, name: string) => (value: string) => {
   if (value === "") {
     throw new Error(
-      `${unit}: the auth stack exported an empty ${name} for a non-production stage. ` +
-        `It has no shared Access application to point at, and deploying would leave ${unit} ungated.`,
+      `${unit}: the auth stack exported an empty ${name}, so it declared no shared Access ` +
+        `application for this stage and deploying would leave ${unit} ungated. Deploy ` +
+        `apps/platform.auth to this stage first; under SANDBOX it declines to create one at all.`,
     );
   }
   return value;
 };
+
+/** The answer when nothing will verify — `alchemy dev`, and production. */
+export const UNGATED: PreviewAccess = { aud: "", teamDomain: "" };

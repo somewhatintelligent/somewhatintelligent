@@ -12,7 +12,7 @@ import * as Config from "effect/Config";
 import { Path } from "effect/Path";
 import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
 import { Deployment, Tiered, TieredEffect } from "@swi/infra/stage/StandardizedStage";
-import { requirePreview } from "@swi/infra/stage/preview";
+import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
 import { Auth } from "platform.auth/alchemy.run";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
 
@@ -90,8 +90,17 @@ export default Alchemy.Stack(
     const path = yield* Path;
     const { dev, stage } = yield* Deployment;
     const { apex, artifactSuffix, named } = yield* Hostnames;
-    const { aud, teamDomain } = yield* AccessFacts;
     const origin = `https://${apex}`;
+
+    /**
+     * The gate this Worker deploys behind, and the reason the Access
+     * application is resolved conditionally: under `alchemy dev` there is no
+     * edge in front of a local workerd, `src/server/auth.ts` is never asked to
+     * verify anything, and declaring an application would put a real
+     * account-level resource in front of hostnames this run does not deploy.
+     */
+    const auth = dev ? "none" : "access";
+    const { aud, teamDomain } = auth === "none" ? UNGATED : yield* AccessFacts;
 
     /**
      * PINNED PER STAGE, where non-production used to take whatever alchemy
@@ -131,7 +140,7 @@ export default Alchemy.Stack(
         BLOBS: Blobs,
         OWNER: OwnerObject,
         LOADER: Cloudflare.WorkerLoader("LOADER"),
-        AUTH: dev ? "none" : "access",
+        AUTH: auth,
         POLICY_AUD: aud,
         TEAM_DOMAIN: teamDomain,
         ARTIFACT_SUFFIX: artifactSuffix,

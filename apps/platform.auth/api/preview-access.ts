@@ -27,6 +27,7 @@ import * as Option from "effect/Option";
 import * as Output from "alchemy/Output";
 
 import { CloudflareStack } from "@swi/infra/cloudflare.stack";
+import { SANDBOX } from "@swi/infra/stage/sandbox";
 import { Deployment, TieredEffect } from "@swi/infra/stage/StandardizedStage";
 import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } from "platform.names";
 
@@ -67,7 +68,25 @@ export interface PreviewAccessFacts {
  * to declare two — the inbox's `InboxAccess` was already used this way.
  */
 export const PreviewAccessApp = Effect.gen(function* () {
-  const { stage } = yield* Deployment;
+  const { stage, dev } = yield* Deployment;
+
+  /**
+   * `None` UNDER `alchemy dev` AND UNDER `SANDBOX`, and the decision belongs
+   * here rather than at the consumer — the same call `api/secret.ts` makes, for
+   * the same reason.
+   *
+   * An Access application is an ACCOUNT-LEVEL resource with no local provider.
+   * Under dev the Workers run in a local workerd on localhost, so this would
+   * create a real application fronting `*.workers.dev` hostnames that the run
+   * never deploys — the exact orphan this change removes from mezedes and the
+   * inbox. Under `SANDBOX` the run has no standing to write to the account at
+   * all.
+   *
+   * Nothing is lost either way: `GateFor` is `"none"` under dev, so no Worker
+   * in the graph has an assertion to verify and none of them reads an `aud`.
+   */
+  if (dev) return Option.none<PreviewAccessFacts>();
+  if (yield* Effect.orDie(SANDBOX)) return Option.none<PreviewAccessFacts>();
 
   const make = Effect.gen(function* () {
     const {
@@ -77,6 +96,16 @@ export const PreviewAccessApp = Effect.gen(function* () {
       previewMachinePolicy: { policyId: machinePolicyId },
     } = yield* CloudflareStack.stage["production"]!;
 
+    /**
+     * DESTINATIONS AND NO `domain`. `domain` is the legacy single-hostname
+     * shorthand and this application is six hostnames by definition.
+     *
+     * One consequence worth knowing: alchemy's `read` recovers a lost
+     * application by scanning for its `domain`, so an application with none
+     * cannot be recovered that way and a state-store loss would plan a fresh
+     * `create` with a new `aud`. For a preview stage that is a re-deploy, not
+     * an outage — the same deploy hands every Worker the new `aud`.
+     */
     const app = yield* Cloudflare.Access.Application("PreviewAccess", {
       name: `Preview — ${stage}`,
       type: "self_hosted",

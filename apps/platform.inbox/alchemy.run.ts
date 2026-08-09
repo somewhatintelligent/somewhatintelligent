@@ -5,7 +5,7 @@ import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
 
 import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
-import { requirePreview } from "@swi/infra/stage/preview";
+import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
 import { Deployment, Tiered, TieredEffect } from "@swi/infra/stage/StandardizedStage";
 import { state } from "@swi/infra/stage/state";
 import { PREVIEW_SCRIPTS, workerSafeStage, workersDevHost } from "platform.names";
@@ -60,9 +60,17 @@ class Inbox extends Cloudflare.Website.Vite<Inbox>()(
   "Inbox",
   Effect.gen(function* () {
     const path = yield* Path;
-    const { stage } = yield* Deployment;
+    const { stage, dev } = yield* Deployment;
     const safeStage = workerSafeStage(stage);
-    const { aud, teamDomain } = yield* AccessFacts;
+
+    /**
+     * Resolved only when something will verify against it. `workers/app.ts`
+     * skips its Access middleware entirely under `import.meta.env.DEV`, so a
+     * dev run reads neither value — and declaring an application there would
+     * put a real account-level resource in front of a hostname this run does
+     * not deploy.
+     */
+    const { aud, teamDomain } = dev ? UNGATED : yield* AccessFacts;
 
     /**
      * EVERY IDENTITY THIS STACK CLAIMS WAS A CONSTANT, and every one of them is
@@ -162,8 +170,13 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     yield* Deployment;
-    const access = yield* AccessFacts;
+    /**
+     * `Inbox` is the only thing that resolves the Access facts now, and it does
+     * so conditionally. Yielding them here as well would resolve them on every
+     * run — including `alchemy dev`, where there is no shared application to
+     * read and the guard in `requirePreview` would refuse the deploy.
+     */
     const site = yield* Inbox;
-    return { access, site };
+    return { site };
   }).pipe(Alchemy.AdoptPolicy.adopt(true)),
 );

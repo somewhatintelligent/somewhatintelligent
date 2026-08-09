@@ -2,7 +2,7 @@ import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
-import { workerSafeStage } from "platform.names";
+import { PREVIEW_SCRIPTS, workerSafeStage } from "platform.names";
 
 import { Hostnames } from "./hostnames.ts";
 import { PACKAGE_DIR } from "./paths.ts";
@@ -15,6 +15,7 @@ import SettlementWorker from "./workers/Settlement.ts";
 import { Deployment, StageTier } from "@swi/infra/stage/StandardizedStage";
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
 
+import { UNGATED } from "@swi/infra/stage/preview";
 import { accessFacts } from "./AuthRouting.ts";
 
 /**
@@ -25,10 +26,25 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
   Effect.gen(function* () {
     const { production, stage, dev: local } = yield* Deployment;
     const { operator } = yield* Hostnames;
-    const { aud, teamDomain } = yield* accessFacts("OperatorAccess", operator);
+
+    /**
+     * Resolved only when something will verify against it. Under `alchemy dev`
+     * `OPERATOR_AUTH` is `"none"`, `resolveOperator` returns the fixed dev
+     * actor without reading either value, and declaring an Access application
+     * would put a real account-level resource in front of a hostname this run
+     * does not deploy.
+     */
+    const operatorAuth = local ? "none" : "access";
+    const { aud, teamDomain } =
+      operatorAuth === "none" ? UNGATED : yield* accessFacts("OperatorAccess", operator);
 
     return {
-      name: `si-commerce-operator-${production ? "prod" : workerSafeStage(stage)}`,
+      // Through the table, not spelled inline: `preview-access.ts` names this
+      // worker's hostname as an Access destination from a stack that never
+      // imports this file, and a documentary copy of a name is one that drifts.
+      // `PREVIEW_SCRIPTS.operator("prod")` is the string production already
+      // carries, so this is not a rename.
+      name: PREVIEW_SCRIPTS.operator(production ? "prod" : workerSafeStage(stage)),
       rootDir: PACKAGE_DIR,
       main: "./app/worker.ts",
       compatibility: { flags: ["nodejs_compat"] },
@@ -40,7 +56,7 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
         SETTLEMENT: SettlementWorker,
         POLICY_AUD: aud,
         TEAM_DOMAIN: teamDomain,
-        OPERATOR_AUTH: local ? "none" : "access",
+        OPERATOR_AUTH: operatorAuth,
         PAYMENTS_ENVIRONMENT: environmentFor(yield* StageTier) satisfies StripeEnvironment,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
         /**

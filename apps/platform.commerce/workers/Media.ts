@@ -20,6 +20,7 @@ import * as Layer from "effect/Layer";
 import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 import { PREVIEW_SCRIPTS, workerSafeStage } from "platform.names";
 
+import { UNGATED } from "@swi/infra/stage/preview";
 import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
 import { previewFacts } from "../AuthRouting.ts";
 import { mediaSurface } from "./MediaSurface.ts";
@@ -71,7 +72,7 @@ const mediaProps = Effect.gen(function* () {
    * production, and `alchemy dev` — the two values are never read, so there is
    * nothing to resolve and `AuthRouting` is not required.
    */
-  const { aud, teamDomain } = gate === "none" ? { aud: "", teamDomain: "" } : yield* previewFacts;
+  const { aud, teamDomain } = gate === "none" ? UNGATED : yield* previewFacts;
 
   return {
     main: import.meta.url,
