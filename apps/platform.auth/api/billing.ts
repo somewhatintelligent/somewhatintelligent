@@ -12,8 +12,12 @@
  * which `platform.commerce` builds its own from — a customer who buys a shirt
  * and a subscription is one Stripe Customer with one payment method, and that is
  * only true while both surfaces read the same key through the same API version.
- * The webhook signing secret is NOT shared and cannot be: Stripe mints one per
- * registered endpoint, and this Worker's endpoint is a different URL.
+ *
+ * THE SIGNING SECRET IS NOT SHARED AND CANNOT BE, which is worth stating flatly
+ * because `.env.production` already holds one called `STRIPE_WEBHOOK_SIGNING_
+ * SECRET` and it looks like the answer. It is the STORE's: Stripe mints a secret
+ * per REGISTERED ENDPOINT, that one belongs to `hooks.…/webhook`, and this
+ * Worker answers on a different URL. Reusing it would verify nothing.
  *
  * ─── WHAT AN OPERATOR HAS TO DO ONCE ────────────────────────────────────────
  *
@@ -48,7 +52,9 @@ import {
   stripeClient,
   type StripeEnvironment,
 } from "@swi/infra/stripe";
+import { PRODUCTION_STAGE } from "platform.names";
 
+import { AUTH_BASE_PATH, ingress } from "../shared/ingress.ts";
 import { tripwire } from "./stand-in.ts";
 
 /**
@@ -60,6 +66,19 @@ import { tripwire } from "./stand-in.ts";
  * `incomplete` forever with no error anyone sees.
  */
 export const AUTH_WEBHOOK_SECRET_VARIABLE = "STRIPE_AUTH_WEBHOOK_SIGNING_SECRET";
+
+/** Where the plugin mounts its endpoint, and therefore what an operator registers. */
+export const WEBHOOK_PATH = `${AUTH_BASE_PATH}/stripe/webhook`;
+
+/**
+ * The URL to register in the dashboard, DERIVED rather than written down.
+ *
+ * From `ingress`, the same function the Worker mounts under, so an instruction
+ * telling someone which endpoint to create cannot drift from the route that
+ * will actually answer. A typo'd endpoint verifies nothing and reports nothing:
+ * every subscription stays `incomplete` and no error surfaces anywhere.
+ */
+const PRODUCTION_WEBHOOK_URL = `${ingress(PRODUCTION_STAGE, false).origin}${WEBHOOK_PATH}`;
 
 /** Everything that only exists when this deployment actually holds credentials. */
 export interface StripeAccount {
@@ -220,8 +239,10 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
           new Error(
             `${STRIPE_SECRET_KEY} is set but ${AUTH_WEBHOOK_SECRET_VARIABLE} is not. ` +
               `Production would take payments whose webhooks could never be verified. ` +
-              `Register the endpoint and set ${AUTH_WEBHOOK_SECRET_VARIABLE}, or unset ` +
-              `${STRIPE_SECRET_KEY} to run production with billing off.`,
+              `Register a webhook endpoint at ${PRODUCTION_WEBHOOK_URL} and ` +
+              `\`dotenvx set ${AUTH_WEBHOOK_SECRET_VARIABLE} <whsec_…> -f .env.production\`. ` +
+              `Turning billing off instead is NOT available here: ${STRIPE_SECRET_KEY} is the ` +
+              `store's too, and platform.commerce refuses to resolve without it.`,
           ),
         );
       }

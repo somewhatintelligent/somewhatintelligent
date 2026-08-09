@@ -24,8 +24,7 @@ import * as Effect from "effect/Effect";
 
 import { armWebhookSecret, listenCommand } from "@swi/infra/stripe.dev";
 
-import { AUTH_WEBHOOK_SECRET_VARIABLE } from "../api/billing.ts";
-import { AUTH_BASE_PATH } from "../shared/ingress.ts";
+import { AUTH_WEBHOOK_SECRET_VARIABLE, WEBHOOK_PATH } from "../api/billing.ts";
 
 /**
  * The subscription lifecycle, and nothing else.
@@ -42,9 +41,6 @@ const FORWARDED_EVENTS = [
   "customer.subscription.updated",
   "customer.subscription.deleted",
 ] as const;
-
-/** Where this Worker mounts the plugin's endpoint. */
-export const webhookPath = `${AUTH_BASE_PATH}/stripe/webhook`;
 
 /**
  * Put the CLI's signing secret in the environment, under `alchemy dev` only.
@@ -77,7 +73,7 @@ export const armIfDev = Effect.fn("AuthStripeDev.armIfDev")(function* () {
  */
 export const forwarder = Effect.fn("AuthStripeDev.forwarder")(function* (origin: string) {
   return yield* Command.Dev("AuthStripeListener", {
-    command: listenCommand(`${origin}${webhookPath}`, FORWARDED_EVENTS),
+    command: listenCommand(`${origin}${WEBHOOK_PATH}`, FORWARDED_EVENTS),
     shell: true,
   });
 });

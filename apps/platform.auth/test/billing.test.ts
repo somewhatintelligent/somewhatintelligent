@@ -14,7 +14,15 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import { describe, expect, test } from "vite-plus/test";
 
-import { AUTH_WEBHOOK_SECRET_VARIABLE, load, refusingClient } from "../api/billing.ts";
+import { PRODUCTION_STAGE } from "platform.names";
+
+import {
+  AUTH_WEBHOOK_SECRET_VARIABLE,
+  load,
+  refusingClient,
+  WEBHOOK_PATH,
+} from "../api/billing.ts";
+import { ingress } from "../shared/ingress.ts";
 import { STRIPE_SECRET_KEY } from "@swi/infra/stripe";
 import type { StripeAccount } from "../api/billing.ts";
 import type { StripeEnvironment } from "@swi/infra/stripe";
@@ -108,6 +116,17 @@ describe("a key with no endpoint secret", () => {
     const exit = resolve("prod", { [STRIPE_SECRET_KEY]: LIVE_KEY });
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain(AUTH_WEBHOOK_SECRET_VARIABLE);
+  });
+
+  // The message is the only instruction an operator gets, and it is read at the
+  // moment a release is blocked. It has to name the endpoint the Worker really
+  // answers on — hence deriving the URL from `ingress` — and it must NOT repeat
+  // the old suggestion to unset the secret key, which `platform.commerce` shares
+  // and refuses to resolve without.
+  test("the message names the real endpoint and no remedy that breaks the store", () => {
+    const message = String(resolve("prod", { [STRIPE_SECRET_KEY]: LIVE_KEY }));
+    expect(message).toContain(`${ingress(PRODUCTION_STAGE, false).origin}${WEBHOOK_PATH}`);
+    expect(message).not.toContain(`unset ${STRIPE_SECRET_KEY}`);
   });
 
   // Off production the key arrives INHERITED from a checked-in encrypted file

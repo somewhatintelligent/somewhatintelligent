@@ -383,7 +383,34 @@ of the abstraction.
 3. Create a Price per `PURCHASABLE_PLANS` entry carrying that entry's
    `lookup_key`, in both test mode and live mode.
 
-Until (2), a production deploy **fails on the deploy host** — by design (ADR-9).
+Until (2), a production deploy **fails on the deploy host** — by design (ADR-9),
+and this is a merge blocker rather than a note for later. `.env.production`
+already carries `STRIPE_SECRET_KEY`, because `platform.commerce` needs it, so the
+first production deploy after this lands walks straight into the fatal row of
+ADR-9's table. `.github/actions/alchemy/action.yml` deploys `apps/platform.auth`
+first, so nothing else in the stage is attempted either.
+
+Two consequences worth stating outright, because both have already fooled a
+reader of this document:
+
+- **The prod endpoint secret that exists is not this one.**
+  `.env.production`'s `STRIPE_WEBHOOK_SIGNING_SECRET` belongs to the store's
+  registered endpoint at `hooks.…/webhook`. Stripe mints one secret per
+  registered endpoint, so the IdP's URL gets its own and no amount of sharing
+  substitutes.
+- **"Turn billing off instead" is not available on production.** The escape
+  hatch ADR-9 describes — unset the secret key — works on a stage where only the
+  IdP reads it. Production is not such a stage: `StripeConfig` resolves
+  `STRIPE_SECRET_KEY` with a non-optional `Config.redacted`, so unsetting it
+  moves the failure from auth to commerce.
+
+Nothing is half-applied when this fires: the resolution happens during the plan,
+before any upload. The cost is a blocked release, not a broken production.
+
+The ordering hazard disappears if (1) and (2) are done **before** the merge. The
+endpoint can be registered against a URL that does not answer yet, so the secret
+can be set on the feature branch and land in the same commit range as the code
+that needs it.
 
 **Stage 2 — enforcement at a system.** `mezedes` is the first system with
 capabilities to enforce (`systems.mezedes`, `mezedes.mezes`,
