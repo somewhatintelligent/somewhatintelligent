@@ -1,0 +1,31 @@
+{
+  /**
+   * SELF-CONTAINED, like every other leaf package here: the projects in this
+   * repo disagree about `lib` and `types` for reasons of their own, and this one
+   * is imported by Workers (`@cloudflare/workers-types`) and exercised by bun
+   * tests, so it commits to neither consumer's global set. `dom` supplies the
+   * fetch primitives — `Request`, `Response`, `Headers` — that this module reads
+   * and nothing else.
+   */
+  "extends": "../../tsconfig.effect.json",
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["esnext", "dom"],
+    "moduleDetection": "force",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["bun"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": true,
+    "declaration": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

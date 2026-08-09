@@ -1,18 +1,21 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
-import type * as Output from "alchemy/Output";
-import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import { PRODUCTION_ZONE } from "platform.names";
-import { Deployment } from "@swi/infra/stage/StandardizedStage";
+import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+import { UNGATED } from "@swi/infra/stage/preview";
+import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
 
 import CommerceWorker from "platform.commerce/workers/Commerce";
 import MediaWorker from "platform.commerce/workers/Media";
 
-export class AuthRouting extends Context.Service<
-  AuthRouting,
-  { readonly origin: Output.Output<string> }
->()("platform.site/AuthRouting") {}
+/**
+ * The tag itself moved to `platform.commerce/AuthRouting`, because the operator
+ * console and the media Worker need it too and commerce cannot import this
+ * module without a cycle. Re-exported here so this module's existing importers
+ * — `alchemy.run.ts` among them — did not have to move with it.
+ */
+import { AuthRouting, previewFacts } from "platform.commerce/AuthRouting";
+export { AuthRouting };
 
 /**
  * THE PUBLIC SITE, deployed in the SAME STACK as the commerce substrate it
@@ -41,10 +44,28 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
   "Site",
   Effect.gen(function* () {
     const auth = yield* AuthRouting;
-    const { production, dev: local } = yield* Deployment;
+    const { production, stage, dev: local } = yield* Deployment;
     const claimsApex = !local && production;
+    /**
+     * PINNED PER STAGE, where it used to be whatever alchemy generated. The
+     * stage's Access application has to enumerate this hostname as a
+     * destination from inside the AUTH stack, which never sees this Worker —
+     * so the name has to be derivable from the stage alone, and
+     * `PREVIEW_SCRIPTS` is the table both ends read.
+     *
+     * Production keeps its frozen physical name. Renaming it would replace the
+     * live worker rather than update it.
+     */
+    const name = yield* Tiered({
+      production: "platformcommerce-site-production-rgrpfsan2olmqfri",
+      staging: PREVIEW_SCRIPTS.site("staging"),
+      ephemeral: PREVIEW_SCRIPTS.site(workerSafeStage(stage)),
+    });
+
+    const gate = yield* GateFor({ production: "none" });
+    const { aud, teamDomain } = gate === "none" ? UNGATED : yield* previewFacts("platform.site");
     return {
-      ...(production ? { name: "platformcommerce-site-production-rgrpfsan2olmqfri" } : {}),
+      name,
       rootDir: import.meta.dirname,
       sessionKVBindingName: false,
       compatibility: { date: "2026-04-15", flags: ["nodejs_compat"] },
@@ -55,6 +76,19 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
         COMMERCE: CommerceWorker,
         MEDIA: MediaWorker,
         PUBLIC_IS_PRODUCTION: production,
+        /**
+         * The public storefront. Open in production, gated on every preview,
+         * and `src/middleware.ts` is what enforces it.
+         *
+         * GUARDED WHEN GATED, like every other unit. Passing these through raw
+         * made the site the one place where an empty `aud` produced a
+         * SUCCESSFUL deploy whose every SSR route then answered 500 — the four
+         * other units refuse the deploy instead, which is the failure you can
+         * act on.
+         */
+        GATE: gate,
+        POLICY_AUD: aud,
+        TEAM_DOMAIN: teamDomain,
       },
     };
   }),

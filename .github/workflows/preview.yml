@@ -1,0 +1,71 @@
+name: preview
+
+# A stage per pull request, torn down when it closes. `pr_<n>` with an
+# UNDERSCORE, because that is what `StandardizedStage.PATTERN` accepts;
+# `workerSafeStage` is what turns it into the `pr-<n>` that Cloudflare resource
+# names take, and nothing here should spell that form by hand.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  # Read by `GitHub.GitHubEnv`, which is what makes the stack post its comment.
+  PULL_REQUEST: ${{ github.event.number }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  DOTENV_PRIVATE_KEY_DEVELOPMENT: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOPMENT }}
+
+jobs:
+  deploy:
+    # A release-please PR only ever changes a changelog and a version. Standing
+    # up five workers and an Access application for it is waste, and it would
+    # take a preview slot on every merge to trunk.
+    if: >
+      github.event.action != 'closed' &&
+      !startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/alchemy
+        with:
+          command: deploy
+          stage: pr_${{ github.event.number }}
+
+  teardown:
+    # THE SAME GUARD `deploy` CARRIES, and it has to be here too. `deploy` skips
+    # the release PR, so no stage was ever created for it — and destroying a
+    # stage that does not exist is not a harmless no-op: the composite action
+    # runs under `set -euo pipefail` with no `|| true`, so a failed destroy reds
+    # the check on the very commit that cuts a release.
+    if: >
+      github.event.action == 'closed' &&
+      !startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A belt to the braces in `guardStage`. `github.event.number` is always a
+      # number here, so this cannot fire — which is the point: if it ever does,
+      # the expansion went wrong and the next line would have destroyed
+      # production.
+      - name: refuse a protected stage
+        run: |
+          set -euo pipefail
+          case "pr_${{ github.event.number }}" in
+            pr_[0-9]*) ;;
+            *) echo "::error::refusing to destroy 'pr_${{ github.event.number }}'"; exit 1 ;;
+          esac
+
+      - uses: ./.github/actions/alchemy
+        with:
+          command: destroy
+          stage: pr_${{ github.event.number }}

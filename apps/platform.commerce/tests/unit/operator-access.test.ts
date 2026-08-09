@@ -1,20 +1,26 @@
 /**
- * THE CONSOLE'S GATE, under test.
+ * THE CONSOLE'S GATE, under test — the console's own rules only.
  *
- * This is the only authorization in front of Commerce — the Worker performs
- * none of its own and trusts `meta.actor` as already validated by whoever bound
- * it. So the properties worth proving are the refusals, not the accept: a token
- * for a DIFFERENT Access application on the same team, a token signed by the
- * wrong key, and a service token with no `email` all have to fail, and each one
- * of them verifies fine against a check that forgot one clause.
+ * The verifier's properties (audience pinning, issuer pinning, signature,
+ * expiry, algorithm) moved to `packages/lib.access-jwt/test/verify.test.ts`
+ * with the verifier. Proving them again here would test `jose` twice and prove
+ * nothing about this app.
  *
- * A LOCAL JWKS, so nothing here touches the network. `verifyAccessToken` takes
+ * What is left is what this app decides on top, and each clause is one that a
+ * plausible refactor deletes without any other test noticing:
+ *
+ *   - `OPERATOR_AUTH` is the ONLY way to the dev actor, and an unrecognised
+ *     value is misconfiguration rather than an open door.
+ *   - A SERVICE TOKEN IS REFUSED HERE even though the shared verifier admits
+ *     one, because the ledger is keyed by a person.
+ *
+ * A LOCAL JWKS, so nothing here touches the network — `resolveOperator` takes
  * its key resolver as a parameter for exactly this reason.
  */
 import { describe, expect, test } from "bun:test";
-import { SignJWT, exportJWK, generateKeyPair, createLocalJWKSet, type JWK } from "jose";
+import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWK } from "jose";
 
-import { resolveOperator, verifyAccessToken } from "../../app/lib/access.server.ts";
+import { resolveOperator } from "../../app/lib/access.server.ts";
 import type { OperatorEnv } from "../../app/operator-env.ts";
 
 const TEAM = "https://example.cloudflareaccess.com";
@@ -24,96 +30,14 @@ const keys = await generateKeyPair("RS256", { extractable: true });
 const publicJwk = (await exportJWK(keys.publicKey)) as JWK;
 const jwks = createLocalJWKSet({ keys: [{ ...publicJwk, alg: "RS256", kid: "test" }] });
 
-const otherKeys = await generateKeyPair("RS256", { extractable: true });
-
-const mint = (claims: Record<string, unknown>, options?: { key?: CryptoKey; expired?: boolean }) =>
+const mint = (claims: Record<string, unknown>) =>
   new SignJWT(claims)
     .setProtectedHeader({ alg: "RS256", kid: "test" })
-    .setIssuedAt(options?.expired ? Math.floor(Date.now() / 1000) - 7200 : undefined)
-    .setExpirationTime(options?.expired ? Math.floor(Date.now() / 1000) - 3600 : "1h")
-    .sign(options?.key ?? keys.privateKey);
+    .setExpirationTime("1h")
+    .sign(keys.privateKey);
 
-const config = { teamDomain: TEAM, policyAud: AUD };
-
-describe("verifyAccessToken", () => {
-  test("accepts a well-formed assertion and derives the actor from its claims", async () => {
-    const token = await mint({
-      iss: TEAM,
-      aud: AUD,
-      sub: "abc123",
-      email: "operator@example.com",
-    });
-
-    const result = await verifyAccessToken(token, config, jwks);
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value).toEqual({ sub: "abc123", email: "operator@example.com" });
-    }
-  });
-
-  test("refuses a token minted for another application on the same team", async () => {
-    // Every Access app on a team shares signing keys, so the audience claim is
-    // the ONLY thing distinguishing this from a valid console token.
-    const token = await mint({
-      iss: TEAM,
-      aud: "some-other-application",
-      sub: "abc123",
-      email: "operator@example.com",
-    });
-
-    const result = await verifyAccessToken(token, config, jwks);
-
-    expect(result.ok).toBe(false);
-  });
-
-  test("refuses a token from another issuer", async () => {
-    const token = await mint({
-      iss: "https://attacker.cloudflareaccess.com",
-      aud: AUD,
-      sub: "abc123",
-      email: "operator@example.com",
-    });
-
-    expect((await verifyAccessToken(token, config, jwks)).ok).toBe(false);
-  });
-
-  test("refuses a token signed by a key the team does not publish", async () => {
-    const token = await mint(
-      { iss: TEAM, aud: AUD, sub: "abc123", email: "operator@example.com" },
-      { key: otherKeys.privateKey },
-    );
-
-    expect((await verifyAccessToken(token, config, jwks)).ok).toBe(false);
-  });
-
-  test("refuses an expired token", async () => {
-    const token = await mint(
-      { iss: TEAM, aud: AUD, sub: "abc123", email: "operator@example.com" },
-      { expired: true },
-    );
-
-    expect((await verifyAccessToken(token, config, jwks)).ok).toBe(false);
-  });
-
-  test("refuses a service token, which carries no email", async () => {
-    // A machine identity has no user behind it, so it has no actor to file
-    // audit rows under — filing its writes under an empty subject is the
-    // failure this prevents.
-    const token = await mint({ iss: TEAM, aud: AUD, sub: "abc123", common_name: "ci-runner" });
-
-    const result = await verifyAccessToken(token, config, jwks);
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe("unauthorized");
-  });
-
-  test("refuses a token with no subject", async () => {
-    const token = await mint({ iss: TEAM, aud: AUD, email: "operator@example.com" });
-
-    expect((await verifyAccessToken(token, config, jwks)).ok).toBe(false);
-  });
-});
+const requestWith = (token: string) =>
+  new Request("https://desk.test/", { headers: { "Cf-Access-Jwt-Assertion": token } });
 
 describe("resolveOperator", () => {
   const envFor = (overrides: Partial<OperatorEnv>) =>
@@ -155,20 +79,38 @@ describe("resolveOperator", () => {
     if (!result.ok) expect(result.error).toBe("unauthorized");
   });
 
-  test("accepts a request carrying a valid assertion", async () => {
+  test("accepts a request carrying a valid assertion and derives the actor from its claims", async () => {
     const token = await mint({
       iss: TEAM,
       aud: AUD,
       sub: "abc123",
       email: "operator@example.com",
     });
-    const request = new Request("https://desk.test/", {
-      headers: { "Cf-Access-Jwt-Assertion": token },
-    });
 
-    const result = await resolveOperator(request, envFor({ OPERATOR_AUTH: "access" }), jwks);
+    const result = await resolveOperator(
+      requestWith(token),
+      envFor({ OPERATOR_AUTH: "access" }),
+      jwks,
+    );
 
     expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual({ sub: "abc123", email: "operator@example.com" });
+  });
+
+  test("refuses a service token, which carries no email", async () => {
+    // `lib.access-jwt` admits this one — a machine identity is a legitimate way
+    // to reach a preview. The CONSOLE refuses it, because there is no person to
+    // file its writes under, and that is the clause this test exists to hold.
+    const token = await mint({ iss: TEAM, aud: AUD, sub: "abc123", common_name: "ci-runner" });
+
+    const result = await resolveOperator(
+      requestWith(token),
+      envFor({ OPERATOR_AUTH: "access" }),
+      jwks,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("unauthorized");
   });
 
   test("the dev actor is reachable only through OPERATOR_AUTH=none", async () => {

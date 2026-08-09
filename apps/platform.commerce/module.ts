@@ -2,7 +2,7 @@ import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
-import { workerSafeStage } from "platform.names";
+import { PREVIEW_SCRIPTS, workerSafeStage } from "platform.names";
 
 import { Hostnames } from "./hostnames.ts";
 import { PACKAGE_DIR } from "./paths.ts";
@@ -12,26 +12,50 @@ import CommerceWorker from "./workers/Commerce.ts";
 import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
 
-import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
-import { Deployment, StageTier } from "@swi/infra/stage/StandardizedStage";
+import { accessFacts } from "@swi/infra/cloudflare.stack";
+import { Deployment, GateFor, StageTier } from "@swi/infra/stage/StandardizedStage";
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
+
+import { UNGATED } from "@swi/infra/stage/preview";
+import { previewFacts } from "./AuthRouting.ts";
 
 /**
  * Operator console.
+ *
+ * This file imports `@swi/infra/cloudflare.stack`, which declares resources at
+ * module scope and so drags the deploy-time bundler along — safe HERE because
+ * nothing that runs in a Worker can reach this module, and fatal one directory
+ * over: `workers/Media.ts` is a Worker ENTRY and once died at startup with
+ * esbuild inside workerd for exactly this import. That is why the worker reads
+ * the `AuthRouting` tag from `AuthRouting.ts`, which imports no stack.
  */
 export class Operator extends Cloudflare.Website.Vite<Operator>()(
   "CommerceOperator",
   Effect.gen(function* () {
     const { production, stage, dev: local } = yield* Deployment;
     const { operator } = yield* Hostnames;
-    const access = yield* InternalAccessApplication("OperatorAccess", operator);
 
-    const {
-      organization: { authDomain },
-    } = yield* CloudflareStack.stage["production"]!;
+    /**
+     * `GateFor` rather than a hand-rolled `local ? ...`: the hand-rolled form
+     * forgot `SANDBOX`, so a sandbox deploy resolved `"access"`, demanded
+     * facts auth never exported, and died — the exact drift `GateFor` exists
+     * to make impossible. Facts resolve only when something will verify them;
+     * with the gate down, `resolveOperator` returns the fixed dev actor and
+     * never reads either value, and no Access application is declared.
+     */
+    const operatorAuth = yield* GateFor();
+    const { aud, teamDomain } =
+      operatorAuth === "none"
+        ? UNGATED
+        : yield* accessFacts("OperatorAccess", operator, undefined, previewFacts("operator"));
 
     return {
-      name: `si-commerce-operator-${production ? "prod" : workerSafeStage(stage)}`,
+      // Through the table, not spelled inline: `preview-access.ts` names this
+      // worker's hostname as an Access destination from a stack that never
+      // imports this file, and a documentary copy of a name is one that drifts.
+      // `PREVIEW_SCRIPTS.operator("prod")` is the string production already
+      // carries, so this is not a rename.
+      name: PREVIEW_SCRIPTS.operator(production ? "prod" : workerSafeStage(stage)),
       rootDir: PACKAGE_DIR,
       main: "./app/worker.ts",
       compatibility: { flags: ["nodejs_compat"] },
@@ -41,9 +65,9 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
       env: {
         COMMERCE: CommerceWorker,
         SETTLEMENT: SettlementWorker,
-        POLICY_AUD: access.aud.as<string>() as unknown as string,
-        TEAM_DOMAIN: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
-        OPERATOR_AUTH: local ? "none" : "access",
+        POLICY_AUD: aud,
+        TEAM_DOMAIN: teamDomain,
+        OPERATOR_AUTH: operatorAuth,
         PAYMENTS_ENVIRONMENT: environmentFor(yield* StageTier) satisfies StripeEnvironment,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
         /**

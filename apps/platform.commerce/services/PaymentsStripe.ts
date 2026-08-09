@@ -233,6 +233,7 @@ export const layer = Layer.effect(
              * priced for.
              */
             shipping_address_collection: { allowed_countries: [...shipTo] },
+            billing_address_collection: "required",
           }),
         catch: unavailable("createSession"),
       });

@@ -11,6 +11,7 @@ import * as Effect from "effect/Effect";
 import * as Effectable from "effect/Effectable";
 import * as Data from "effect/Data";
 import { PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+import { SANDBOX } from "./sandbox.ts";
 
 const PATTERN =
   /^(placeholder|production|staging|test|pr_(0|[1-9][0-9]*)|(test|dev|debug)_[a-z0-9][a-z0-9-]*)$/;
@@ -83,6 +84,39 @@ export const StageTier: Effect.Effect<Tier, never, Alchemy.Stack> = Effect.gen(f
 });
 
 /**
+ * THE conditional primitive for deployment shape. An exhaustive record over
+ * {@link Tier}, so a call site cannot forget a case and adding a tier is a
+ * compile error at every one of them.
+ *
+ * Prefer this over `production ? a : b` anywhere the decision is about WHERE
+ * the stack is deploying. A ternary answers "is this production" and silently
+ * lumps `staging` in with `pr_41`; the record has to say what staging does.
+ */
+export const Tiered = <const R extends Record<Tier, unknown>>(
+  cases: R,
+): Effect.Effect<R[Tier], never, Alchemy.Stack> => Effect.map(StageTier, (tier) => cases[tier]);
+
+/**
+ * {@link Tiered} for Effect-valued cases, flattened — only the chosen one runs.
+ *
+ * The requirements UNION across cases rather than being one `R` shared by all
+ * three, which is the whole reason this is written with extractors instead of
+ * `Record<Tier, Effect<A, E, R>>`: the tiers legitimately need different
+ * services. A production case that declares an Access application needs the
+ * Cloudflare providers; the preview case beside it needs the auth stack's
+ * outputs and nothing else. Forcing one `R` makes the two mutually
+ * unassignable, and the caller's only way out is a cast that erases the
+ * requirement the runtime still has.
+ */
+export const TieredEffect = <const Cases extends Record<Tier, Effect.Effect<any, any, any>>>(
+  cases: Cases,
+): Effect.Effect<
+  Effect.Success<Cases[Tier]>,
+  Effect.Error<Cases[Tier]>,
+  Effect.Services<Cases[Tier]> | Alchemy.Stack
+> => Effect.flatMap(StageTier, (tier) => cases[tier]);
+
+/**
  * The stage facts every stack needs, resolved once. Yielding this is what
  * validates the stage name, so a stack that uses it cannot reach a nonstandard
  * one.
@@ -101,6 +135,42 @@ export const Deployment = Effect.gen(function* () {
     host: (label: string, zone: string = PRODUCTION_ZONE) => `${label}${suffix}.${zone}`,
   };
 });
+
+/** What fronts a unit's HTTP surface. */
+export type Gate = "access" | "none";
+
+/**
+ * The gate a unit deploys behind, per tier. `access` everywhere by default; a
+ * unit that is PUBLIC in production overrides that one case and keeps the
+ * default for the rest, so a new preview surface is closed unless someone
+ * writes down that it should be open.
+ *
+ * `none` UNDER `alchemy dev` AND UNDER `SANDBOX`, neither of which is a tier
+ * case. A local workerd has no Access edge in front of it and never will, so
+ * there is no assertion to verify and a gate would only lock a developer out of
+ * their own machine; a `SANDBOX` run has no standing to create the application
+ * in the first place.
+ *
+ * THOSE TWO CONDITIONS ARE EXACTLY THE ONES UNDER WHICH
+ * `apps/platform.auth/api/preview-access.ts` DECLARES NO APPLICATION, and they
+ * are spelled here so the two cannot drift. When they did, a `SANDBOX` deploy
+ * shipped `GATE="access"` with an empty `POLICY_AUD` — a Worker that answers
+ * 500 to every request, because a gate with nothing to verify against fails
+ * closed and is right to.
+ */
+export const GateFor = (
+  overrides: Partial<Record<Tier, Gate>> = {},
+): Effect.Effect<Gate, never, Alchemy.Stack> =>
+  Effect.gen(function* () {
+    const { dev } = yield* Deployment;
+    if (dev) return "none";
+    if (yield* Effect.orDie(SANDBOX)) return "none";
+    return yield* Tiered({
+      production: overrides.production ?? "access",
+      staging: overrides.staging ?? "access",
+      ephemeral: overrides.ephemeral ?? "access",
+    });
+  });
 
 export class DisallowedStage extends Data.TaggedError("DisallowedStage")<{
   readonly stack: string;
