@@ -15,17 +15,24 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release.outputs.releases_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          # A PERSONAL ACCESS TOKEN, NOT `GITHUB_TOKEN`, and this is the whole
-          # reason the release is split from the deploy: GitHub does not fire
-          # workflow triggers for refs pushed with `GITHUB_TOKEN`, so a tag
-          # created with it would sit there and `prod.yml` would never run.
-          #
-          # Fine-grained, this repository only, contents:write +
-          # pull-requests:write. It has to be created by hand — nothing in this
-          # repo can mint it.
-          token: ${{ secrets.RELEASE_PLEASE_PAT }}
+          # The default `GITHUB_TOKEN`. It cannot fire another workflow with the
+          # tag it pushes — which is exactly why `prod.yml` is CALLED below
+          # rather than triggered by that tag. See the note in that file.
+
+  # Merging the release PR is what deploys production: this run cuts the tag and
+  # then deploys, in one place, so the release and the deploy cannot disagree
+  # about which commit shipped.
+  prod:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    uses: ./.github/workflows/prod.yml
+    secrets: inherit

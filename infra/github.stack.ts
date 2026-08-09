@@ -10,6 +10,8 @@ import * as Config from "effect/Config";
 import { CloudflareStack } from "./cloudflare.stack.ts";
 import { guardStage } from "./stage/StandardizedStage.ts";
 
+const REPOSITORY = { owner: "somewhatintelligent", repository: "somewhatintelligent" } as const;
+
 const DotenvxSecrets = Effect.gen(function* () {
   const production = yield* Config.redacted("DOTENV_PRIVATE_KEY_PRODUCTION");
   const development = yield* Config.redacted("DOTENV_PRIVATE_KEY_DEVELOPMENT");
@@ -67,6 +69,26 @@ export default Alchemy.Stack(
         },
       ],
     });
+    /**
+     * THE `production` ENVIRONMENT, so `prod.yml`'s `environment: production`
+     * resolves to something rather than failing the job.
+     *
+     * DECLARED HERE rather than clicked into repository settings for the
+     * ordinary reason: a deploy gate that exists only in a settings page is one
+     * nobody can review, and a fresh clone of this repo would silently have no
+     * gate at all.
+     *
+     * NO REVIEWERS. The branch policy is the guard — production is deployable
+     * from `main` and nowhere else — and a required reviewer on a single-person
+     * account is a prompt to approve your own deploy, which teaches you to click
+     * through it. Add `reviewers` here the day a second person can approve.
+     */
+    yield* GitHub.Environment("ProductionEnvironment", {
+      ...REPOSITORY,
+      name: "production",
+      deploymentBranchPolicy: { customBranchPolicies: ["main"] },
+    });
+
     const { production, development } = yield* DotenvxSecrets;
 
     /**
@@ -112,8 +134,7 @@ export default Alchemy.Stack(
         }).as<Redacted.Redacted<string>>(),
       }).map(([name, value]) =>
         GitHub.Secret(name, {
-          owner: "somewhatintelligent",
-          repository: "somewhatintelligent",
+          ...REPOSITORY,
           name,
           value,
         }),
