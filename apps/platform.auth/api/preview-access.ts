@@ -33,7 +33,7 @@ import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } fro
 
 /**
  * Every hostname the stage's application fronts — THE BROWSABLE ONES, and only
- * those. Five, and the number is load-bearing.
+ * those. Four, and the count is load-bearing.
  *
  * A DESTINATION IS A LOGIN FLOW, NOT A GATE. What a destination buys is that a
  * browser arriving at that hostname gets redirected to the IdP and comes back
@@ -53,16 +53,20 @@ import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } fro
  * (`apps/platform.site/src/pages/media/[id].ts`). Nothing ever points a browser
  * at media's own hostname, and a script that does gets a 403 from the worker.
  *
- * If a SIXTH browsable surface ever appears, the choice is to turn the eager
- * redirect off — which costs the one-sign-in property, since a cookie is then
- * issued only as each hostname is first visited — or to split the stage across
- * two applications, which costs it outright. Prefer keeping this list to the
- * surfaces a person actually opens.
+ * Past five the choice is to turn the eager redirect off — which costs the
+ * one-sign-in property, since a cookie is then issued only as each hostname is
+ * first visited — or to split the stage across two applications, which costs it
+ * outright. Prefer keeping this list to the surfaces a person actually opens.
  *
- * SETTLEMENT IS DELIBERATELY ABSENT for a different reason. Stripe cannot
- * present an Access credential, and a webhook endpoint behind a login is a
- * webhook that never fires. It verifies Stripe's signature on the payload
- * instead and stays outside this application on purpose.
+ * THE INBOX IS ABSENT because it has no preview at all: what makes an inbox
+ * worth opening is the mail in it, mail arrives through zone-level Email
+ * Routing, and that has one owner. `.github/actions/alchemy` deploys that stack
+ * to `production` alone, so a preview hostname for it would front nothing.
+ *
+ * SETTLEMENT IS ABSENT for a different reason again. Stripe cannot present an
+ * Access credential, and a webhook endpoint behind a login is a webhook that
+ * never fires. It verifies Stripe's signature on the payload instead and stays
+ * outside this application on purpose.
  *
  * The operator console is a ZONE hostname even off production (`module.ts`
  * claims `commerce-<stage>.<zone>`), while the rest answer on workers.dev. One
@@ -73,7 +77,6 @@ export const previewDestinations = (stage: string): readonly string[] => [
   workersDevHost(PREVIEW_SCRIPTS.auth(stage)),
   workersDevHost(PREVIEW_SCRIPTS.site(stage)),
   workersDevHost(PREVIEW_SCRIPTS.mezedes(stage)),
-  workersDevHost(PREVIEW_SCRIPTS.inbox(stage)),
   `commerce-${stage}.${PRODUCTION_ZONE}`,
 ];
 

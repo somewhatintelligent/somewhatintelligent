@@ -23,10 +23,9 @@ runs:
     #
     # `platform.auth` declares the stage's shared Access application and every
     # other stack reads its `aud` out of auth's persisted outputs — so auth
-    # deploys first or the other three die with "the auth stack exported an
-    # empty POLICY_AUD". `platform.site` deploys the commerce substrate in the
-    # same stack, so it comes before nothing in particular, but mezedes and the
-    # inbox read auth too.
+    # deploys first or the rest die with "the auth stack exported an empty
+    # POLICY_AUD". `platform.site` deploys the commerce substrate in the same
+    # stack; mezedes reads auth too.
     #
     # Destroy reverses it: tearing auth down first would strand the others'
     # reference to a stack that no longer has state.
@@ -42,7 +41,19 @@ runs:
           *) echo "::error::command must be deploy or destroy, got '$COMMAND'"; exit 1 ;;
         esac
 
-        ORDER=(apps/platform.auth apps/platform.site apps/mezedes apps/platform.inbox)
+        ORDER=(apps/platform.auth apps/platform.site apps/mezedes)
+
+        # THE INBOX IS PRODUCTION-ONLY, and deliberately not a preview surface.
+        #
+        # It is an inbox: what makes it worth opening is the mail in it, and
+        # mail arrives through zone-level Email Routing, which has ONE owner.
+        # A preview copy receives nothing, so it would be an empty shell that
+        # still costs an R2 bucket, an AI gateway and a Durable Object
+        # namespace per pull request.
+        if [ "$STAGE" = "production" ]; then
+          ORDER+=(apps/platform.inbox)
+        fi
+
         if [ "$COMMAND" = "destroy" ]; then
           REVERSED=()
           for ((i = ${#ORDER[@]} - 1; i >= 0; i--)); do REVERSED+=("${ORDER[i]}"); done

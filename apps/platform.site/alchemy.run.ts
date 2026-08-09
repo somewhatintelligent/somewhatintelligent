@@ -84,7 +84,6 @@ export default Alchemy.Stack(
           | auth | ${auth.origin} |
           | operator | ${commerce.operatorUrl} |
           | mezedes | ${url(PREVIEW_SCRIPTS.mezedes(safe))} |
-          | inbox | ${url(PREVIEW_SCRIPTS.inbox(safe))} |
 
           Built from ${gh.sha.slice(0, 7)}. From a script, send
           \`CF-Access-Client-Id\` and \`CF-Access-Client-Secret\` instead of

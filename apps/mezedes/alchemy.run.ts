@@ -10,7 +10,7 @@ import type { Env } from "./src/server/env.ts";
 import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import { Path } from "effect/Path";
-import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } from "platform.names";
 import { Deployment, Tiered, TieredEffect } from "@swi/infra/stage/StandardizedStage";
 import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
 import { Auth } from "platform.auth/alchemy.run";
@@ -90,7 +90,6 @@ export default Alchemy.Stack(
     const path = yield* Path;
     const { dev, stage } = yield* Deployment;
     const { apex, artifactSuffix, named } = yield* Hostnames;
-    const origin = `https://${apex}`;
 
     /**
      * The gate this Worker deploys behind, and the reason the Access
@@ -117,6 +116,20 @@ export default Alchemy.Stack(
       staging: PREVIEW_SCRIPTS.mezedes("staging"),
       ephemeral: PREVIEW_SCRIPTS.mezedes(workerSafeStage(stage)),
     });
+
+    /**
+     * WHERE THIS SHELL ACTUALLY ANSWERS, which off production is NOT the apex.
+     * Only `named` claims `domain: apex`; everything else is `workersDev: true`
+     * and lives on the account subdomain.
+     *
+     * It used to be `https://${apex}` unconditionally, and the damage was quiet:
+     * `SHELL_ORIGIN` becomes `frame-ancestors 'self' <origin>` on every artifact
+     * response (`src/server/serve.ts`), so a preview served the shell from
+     * workers.dev while telling artifacts only the apex was allowed to frame
+     * them. The artifact loads and then refuses to render, which reads as a
+     * mezedes bug rather than a hostname one.
+     */
+    const origin = named ? `https://${apex}` : `https://${workersDevHost(name)}`;
 
     const worker = yield* Cloudflare.Worker("Mezedes", {
       name,
@@ -159,11 +172,27 @@ export default Alchemy.Stack(
           artifacts: "not reachable by hostname under `alchemy dev` — deploy to see them",
           previews: "likewise: a preview is its own origin, which the dev proxy rewrites away",
         }
-      : {
-          shell: origin,
-          mcp: `${origin}/mcp`,
-          previews: "p--<token>.<artifactZone>, from the shell",
-          artifacts: `https://<slug>.${artifactSuffix}`,
-        };
+      : named
+        ? {
+            shell: origin,
+            mcp: `${origin}/mcp`,
+            previews: "p--<token>.<artifactZone>, from the shell",
+            artifacts: `https://<slug>.${artifactSuffix}`,
+          }
+        : {
+            shell: origin,
+            mcp: `${origin}/mcp`,
+            /**
+             * ARTIFACTS ARE PRODUCTION-ONLY, and saying so is the point. The
+             * wildcard `routes` that make `<slug>.${artifactSuffix}` resolve are
+             * declared in the `named` branch alone, because a route per stage
+             * would have every stage contending for records on the zone — the
+             * same reason `Ingress` gives for not claiming a hostname per stage.
+             * Reporting an address that nothing serves is worse than reporting
+             * none.
+             */
+            previews: "production only — a preview stage registers no artifact routes",
+            artifacts: "production only — a preview stage registers no artifact routes",
+          };
   }).pipe(Alchemy.AdoptPolicy.adopt(true)),
 );
