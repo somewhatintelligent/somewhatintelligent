@@ -430,9 +430,13 @@ neither is worth designing before a client exists that needs it.
   plain `Stripe` instance, for the same reason bae's `Database` hands back a
   resolved value rather than a coloured Effect.
 
-- **Local development.** The store arms `stripe listen` from
-  `infrastructure/StripeDev.ts` and injects the signing secret at deploy time. The
-  IdP has no equivalent, so a developer exercising subscriptions locally must run
-  `stripe listen --forward-to localhost:1350/api/auth/stripe/webhook` themselves
-  and export the printed secret. Generalising `StripeDev` to arm a second
-  endpoint is the obvious follow-up.
+- **Local development is the only place webhooks can be exercised**, and it is
+  now wired. `apps/platform.auth/infrastructure/StripeDev.ts` arms
+  `STRIPE_AUTH_WEBHOOK_SIGNING_SECRET` from the CLI at module load and starts a
+  `stripe listen` forwarder under `alchemy dev`; the CLI reader it shares with
+  the store lives in `@swi/infra/stripe.dev`, because
+  `stripe listen --print-secret` is one value per CLI install rather than one per
+  forwarder. This matters more than it looks: a preview stage sits behind
+  Cloudflare Access, whose only non-identity policy wants a service token, so
+  Stripe's webhook is answered with a redirect to a login page and never reaches
+  the Worker — measured on `pr_9`, not assumed.
