@@ -29,9 +29,10 @@
  *     mode-independent, so the same key exists in test mode and live mode and
  *     nothing about prices is per-stage configuration.
  *
- * Until (1) and (2) are done, a stage that HAS a Stripe secret key refuses to
- * resolve. That failure lands on the deploy host, before anything is uploaded,
- * which is the cheapest place for it.
+ * Until (1) and (2) are done, PRODUCTION refuses to resolve — on the deploy
+ * host, before anything is uploaded, which is the cheapest place for it. Every
+ * other stage boots with checkout working and webhooks unverifiable, because
+ * their URLs are per-stage and no checked-in secret could be right for them.
  */
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
@@ -63,10 +64,21 @@ export const AUTH_WEBHOOK_SECRET_VARIABLE = "STRIPE_AUTH_WEBHOOK_SIGNING_SECRET"
 /** Everything that only exists when this deployment actually holds credentials. */
 export interface StripeAccount {
   readonly client: Stripe;
-  /** Redacted so it cannot reach a log; unwrapped once, at the plugin. */
-  readonly webhookSecret: Redacted.Redacted<string>;
   /** Whether this deployment moves real money. Derived from the key's prefix. */
   readonly livemode: boolean;
+  /**
+   * The endpoint secret, WHEN THIS STAGE HAS A REGISTERED ENDPOINT.
+   *
+   * Optional because reaching Stripe and verifying Stripe are separate
+   * capabilities, and off production only the first is generally available. An
+   * endpoint secret belongs to one registered URL: production has a stable one,
+   * a preview stage's URL contains its PR number, and staging shares the same
+   * encrypted file as every preview. So a checked-in secret can be correct for
+   * production and cannot be correct for the rest.
+   *
+   * `None` means checkout works and webhooks do not — see {@link load}.
+   */
+  readonly webhookSecret: Option.Option<Redacted.Redacted<string>>;
 }
 
 /**
@@ -137,14 +149,45 @@ export const unconfigured: Billing["Service"] = Billing.of({ account: Option.non
  *
  *   nothing set          → off, with a warning naming both variables
  *   endpoint secret only → off, with a warning (the key is what enables billing)
- *   key, no endpoint     → die
  *   key for the wrong    → die: a live key outside production, or a test key on
  *   environment            production, is the mistake nobody may deploy past
+ *   key, no endpoint     → prod dies. Everywhere else: checkout works, the
+ *   secret                 webhook route refuses, and a warning says so.
+ *
+ * THAT LAST ROW USED TO DIE EVERYWHERE, and it was wrong for a reason worth
+ * recording. The argument was "nobody sets a secret key by accident, so this
+ * means someone stopped one step short" — which is true of production and false
+ * of every other stage, where `STRIPE_SECRET_KEY` arrives *inherited* from a
+ * checked-in encrypted file that dev, every preview and staging all decrypt.
+ * Nobody intended anything by it, and the rule took down every preview deploy.
+ *
+ * What makes the softer answer safe is a guarantee that already exists one
+ * branch above: `assertKeyMatchesEnvironment` fences a live key to the
+ * production tier. So a stage reaching this row can only be holding a TEST key,
+ * and a checkout opened there cannot move real money. Production keeps the
+ * fatal rule, because it is the one stage with a registered endpoint and the one
+ * stage where the payment is real.
  */
+/**
+ * One optional secret, with an unreadable value turned into a defect NAMING IT.
+ *
+ * SCOPED TO THE READ, not wrapped around the whole resolution, and that is a bug
+ * fix rather than a style choice: a trailing `catchCause` over the body caught
+ * the deliberate `Effect.die`s below too, so a live key on staging reported
+ * "present but could not be read" — a message about the wrong problem, pointing
+ * at the wrong variable. `Effect.die` is a defect and `catchCause` sees defects.
+ */
+const optionalSecret = (name: string) =>
+  Config.option(Config.redacted(name)).pipe(
+    Effect.catchCause((cause) =>
+      Effect.die(new Error(`auth: ${name} is present but could not be read: ${String(cause)}`)),
+    ),
+  );
+
 export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Service"]> =>
   Effect.gen(function* () {
-    const secretKey = yield* Config.option(Config.redacted(STRIPE_SECRET_KEY));
-    const webhookSecret = yield* Config.option(Config.redacted(AUTH_WEBHOOK_SECRET_VARIABLE));
+    const secretKey = yield* optionalSecret(STRIPE_SECRET_KEY);
+    const webhookSecret = yield* optionalSecret(AUTH_WEBHOOK_SECRET_VARIABLE);
 
     if (Option.isNone(secretKey)) {
       yield* Effect.logWarning(
@@ -156,47 +199,45 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
     }
 
     /**
-     * Half a configuration, and it is fatal because nobody sets a live secret
-     * key by accident: this means someone intended to sell subscriptions and
-     * stopped one step short. Booting anyway would mount a checkout that takes
-     * money and a webhook that can never verify the result — the subscription
-     * row stays `incomplete`, the customer is charged, and nothing raises.
+     * CHECKED BEFORE the endpoint secret, and the order matters: a key pointed
+     * at the wrong account is the more dangerous mistake, and it is the check
+     * that makes the softer branch below safe to take.
      */
-    if (Option.isNone(webhookSecret)) {
-      return yield* Effect.die(
-        new Error(
-          `${STRIPE_SECRET_KEY} is set but ${AUTH_WEBHOOK_SECRET_VARIABLE} is not. ` +
-            `Subscriptions would take payments whose webhooks could never be verified. ` +
-            `Set ${AUTH_WEBHOOK_SECRET_VARIABLE}, or unset ${STRIPE_SECRET_KEY} to run this ` +
-            `stage with billing off.`,
-        ),
-      );
-    }
-
     const livemode = livemodeOf(secretKey.value);
     const mismatch = assertKeyMatchesEnvironment(environment, livemode);
     if (mismatch !== null) return yield* Effect.die(new Error(mismatch.detail));
 
+    if (Option.isNone(webhookSecret)) {
+      /**
+       * Production alone stops here. It is the only stage with a registered
+       * endpoint, so a missing secret there really does mean someone set up
+       * billing and forgot the webhook — and booting would mount a checkout
+       * that takes REAL money and a webhook that can never confirm it: the row
+       * stays `incomplete`, the customer is charged, and nothing raises.
+       */
+      if (environment === "prod") {
+        return yield* Effect.die(
+          new Error(
+            `${STRIPE_SECRET_KEY} is set but ${AUTH_WEBHOOK_SECRET_VARIABLE} is not. ` +
+              `Production would take payments whose webhooks could never be verified. ` +
+              `Register the endpoint and set ${AUTH_WEBHOOK_SECRET_VARIABLE}, or unset ` +
+              `${STRIPE_SECRET_KEY} to run production with billing off.`,
+          ),
+        );
+      }
+      yield* Effect.logWarning(
+        `auth: ${AUTH_WEBHOOK_SECRET_VARIABLE} is unset on ${environment}. Checkout will open ` +
+          `against the test account, but /stripe/webhook cannot verify a signature — so a ` +
+          `completed payment will NOT activate a subscription here. Point ` +
+          `\`stripe listen\` at this stage, or expect rows to stay incomplete.`,
+      );
+    }
+
     return Billing.of({
       account: Option.some({
         client: stripeClient(secretKey.value),
-        webhookSecret: webhookSecret.value,
         livemode,
+        webhookSecret,
       }),
     });
-  }).pipe(
-    /**
-     * `Config.option` turns ABSENCE into `None`, but a value that is present and
-     * unreadable still fails — and there is nothing to recover to. A secret that
-     * cannot be decoded is the same class of problem as the mismatches above, so
-     * it takes the same exit rather than quietly becoming "billing is off".
-     */
-    Effect.catchCause((cause) =>
-      Effect.die(
-        new Error(
-          `auth: ${STRIPE_SECRET_KEY} or ${AUTH_WEBHOOK_SECRET_VARIABLE} is present but ` +
-            `could not be read: ${String(cause)}`,
-        ),
-      ),
-    ),
-  );
+  });

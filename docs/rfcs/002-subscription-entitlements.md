@@ -176,12 +176,30 @@ settling payments. This is the IdP: sign-in, passkeys, OAuth and organisation
 invitations all work without Stripe, and refusing to boot because a subscription
 price is unset would be a self-inflicted outage.
 
-Half a configuration is fatal because nobody sets a live secret key by accident.
-A key with no endpoint secret means someone intended to sell subscriptions and
-stopped one step short — and booting would mount a checkout that takes money and
-a webhook that can never verify the result: the subscription stays `incomplete`,
-the customer is charged, and nothing raises. That failure lands on the **deploy
-host**, before anything is uploaded.
+Half a configuration is fatal **on production only**, and the first draft of this
+ADR got that wrong in a way worth recording. The argument was "nobody sets a
+secret key by accident, so this means someone stopped one step short". That is
+true of production and false everywhere else: `STRIPE_SECRET_KEY` lives in
+`.env.development`, which dev, **every preview stage and staging** all decrypt,
+so off production the key arrives _inherited_ and nobody intended anything by it.
+The rule took down every preview deploy — and since `.github/actions/alchemy`
+deploys `platform.auth` first, it took the whole stage down with it.
+
+Nor could the secret simply be added to that file. An endpoint secret belongs to
+one registered URL; a preview stage's URL contains its PR number, so no
+checked-in value can ever be correct for it.
+
+What makes the softer answer safe is a guarantee one branch above:
+`assertKeyMatchesEnvironment` fences a live key to the production tier, so a
+stage reaching this row can only hold a **test** key and the checkout it opens
+cannot move real money. Production keeps the fatal rule, because it is the one
+stage with a registered endpoint and the one where the payment is real. That
+failure lands on the **deploy host**, before anything is uploaded.
+
+The cost is a stage where checkout opens and nothing ever activates, which looks
+exactly like a broken feature. So the state is carried to the surface rather than
+left implicit: `getMembership` answers with `billing` _and_ `webhooksVerifiable`,
+and the account card says so in as many words.
 
 ### ADR-10 — No `authorizeReference`, and its absence is load-bearing
 
@@ -289,12 +307,12 @@ only when exactly one thing is created and is off by the batch size otherwise.
 
 ### `platform.auth`
 
-| Surface                                                      | Contract                                                                                                                  |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `getMembership({ cookie })` (Worker RPC)                     | `{ memberships, stripeSubscriptionId, billing }`. Never fails: no session, no rows, or an undecodable row all answer `[]` |
-| `fetchMembership()` (server fn)                              | the above plus `grant`, resolved with one `Date.now()` at the edge                                                        |
-| `POST /api/auth/stripe/webhook`                              | the plugin's endpoint; signature-verified against `STRIPE_AUTH_WEBHOOK_SIGNING_SECRET`                                    |
-| `/subscription/{upgrade,cancel,restore,list,billing-portal}` | the plugin's, session-gated                                                                                               |
+| Surface                                                      | Contract                                                                                                                                      |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getMembership({ cookie })` (Worker RPC)                     | `{ memberships, stripeSubscriptionId, billing, webhooksVerifiable }`. Never fails: no session, no rows, or an undecodable row all answer `[]` |
+| `fetchMembership()` (server fn)                              | the above plus `grant`, resolved with one `Date.now()` at the edge                                                                            |
+| `POST /api/auth/stripe/webhook`                              | the plugin's endpoint; signature-verified against `STRIPE_AUTH_WEBHOOK_SIGNING_SECRET`                                                        |
+| `/subscription/{upgrade,cancel,restore,list,billing-portal}` | the plugin's, session-gated                                                                                                                   |
 
 `getMembership` reads the table directly rather than calling
 `auth.api.listActiveSubscriptions`, which filters to `active | trialing` and
@@ -325,8 +343,10 @@ Each is a test.
 - **INV-7** — A retired tier is absent from `PURCHASABLE_PLANS` and still
   resolves through `tierIdOf`.
 - **INV-8** — `platform.auth` resolves with no Stripe credentials on every
-  environment including production, and refuses to resolve with a key and no
-  endpoint secret, a live key off production, or a test key on production.
+  environment including production; refuses to resolve on a live key off
+  production or a test key on production; and, given a key with no endpoint
+  secret, refuses on production while resolving everywhere else with
+  `webhookSecret: None`.
 - **INV-9** — The switched-off client throws on any property access, so an
   unconfigured stage makes no outbound request to Stripe.
 - **INV-10** — `stripe` is in the running plugin set, so `SURFACES.SUBSCRIPTION`

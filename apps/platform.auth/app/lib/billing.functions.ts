@@ -35,14 +35,20 @@ export interface MembershipView {
    * be able to say so rather than render a button that 500s.
    */
   readonly billing: boolean;
+  /**
+   * Whether a completed payment can actually be confirmed here. `false` on a
+   * stage with a test key but no registered webhook endpoint — checkout opens,
+   * and the subscription never activates. The UI has to say so, or the stage
+   * looks broken.
+   */
+  readonly webhooksVerifiable: boolean;
 }
 
 export const fetchMembership = createServerFn({ method: "GET" })
   .middleware([requireUser])
   .handler(async ({ context }): Promise<MembershipView> => {
-    const { memberships, stripeSubscriptionId, billing } = await baeClient().getMembership({
-      cookie: context.cookie,
-    });
+    const { memberships, stripeSubscriptionId, billing, webhooksVerifiable } =
+      await baeClient().getMembership({ cookie: context.cookie });
     /**
      * Read once, here, at the edge. Everything downstream is a pure function of
      * it — which is what makes the grace window and the frozen-row cutoff
@@ -54,5 +60,6 @@ export const fetchMembership = createServerFn({ method: "GET" })
       grant: grantFor(memberships, now),
       stripeSubscriptionId,
       billing,
+      webhooksVerifiable,
     };
   });

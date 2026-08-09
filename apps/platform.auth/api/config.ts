@@ -156,9 +156,19 @@ export const authConfig = Effect.gen(function* () {
           onNone: refusingClient,
           onSome: (account) => account.client,
         }),
+        /**
+         * Empty when this stage has no registered endpoint. The plugin's
+         * webhook route checks the secret before it touches the client, so an
+         * empty string is a clean `STRIPE_WEBHOOK_SECRET_NOT_FOUND` rather than
+         * a signature check against nothing.
+         */
         stripeWebhookSecret: Option.match(billing.account, {
           onNone: () => "",
-          onSome: (account) => Redacted.value(account.webhookSecret),
+          onSome: (account) =>
+            Option.match(account.webhookSecret, {
+              onNone: () => "",
+              onSome: Redacted.value,
+            }),
         }),
         /**
          * Only where there is an account to create one in. The plugin swallows

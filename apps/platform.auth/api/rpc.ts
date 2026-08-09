@@ -115,13 +115,25 @@ export const authRpc = function* (auth: Auth) {
      */
     getMembership: (input: { readonly cookie: string }) =>
       Effect.gen(function* () {
+        const account = Option.getOrNull(billing.account);
+        /**
+         * TWO FLAGS, NOT ONE. Reaching Stripe and verifying Stripe are separate
+         * capabilities off production: a stage can open a real checkout and
+         * still be unable to confirm the result, which looks exactly like a
+         * broken feature unless the surface says so.
+         */
+        const reach = {
+          billing: account !== null,
+          webhooksVerifiable: account !== null && Option.isSome(account.webhookSecret),
+        };
+
         const current = yield* attempt(auth.api.getSession({ headers: headers(input.cookie) }));
         const userId = current.ok ? current.value?.user?.id : undefined;
         if (userId === undefined) {
           return {
             memberships: [] as ReadonlyArray<Membership>,
             stripeSubscriptionId: null,
-            billing: Option.isSome(billing.account),
+            ...reach,
           };
         }
 
@@ -171,7 +183,7 @@ export const authRpc = function* (auth: Auth) {
             rows.results.find(
               (row) => row.status !== "canceled" && row.stripeSubscriptionId !== null,
             )?.stripeSubscriptionId ?? null,
-          billing: Option.isSome(billing.account),
+          ...reach,
         };
       }),
 

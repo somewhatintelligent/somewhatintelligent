@@ -173,28 +173,36 @@ export function MembershipCard({ view }: { view: MembershipView }) {
             Subscriptions are switched off on this deployment — it holds no Stripe credentials.
           </ItemDescription>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            {(Object.entries(TIERS) as ReadonlyArray<[TierId, (typeof TIERS)[TierId]]>)
-              .filter(([id, candidate]) => candidate.purchasable && id !== view.grant.tier)
-              .map(([id, candidate]) => {
-                const isUpgrade = candidate.rank > tier.rank;
-                return (
-                  <Button
-                    key={id}
-                    variant={isUpgrade ? "default" : "outline"}
-                    disabled={busy}
-                    onClick={() => void upgrade(id)}
-                  >
-                    {isUpgrade ? `Upgrade to ${candidate.title}` : `Switch to ${candidate.title}`}
-                  </Button>
-                );
-              })}
-            {live !== null && (
-              <Button variant="outline" disabled={busy} onClick={() => void portal()}>
-                Manage billing
-              </Button>
+          <>
+            {!view.webhooksVerifiable && (
+              <ItemDescription>
+                This stage cannot verify Stripe webhooks, so a completed payment will not activate a
+                subscription here. Checkout still opens, against the test account.
+              </ItemDescription>
             )}
-          </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {(Object.entries(TIERS) as ReadonlyArray<[TierId, (typeof TIERS)[TierId]]>)
+                .filter(([id, candidate]) => candidate.purchasable && id !== view.grant.tier)
+                .map(([id, candidate]) => {
+                  const isUpgrade = candidate.rank > tier.rank;
+                  return (
+                    <Button
+                      key={id}
+                      variant={isUpgrade ? "default" : "outline"}
+                      disabled={busy}
+                      onClick={() => void upgrade(id)}
+                    >
+                      {isUpgrade ? `Upgrade to ${candidate.title}` : `Switch to ${candidate.title}`}
+                    </Button>
+                  );
+                })}
+              {live !== null && (
+                <Button variant="outline" disabled={busy} onClick={() => void portal()}>
+                  Manage billing
+                </Button>
+              )}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

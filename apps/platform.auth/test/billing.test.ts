@@ -100,14 +100,34 @@ describe("the stand-in client refuses rather than reaching Stripe", () => {
   });
 });
 
-describe("half a configuration is fatal", () => {
-  // Booting here would mount a checkout that takes money and a webhook that can
-  // never verify the result: every subscription stays `incomplete`, the customer
-  // is charged, and nothing raises.
-  test("a key with no endpoint secret refuses to resolve", () => {
-    const exit = resolve("dev", { [STRIPE_SECRET_KEY]: TEST_KEY });
+describe("a key with no endpoint secret", () => {
+  // Production is the only stage with a registered endpoint, so a missing
+  // secret there really does mean billing was set up and the webhook forgotten
+  // — and the payment it would take is real.
+  test("production refuses to resolve", () => {
+    const exit = resolve("prod", { [STRIPE_SECRET_KEY]: LIVE_KEY });
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain(AUTH_WEBHOOK_SECRET_VARIABLE);
+  });
+
+  // Off production the key arrives INHERITED from a checked-in encrypted file
+  // that dev, every preview and staging all decrypt. Nobody intended anything
+  // by it, and dying took down every preview deploy.
+  for (const environment of ["dev", "preprod"] as const) {
+    test(`${environment} keeps checkout and loses only verification`, () => {
+      const account = mustResolve(environment, { [STRIPE_SECRET_KEY]: TEST_KEY });
+      expect(Option.isNone(account.webhookSecret)).toBe(true);
+      expect(account.livemode).toBe(false);
+    });
+  }
+
+  // The guarantee that makes the softer branch safe: a live key cannot reach it,
+  // because the environment check runs first and fences livemode to production.
+  test("a live key off production still dies, before the endpoint secret is read", () => {
+    const exit = resolve("preprod", { [STRIPE_SECRET_KEY]: LIVE_KEY });
+    expect(Exit.isSuccess(exit)).toBe(false);
+    expect(String(exit)).toContain("LIVE");
+    expect(String(exit)).not.toContain(AUTH_WEBHOOK_SECRET_VARIABLE);
   });
 });
 
@@ -129,7 +149,7 @@ describe("a complete configuration resolves", () => {
   test("test keys off production", () => {
     const account = mustResolve("dev", configured);
     expect(account.livemode).toBe(false);
-    expect(Redacted.value(account.webhookSecret)).toBe(ENDPOINT_SECRET);
+    expect(Redacted.value(Option.getOrThrow(account.webhookSecret))).toBe(ENDPOINT_SECRET);
   });
 
   // `livemode` is derived from the key's prefix rather than configured, so it
@@ -143,6 +163,7 @@ describe("a complete configuration resolves", () => {
   // The shape a log line would take: an object holding the secret, serialised.
   test("the endpoint secret is redacted, so it cannot land in a log", () => {
     const account = mustResolve("dev", configured);
-    expect(JSON.stringify({ webhookSecret: account.webhookSecret })).not.toContain(ENDPOINT_SECRET);
+    const secret = Option.getOrThrow(account.webhookSecret);
+    expect(JSON.stringify({ webhookSecret: secret })).not.toContain(ENDPOINT_SECRET);
   });
 });
