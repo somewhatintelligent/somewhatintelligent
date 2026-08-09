@@ -65,6 +65,14 @@ export default Alchemy.Stack(
              * Unlike the group above, this name is unambiguous.
              */
             "Access: Organizations, Identity Providers, and Groups Read",
+            /**
+             * The inbox binds an `AI.Gateway`, and alchemy READS it while
+             * planning — so without this the deploy dies at plan time with a
+             * bare `Unauthorized: Authentication error` that names no
+             * permission. Account-scoped, and the only group with this name, so
+             * the string form is unambiguous here (unlike the Access one above).
+             */
+            "AI Gateway Write",
           ],
           resources: {
             [`com.cloudflare.api.account.${accountId}`]: "*",
