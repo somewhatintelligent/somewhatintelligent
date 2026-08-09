@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./module": "./module.ts",
+    "./AuthRouting": "./AuthRouting.ts",
     "./contracts": "./domain/Contracts.ts",
     "./rpc": "./domain/Rpc.ts",
     "./storefront": "./domain/Storefront.rpc.ts",
@@ -26,6 +27,7 @@
     "drizzle-orm": "catalog:",
     "effect": "catalog:",
     "jose": "^6.2.2",
+    "lib.access-jwt": "workspace:*",
     "lib.observability": "workspace:*",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",

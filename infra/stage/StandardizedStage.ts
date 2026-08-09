@@ -83,6 +83,39 @@ export const StageTier: Effect.Effect<Tier, never, Alchemy.Stack> = Effect.gen(f
 });
 
 /**
+ * THE conditional primitive for deployment shape. An exhaustive record over
+ * {@link Tier}, so a call site cannot forget a case and adding a tier is a
+ * compile error at every one of them.
+ *
+ * Prefer this over `production ? a : b` anywhere the decision is about WHERE
+ * the stack is deploying. A ternary answers "is this production" and silently
+ * lumps `staging` in with `pr_41`; the record has to say what staging does.
+ */
+export const Tiered = <const R extends Record<Tier, unknown>>(
+  cases: R,
+): Effect.Effect<R[Tier], never, Alchemy.Stack> => Effect.map(StageTier, (tier) => cases[tier]);
+
+/**
+ * {@link Tiered} for Effect-valued cases, flattened — only the chosen one runs.
+ *
+ * The requirements UNION across cases rather than being one `R` shared by all
+ * three, which is the whole reason this is written with extractors instead of
+ * `Record<Tier, Effect<A, E, R>>`: the tiers legitimately need different
+ * services. A production case that declares an Access application needs the
+ * Cloudflare providers; the preview case beside it needs the auth stack's
+ * outputs and nothing else. Forcing one `R` makes the two mutually
+ * unassignable, and the caller's only way out is a cast that erases the
+ * requirement the runtime still has.
+ */
+export const TieredEffect = <const Cases extends Record<Tier, Effect.Effect<any, any, any>>>(
+  cases: Cases,
+): Effect.Effect<
+  Effect.Success<Cases[Tier]>,
+  Effect.Error<Cases[Tier]>,
+  Effect.Services<Cases[Tier]> | Alchemy.Stack
+> => Effect.flatMap(StageTier, (tier) => cases[tier]);
+
+/**
  * The stage facts every stack needs, resolved once. Yielding this is what
  * validates the stage name, so a stack that uses it cannot reach a nonstandard
  * one.
@@ -101,6 +134,34 @@ export const Deployment = Effect.gen(function* () {
     host: (label: string, zone: string = PRODUCTION_ZONE) => `${label}${suffix}.${zone}`,
   };
 });
+
+/** What fronts a unit's HTTP surface. */
+export type Gate = "access" | "none";
+
+/**
+ * The gate a unit deploys behind, per tier. `access` everywhere by default; a
+ * unit that is PUBLIC in production overrides that one case and keeps the
+ * default for the rest, so a new preview surface is closed unless someone
+ * writes down that it should be open.
+ *
+ * `alchemy dev` is always `none` and that is deliberately NOT a tier case: a
+ * local workerd has no Access edge in front of it and never will, so there is
+ * no assertion for a gate to verify and one here would only lock a developer
+ * out of their own machine. Tier says WHERE this deploys; `dev` says whether it
+ * is deployed at all.
+ */
+export const GateFor = (
+  overrides: Partial<Record<Tier, Gate>> = {},
+): Effect.Effect<Gate, never, Alchemy.Stack> =>
+  Effect.gen(function* () {
+    const { dev } = yield* Deployment;
+    if (dev) return "none";
+    return yield* Tiered({
+      production: overrides.production ?? "access",
+      staging: overrides.staging ?? "access",
+      ephemeral: overrides.ephemeral ?? "access",
+    });
+  });
 
 export class DisallowedStage extends Data.TaggedError("DisallowedStage")<{
   readonly stack: string;

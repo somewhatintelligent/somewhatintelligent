@@ -12,9 +12,10 @@ import CommerceWorker from "./workers/Commerce.ts";
 import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
 
-import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
 import { Deployment, StageTier } from "@swi/infra/stage/StandardizedStage";
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
+
+import { accessFacts } from "./AuthRouting.ts";
 
 /**
  * Operator console.
@@ -24,11 +25,7 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
   Effect.gen(function* () {
     const { production, stage, dev: local } = yield* Deployment;
     const { operator } = yield* Hostnames;
-    const access = yield* InternalAccessApplication("OperatorAccess", operator);
-
-    const {
-      organization: { authDomain },
-    } = yield* CloudflareStack.stage["production"]!;
+    const { aud, teamDomain } = yield* accessFacts("OperatorAccess", operator);
 
     return {
       name: `si-commerce-operator-${production ? "prod" : workerSafeStage(stage)}`,
@@ -41,8 +38,8 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
       env: {
         COMMERCE: CommerceWorker,
         SETTLEMENT: SettlementWorker,
-        POLICY_AUD: access.aud.as<string>() as unknown as string,
-        TEAM_DOMAIN: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
+        POLICY_AUD: aud,
+        TEAM_DOMAIN: teamDomain,
         OPERATOR_AUTH: local ? "none" : "access",
         PAYMENTS_ENVIRONMENT: environmentFor(yield* StageTier) satisfies StripeEnvironment,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),

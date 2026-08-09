@@ -22,8 +22,18 @@ export default Alchemy.Stack(
   Effect.gen(function* () {
     const auth = yield* Auth;
 
-    // `Operator` reaches CloudflareStack itself for the policy and the IdP.
-    const commerce = yield* CommerceModule.pipe(Alchemy.AdoptPolicy.adopt(true));
+    /**
+     * COMMERCE GETS `AuthRouting` TOO, where it used to reach `CloudflareStack`
+     * for the policy and the IdP on its own. On production the operator console
+     * still declares its own zone application and that path is unchanged; off
+     * production it — and the media Worker beside it — verify assertions from
+     * the STAGE'S shared application, which only the auth stack knows the `aud`
+     * of. This is how that fact crosses the boundary.
+     */
+    const commerce = yield* CommerceModule.pipe(
+      Effect.provideService(AuthRouting, auth),
+      Alchemy.AdoptPolicy.adopt(true),
+    );
 
     const site = yield* SiteModule.pipe(
       Effect.provideService(AuthRouting, auth),

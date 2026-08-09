@@ -10,8 +10,10 @@ import type { Env } from "./src/server/env.ts";
 import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import { Path } from "effect/Path";
-import { PRODUCTION_ZONE } from "platform.names";
-import { Deployment } from "@swi/infra/stage/StandardizedStage";
+import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+import { Deployment, Tiered, TieredEffect } from "@swi/infra/stage/StandardizedStage";
+import { requirePreview } from "@swi/infra/stage/preview";
+import { Auth } from "platform.auth/alchemy.run";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
 
 const ARTIFACT_ZONE = "somewhatintelligent.dev";
@@ -45,32 +47,76 @@ const Blobs = Cloudflare.R2.Bucket(
 
 const OwnerObject = Cloudflare.DurableObject<OwnerClass>("Owner", { className: "Owner" });
 
+const previewFacts = Effect.gen(function* () {
+  const { previewAud, previewTeamDomain } = yield* Auth;
+  return requirePreview(previewAud, previewTeamDomain, "mezedes");
+});
+
+/**
+ * The Access application whose assertions this Worker accepts.
+ *
+ * ON PRODUCTION it declares and owns its own, bound to the apex hostname, with
+ * the pinned name the live one already carries.
+ *
+ * OFF PRODUCTION it declares NOTHING and reads the stage's shared application
+ * out of the auth stack. Two things follow. One, the orphan bug is fixed by
+ * construction: this stack used to mint an `Access.Application` in every stage
+ * — pointed at a hostname the stage did not own — and destroying the stage left
+ * it behind. Two, mezedes now depends on `platform.auth`, so CI deploys auth
+ * first, and locally both stacks must be run FROM THE SAME DIRECTORY, since
+ * `infra/stage/state.ts` keys a sandbox's store by `process.cwd()`.
+ */
+const AccessFacts = TieredEffect({
+  production: Effect.gen(function* () {
+    const { apex } = yield* Hostnames;
+    const access = yield* InternalAccessApplication("MezedesAccess", apex, PRODUCTION.access);
+    const {
+      organization: { authDomain },
+    } = yield* CloudflareStack.stage["production"]!;
+    return {
+      aud: access.aud.as<string>() as unknown as string,
+      teamDomain: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
+    };
+  }),
+  staging: previewFacts,
+  ephemeral: previewFacts,
+});
+
 export type { Env };
 export default Alchemy.Stack(
   "Mezedes",
   { providers: Cloudflare.providers(), state: state() },
   Effect.gen(function* () {
     const path = yield* Path;
-    const { dev } = yield* Deployment;
+    const { dev, stage } = yield* Deployment;
     const { apex, artifactSuffix, named } = yield* Hostnames;
-    const access = yield* InternalAccessApplication(
-      "MezedesAccess",
-      apex,
-      named ? PRODUCTION.access : undefined,
-    );
+    const { aud, teamDomain } = yield* AccessFacts;
     const origin = `https://${apex}`;
-    const {
-      organization: { authDomain },
-    } = yield* CloudflareStack.stage["production"]!;
+
+    /**
+     * PINNED PER STAGE, where non-production used to take whatever alchemy
+     * generated. The auth stack has to name this hostname as an Access
+     * destination without ever importing this file, so it must be derivable
+     * from the stage alone.
+     *
+     * This RENAMES existing `dev_*` and `pr_*` mezedes workers, so alchemy will
+     * replace them on the next deploy of those stages. They are ephemeral by
+     * definition; production's frozen name is untouched.
+     */
+    const name = yield* Tiered({
+      production: PRODUCTION.worker,
+      staging: PREVIEW_SCRIPTS.mezedes("staging"),
+      ephemeral: PREVIEW_SCRIPTS.mezedes(workerSafeStage(stage)),
+    });
 
     const worker = yield* Cloudflare.Worker("Mezedes", {
+      name,
       main: path.resolve(import.meta.dirname, "src/server/entry.ts"),
       observability: { enabled: true },
       compatibility: { date: COMPATIBILITY_DATE, flags: ["nodejs_compat"] },
       dev: { port: DEV_PORT, strictPort: true },
       ...(named
         ? {
-            name: PRODUCTION.worker,
             domain: apex,
             routes: [{ pattern: `*.${artifactSuffix}/*`, zoneName: artifactSuffix }],
           }
@@ -86,8 +132,8 @@ export default Alchemy.Stack(
         OWNER: OwnerObject,
         LOADER: Cloudflare.WorkerLoader("LOADER"),
         AUTH: dev ? "none" : "access",
-        POLICY_AUD: access.aud.as<string>(),
-        TEAM_DOMAIN: Output.interpolate`https://${authDomain}`.as<string>(),
+        POLICY_AUD: aud,
+        TEAM_DOMAIN: teamDomain,
         ARTIFACT_SUFFIX: artifactSuffix,
         SHELL_ORIGIN: origin,
         /**

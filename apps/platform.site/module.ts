@@ -1,18 +1,20 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
-import type * as Output from "alchemy/Output";
-import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import { PRODUCTION_ZONE } from "platform.names";
-import { Deployment } from "@swi/infra/stage/StandardizedStage";
+import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
 
 import CommerceWorker from "platform.commerce/workers/Commerce";
 import MediaWorker from "platform.commerce/workers/Media";
 
-export class AuthRouting extends Context.Service<
-  AuthRouting,
-  { readonly origin: Output.Output<string> }
->()("platform.site/AuthRouting") {}
+/**
+ * The tag itself moved to `platform.commerce/AuthRouting`, because the operator
+ * console and the media Worker need it too and commerce cannot import this
+ * module without a cycle. Re-exported here so this module's existing importers
+ * — `alchemy.run.ts` among them — did not have to move with it.
+ */
+export { AuthRouting } from "platform.commerce/AuthRouting";
+import { AuthRouting } from "platform.commerce/AuthRouting";
 
 /**
  * THE PUBLIC SITE, deployed in the SAME STACK as the commerce substrate it
@@ -41,10 +43,25 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
   "Site",
   Effect.gen(function* () {
     const auth = yield* AuthRouting;
-    const { production, dev: local } = yield* Deployment;
+    const { production, stage, dev: local } = yield* Deployment;
     const claimsApex = !local && production;
+    /**
+     * PINNED PER STAGE, where it used to be whatever alchemy generated. The
+     * stage's Access application has to enumerate this hostname as a
+     * destination from inside the AUTH stack, which never sees this Worker —
+     * so the name has to be derivable from the stage alone, and
+     * `PREVIEW_SCRIPTS` is the table both ends read.
+     *
+     * Production keeps its frozen physical name. Renaming it would replace the
+     * live worker rather than update it.
+     */
+    const name = yield* Tiered({
+      production: "platformcommerce-site-production-rgrpfsan2olmqfri",
+      staging: PREVIEW_SCRIPTS.site("staging"),
+      ephemeral: PREVIEW_SCRIPTS.site(workerSafeStage(stage)),
+    });
     return {
-      ...(production ? { name: "platformcommerce-site-production-rgrpfsan2olmqfri" } : {}),
+      name,
       rootDir: import.meta.dirname,
       sessionKVBindingName: false,
       compatibility: { date: "2026-04-15", flags: ["nodejs_compat"] },
@@ -55,6 +72,16 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
         COMMERCE: CommerceWorker,
         MEDIA: MediaWorker,
         PUBLIC_IS_PRODUCTION: production,
+        /**
+         * The public storefront. Open in production, gated on every preview.
+         *
+         * The two values below are passed unguarded, straight from the auth
+         * stack: on production they are empty and `GATE` is `"none"`, so
+         * nothing reads them. `src/middleware.ts` is what enforces the gate.
+         */
+        GATE: yield* GateFor({ production: "none" }),
+        POLICY_AUD: auth.previewAud,
+        TEAM_DOMAIN: auth.previewTeamDomain,
       },
     };
   }),
