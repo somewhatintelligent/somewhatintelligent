@@ -50,6 +50,25 @@ runs:
         fi
 
         for app in "${ORDER[@]}"; do
+          # BUILD FIRST, IF THE APP HAS ONE TO RUN.
+          #
+          # Most apps here are `Website.Vite` or `Website.Astro`, and alchemy
+          # runs their build itself as part of the deploy. Mezedes is not: it is
+          # a raw `Cloudflare.Worker` whose `assets.directory` points at a
+          # `dist/shell` that `vite build` produces, so alchemy expects the
+          # directory to already exist and dies with `NotFound:
+          # FileSystem.readDirectory` when it does not. On a developer's machine
+          # it is there from the last local build; on a fresh runner it never is.
+          #
+          # Keyed off the script rather than naming mezedes, so the next app to
+          # need a prebuilt artifact gets one without editing this file.
+          if [ "$COMMAND" = "deploy" ] &&
+             node -e "process.exit(require('./$app/package.json').scripts?.build ? 0 : 1)"; then
+            echo "::group::build $app"
+            bun run --cwd "$app" build
+            echo "::endgroup::"
+          fi
+
           echo "::group::$COMMAND $app @ $STAGE"
           bunx alchemy "$COMMAND" "$app/alchemy.run.ts" --stage "$STAGE" --yes
           echo "::endgroup::"

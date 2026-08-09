@@ -6,7 +6,7 @@
     "./alchemy.run": "./alchemy.run.ts"
   },
   "scripts": {
-    "build": "vite build",
+    "build": "vp build",
     "typecheck": "tsc -p tsconfig.json && tsc -p src/shell/tsconfig.json",
     "test": "bun test ./test/",
     "test:integ": "bun test ./integ/"
