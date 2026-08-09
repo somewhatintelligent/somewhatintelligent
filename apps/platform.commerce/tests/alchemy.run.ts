@@ -42,8 +42,8 @@ import * as Layer from "effect/Layer";
 import * as StripeDev from "../infrastructure/StripeDev.ts";
 import { CommerceDatabase, CommerceSchema, MediaBucket } from "../runtime.ts";
 import { environmentFor } from "../services/StripeConfig.ts";
-import MediaWorker from "../workers/Media.ts";
 import TestCommerceWorker from "./workers/Commerce.ts";
+import TestMediaWorker from "./workers/Media.ts";
 import EdgeWorker from "./workers/Edge.ts";
 import TestSettlementWorker from "./workers/Settlement.ts";
 import StorefrontWorker from "./workers/Storefront.ts";
@@ -91,7 +91,7 @@ export default Alchemy.Stack(
      */
     yield* TestCommerceWorker;
     const settlement = yield* TestSettlementWorker;
-    yield* MediaWorker;
+    yield* TestMediaWorker;
 
     const edge = yield* EdgeWorker;
     const storefront = yield* StorefrontWorker;

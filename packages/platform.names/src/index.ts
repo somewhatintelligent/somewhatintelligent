@@ -70,3 +70,40 @@ export const workerSafeStage = (stage: string): string =>
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+
+/**
+ * The account's `workers.dev` subdomain. Off production every unit answers at
+ * `https://<script>.${ACCOUNT_SUBDOMAIN}.workers.dev` and claims no zone
+ * record, so no two stages ever contend for a hostname.
+ */
+export const ACCOUNT_SUBDOMAIN = "apostoli-geyer";
+
+export const workersDevHost = (script: string): string =>
+  `${script}.${ACCOUNT_SUBDOMAIN}.workers.dev`;
+
+/**
+ * The per-stage script name of every unit with a preview surface, in ONE place,
+ * because the stage's shared Access application has to enumerate them as
+ * destinations BEFORE any of those workers resolve — it is declared in the auth
+ * stack and three of the five workers live in stacks it never imports.
+ *
+ * So the coupling is real and the only question is whether it is written down.
+ * Here, a unit that renames renames its worker and its Access destination in
+ * the same diff; spelled inline at both ends, they drift and the symptom is a
+ * preview that 200s to the whole internet.
+ *
+ * PRODUCTION NAMES ARE NOT HERE. Production pins frozen physical names inside
+ * each app — `si-identity-prod`, `agentic-inbox-si`, the alchemy-generated ones
+ * — and never routes through this table. Adding one here would invite a rename
+ * that replaces a live worker.
+ */
+export const PREVIEW_SCRIPTS = {
+  /** Matches what `apps/platform.auth/shared/ingress.ts` already builds. */
+  auth: (stage: string) => `si-identity-${stage}`,
+  site: (stage: string) => `si-site-${stage}`,
+  media: (stage: string) => `si-commerce-media-${stage}`,
+  /** Matches what `apps/platform.commerce/module.ts` already builds. */
+  operator: (stage: string) => `si-commerce-operator-${stage}`,
+  mezedes: (stage: string) => `si-mezedes-${stage}`,
+  inbox: (stage: string) => `agentic-inbox-si-${stage}`,
+} as const;

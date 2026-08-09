@@ -2,6 +2,7 @@ import startEntry from "@tanstack/react-start/server-entry";
 import { toRpcAsync } from "alchemy/Cloudflare/Bridge";
 import { observe } from "lib.observability/server";
 import { within } from "lib.observability/tanstack-start/server";
+import { refusal, verifyAccess } from "lib.access-jwt";
 import type { IdentitySession } from "./lib/session";
 import type { AppVersion } from "./lib/version";
 import type { IdentityEnv } from "./identity-env";
@@ -20,6 +21,21 @@ declare module "@tanstack/react-start" {
 }
 
 const handler = async (request: Request, env: IdentityEnv): Promise<Response> => {
+  /**
+   * THE PREVIEW GATE, and it is FIRST — before the `/api/auth` branch, because
+   * that branch is the whole authentication surface and a gate behind it would
+   * leave the interesting half open.
+   *
+   * `GATE` is `"none"` on production (this is where customers sign in, so it is
+   * public by design) and under `alchemy dev`; on every preview it is
+   * `"access"` and the assertion is verified here rather than trusted from the
+   * edge. See `lib.access-jwt` for why the Worker checks a second time.
+   */
+  if (env.GATE === "access") {
+    const verdict = await verifyAccess(request, env);
+    if (!verdict.ok) return refusal(verdict);
+  }
+
   const { pathname } = new URL(request.url);
 
   if (pathname.startsWith(AUTH_BASE_PATH)) {

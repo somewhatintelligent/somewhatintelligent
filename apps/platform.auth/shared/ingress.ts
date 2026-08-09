@@ -1,6 +1,10 @@
-import { PRODUCTION_STAGE, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
-
-const ACCOUNT_SUBDOMAIN = "apostoli-geyer";
+import {
+  PREVIEW_SCRIPTS,
+  PRODUCTION_STAGE,
+  PRODUCTION_ZONE,
+  workerSafeStage,
+  workersDevHost,
+} from "platform.names";
 
 const AUTH_SUBDOMAIN = "accounts";
 
@@ -42,12 +46,12 @@ export const PRODUCTION_WORKER_NAME = "si-identity-prod";
 
 export const ingress = (stage: string, local: boolean): Ingress => {
   const production = stage === PRODUCTION_STAGE;
-  const name = production ? PRODUCTION_WORKER_NAME : `si-identity-${workerSafeStage(stage)}`;
+  const name = production ? PRODUCTION_WORKER_NAME : PREVIEW_SCRIPTS.auth(workerSafeStage(stage));
   const hostname = production ? `${AUTH_SUBDOMAIN}.${PRODUCTION_ZONE}` : null;
   const origin = local
     ? `http://localhost:${DEV_PORT}`
     : hostname === null
-      ? `https://${name}.${ACCOUNT_SUBDOMAIN}.workers.dev`
+      ? `https://${workersDevHost(name)}`
       : `https://${hostname}`;
 
   return {

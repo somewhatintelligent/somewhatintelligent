@@ -1,0 +1,44 @@
+name: prod
+
+# CALLED, NOT TRIGGERED, and that is what removes the one credential nobody
+# could mint from this repo.
+#
+# The obvious shape is `on: push: tags: ["v*"]` — release-please cuts a tag,
+# the tag fires this. It does not work with `GITHUB_TOKEN`: GitHub fires no
+# workflow for a ref pushed with it, precisely to stop workflows recursing. The
+# usual fix is a personal access token, which has to be created by hand, expires
+# on its own schedule, and carries a human's identity into an automated deploy.
+#
+# So `release.yml` calls this as a reusable workflow in the same run instead. No
+# trigger cascade, no PAT, and the tag is still cut — it just is not load-bearing.
+# `workflow_dispatch` stays for re-running a production deploy by hand.
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: prod
+  # NOT cancel-in-progress: a half-applied production deploy is worse than a
+  # queued one.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Declared by `infra/github.stack.ts`, restricted to `trunk`. A deploy gate
+    # that exists only in a settings page is one nobody can review.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/alchemy
+        with:
+          command: deploy
+          stage: production

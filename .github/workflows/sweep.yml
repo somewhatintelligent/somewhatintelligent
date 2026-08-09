@@ -1,0 +1,101 @@
+name: sweep
+
+# THE LEAK CATCHER. `preview.yml` tears a stage down when its PR closes, which
+# covers every case except the ones that matter: a teardown that failed, a PR
+# closed while the runner was down, a stage deployed by hand and forgotten.
+# Weekly, this destroys every `pr_<n>` stage whose pull request is no longer
+# open.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  DOTENV_PRIVATE_KEY_DEVELOPMENT: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOPMENT }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+
+      - name: destroy stages whose pull request is closed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # `alchemy state stages` needs the STACK NAME, which is the string
+          # each `Alchemy.Stack(...)` is constructed with — not the directory.
+          # Listed in destroy order (the reverse of the deploy order in
+          # `.github/actions/alchemy`), so auth goes last. The inbox is here
+          # even though previews never deploy it: sweeping a stack with no
+          # state for a stage is skipped below, and listing it means a stage
+          # someone deployed BY HAND still gets cleaned up.
+          ENTRIES=(
+            "apps/platform.inbox:AgenticInbox"
+            "apps/mezedes:Mezedes"
+            "apps/platform.site:PlatformCommerce"
+            "apps/platform.auth:SomewhatIntelligentAuth"
+          )
+
+          # ONE listing of open PRs, up front — the alternative re-asked GitHub
+          # about the same PR number once per stack that carried its stage.
+          OPEN_PRS="$(gh pr list --state open --limit 1000 --json number --jq '.[].number' || true)"
+          is_open() { grep -qx "$1" <<<"$OPEN_PRS"; }
+
+          # Collect doomed (app, stage) PAIRS first — keying by stage alone
+          # made the destroy loop a full cross product, spawning an alchemy
+          # process even for stacks that never held the stage. Then destroy in
+          # ENTRIES order, so auth still goes down after its dependents.
+          declare -A DOOMED=()
+          for entry in "${ENTRIES[@]}"; do
+            app="${entry%%:*}"
+            stack="${entry##*:}"
+            # `state stages` prints one stage per line, or "(no stages in X)".
+            # It has no --json flag, so this is the parse.
+            stages="$(bunx alchemy state stages "$app/alchemy.run.ts" --stack "$stack" 2>/dev/null \
+              | grep -E '^pr_[0-9]+$' || true)"
+            for stage in $stages; do
+              number="${stage#pr_}"
+              # Not in the open list covers closed, merged, and deleted alike —
+              # a PR that cannot be found is exactly the leak this job exists
+              # to catch.
+              if ! is_open "$number"; then
+                DOOMED["$app|$stage"]=1
+                echo "$app @ $stage — PR $number is not open, queued for destroy"
+              fi
+            done
+          done
+
+          if [ ${#DOOMED[@]} -eq 0 ]; then
+            echo "nothing to sweep"
+            exit 0
+          fi
+
+          for entry in "${ENTRIES[@]}"; do
+            app="${entry%%:*}"
+            for key in "${!DOOMED[@]}"; do
+              [ "${key%%|*}" = "$app" ] || continue
+              stage="${key##*|}"
+              echo "::group::destroy $app @ $stage"
+              # `|| true`: one stack failing must not strand the rest of the
+              # sweep; next week's run retries whatever survived.
+              bunx alchemy destroy "$app/alchemy.run.ts" --stage "$stage" --yes || true
+              echo "::endgroup::"
+            done
+          done

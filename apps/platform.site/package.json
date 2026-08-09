@@ -15,6 +15,7 @@
     "alchemy": "catalog:",
     "astro": "^7",
     "effect": "catalog:",
+    "lib.access-jwt": "workspace:*",
     "marked": "^18.0.9",
     "platform.auth": "workspace:*",
     "platform.commerce": "workspace:*",

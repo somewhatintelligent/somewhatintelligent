@@ -29,6 +29,7 @@
     "better-auth": "^1.6.25",
     "drizzle-orm": "catalog:",
     "effect": "catalog:",
+    "lib.access-jwt": "workspace:*",
     "lib.better-auth-effect": "workspace:*",
     "lib.better-auth-manifest": "workspace:*",
     "lib.observability": "workspace:*",
