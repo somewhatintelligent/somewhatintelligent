@@ -41,7 +41,14 @@ jobs:
           stage: pr_${{ github.event.number }}
 
   teardown:
-    if: github.event.action == 'closed'
+    # THE SAME GUARD `deploy` CARRIES, and it has to be here too. `deploy` skips
+    # the release PR, so no stage was ever created for it — and destroying a
+    # stage that does not exist is not a harmless no-op: the composite action
+    # runs under `set -euo pipefail` with no `|| true`, so a failed destroy reds
+    # the check on the very commit that cuts a release.
+    if: >
+      github.event.action == 'closed' &&
+      !startsWith(github.head_ref, 'release-please--')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

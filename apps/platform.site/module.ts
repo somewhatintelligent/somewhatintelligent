@@ -2,6 +2,7 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
 import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
 
 import CommerceWorker from "platform.commerce/workers/Commerce";
@@ -60,6 +61,12 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
       staging: PREVIEW_SCRIPTS.site("staging"),
       ephemeral: PREVIEW_SCRIPTS.site(workerSafeStage(stage)),
     });
+
+    const gate = yield* GateFor({ production: "none" });
+    const { aud, teamDomain } =
+      gate === "none"
+        ? UNGATED
+        : requirePreview(auth.previewAud, auth.previewTeamDomain, "platform.site");
     return {
       name,
       rootDir: import.meta.dirname,
@@ -73,15 +80,18 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
         MEDIA: MediaWorker,
         PUBLIC_IS_PRODUCTION: production,
         /**
-         * The public storefront. Open in production, gated on every preview.
+         * The public storefront. Open in production, gated on every preview,
+         * and `src/middleware.ts` is what enforces it.
          *
-         * The two values below are passed unguarded, straight from the auth
-         * stack: on production they are empty and `GATE` is `"none"`, so
-         * nothing reads them. `src/middleware.ts` is what enforces the gate.
+         * GUARDED WHEN GATED, like every other unit. Passing these through raw
+         * made the site the one place where an empty `aud` produced a
+         * SUCCESSFUL deploy whose every SSR route then answered 500 — the four
+         * other units refuse the deploy instead, which is the failure you can
+         * act on.
          */
-        GATE: yield* GateFor({ production: "none" }),
-        POLICY_AUD: auth.previewAud,
-        TEAM_DOMAIN: auth.previewTeamDomain,
+        GATE: gate,
+        POLICY_AUD: aud,
+        TEAM_DOMAIN: teamDomain,
       },
     };
   }),

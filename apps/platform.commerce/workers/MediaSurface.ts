@@ -56,6 +56,10 @@ export const mediaSurface = Effect.gen(function* () {
        * and under `alchemy dev`, so this costs a property read on the paths
        * where the worker is meant to be public.
        *
+       * The storefront reaches this over a SERVICE BINDING, which Access never
+       * fronts — `apps/platform.site/src/pages/media/[id].ts` forwards the
+       * assertion it was given so that this check has something to verify.
+       *
        * `WorkerEnvironment` is read HERE rather than in the init Effect above:
        * reading it per-event is legal and reading it at init is what took the
        * whole stack down twice — `services/StripeConfig.ts` carries the long

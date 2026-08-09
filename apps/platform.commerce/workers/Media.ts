@@ -9,9 +9,15 @@
  * reachable, un-authenticated media endpoint on the internet for the lifetime
  * of the branch.
  *
- * The gate works for `<img>` subresources ONLY because the stage's Access
- * application is SHARED with the site pulling them — one cookie covers both.
- * See `apps/platform.auth/api/preview-access.ts`.
+ * TWO CALLERS, AND ONLY ONE OF THEM MEETS THE EDGE. A browser reaches an image
+ * at the SITE — `Contracts.mediaHref` is the root-relative `/media/<id>` — and
+ * `apps/platform.site/src/pages/media/[id].ts` forwards over the `MEDIA`
+ * service binding, a hop that stays inside the account and that Access never
+ * sees. That route therefore copies the assertion it was given onto the
+ * upstream request; without it this gate 403s every product image on every
+ * preview. The other caller is a person or a script hitting this worker's own
+ * `workers.dev` hostname, which IS one of the stage application's destinations
+ * and does meet the edge.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";

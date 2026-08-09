@@ -11,6 +11,7 @@ import * as Effect from "effect/Effect";
 import * as Effectable from "effect/Effectable";
 import * as Data from "effect/Data";
 import { PRODUCTION_ZONE, workerSafeStage } from "platform.names";
+import { SANDBOX } from "./sandbox.ts";
 
 const PATTERN =
   /^(placeholder|production|staging|test|pr_(0|[1-9][0-9]*)|(test|dev|debug)_[a-z0-9][a-z0-9-]*)$/;
@@ -144,11 +145,18 @@ export type Gate = "access" | "none";
  * default for the rest, so a new preview surface is closed unless someone
  * writes down that it should be open.
  *
- * `alchemy dev` is always `none` and that is deliberately NOT a tier case: a
- * local workerd has no Access edge in front of it and never will, so there is
- * no assertion for a gate to verify and one here would only lock a developer
- * out of their own machine. Tier says WHERE this deploys; `dev` says whether it
- * is deployed at all.
+ * `none` UNDER `alchemy dev` AND UNDER `SANDBOX`, neither of which is a tier
+ * case. A local workerd has no Access edge in front of it and never will, so
+ * there is no assertion to verify and a gate would only lock a developer out of
+ * their own machine; a `SANDBOX` run has no standing to create the application
+ * in the first place.
+ *
+ * THOSE TWO CONDITIONS ARE EXACTLY THE ONES UNDER WHICH
+ * `apps/platform.auth/api/preview-access.ts` DECLARES NO APPLICATION, and they
+ * are spelled here so the two cannot drift. When they did, a `SANDBOX` deploy
+ * shipped `GATE="access"` with an empty `POLICY_AUD` — a Worker that answers
+ * 500 to every request, because a gate with nothing to verify against fails
+ * closed and is right to.
  */
 export const GateFor = (
   overrides: Partial<Record<Tier, Gate>> = {},
@@ -156,6 +164,7 @@ export const GateFor = (
   Effect.gen(function* () {
     const { dev } = yield* Deployment;
     if (dev) return "none";
+    if (yield* Effect.orDie(SANDBOX)) return "none";
     return yield* Tiered({
       production: overrides.production ?? "access",
       staging: overrides.staging ?? "access",

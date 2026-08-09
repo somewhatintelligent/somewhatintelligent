@@ -40,7 +40,29 @@ export const GET: APIRoute = async ({ params, request }) => {
      * a path segment.
      */
     const upstream = new URL(`/media/${encodeURIComponent(id)}`, request.url);
-    return await env.MEDIA.fetch(upstream, { method: "GET" });
+
+    /**
+     * THE ACCESS ASSERTION IS FORWARDED, and without it every product image on
+     * every preview is a 403.
+     *
+     * This hop is a SERVICE BINDING: it never leaves the account, so it never
+     * passes the Access edge and nothing would otherwise attach an assertion to
+     * it. Media verifies in-band like every other gated worker, so a request
+     * built from scratch — which is what this was — arrives with no header at
+     * all and is refused. The browser's `<img>` goes to THIS origin (the href
+     * is root-relative `/media/<id>`), so the edge stamped the header on the
+     * request that reached `src/middleware.ts`; passing it along is what makes
+     * the in-band check on the far side meaningful rather than fatal.
+     *
+     * Absent on production and under `alchemy dev`, where both ends are
+     * ungated. Copying a header that is not there is a no-op.
+     */
+    const assertion = request.headers.get("Cf-Access-Jwt-Assertion");
+
+    return await env.MEDIA.fetch(upstream, {
+      method: "GET",
+      ...(assertion === null ? {} : { headers: { "Cf-Access-Jwt-Assertion": assertion } }),
+    });
   } catch {
     // The binding itself failed — the image is not missing, the hop is. 502
     // says so; a 404 here would read as "this product has no cover".
