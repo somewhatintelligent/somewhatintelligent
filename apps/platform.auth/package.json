@@ -11,7 +11,8 @@
     "dev": "alchemy dev",
     "email": "email dev --dir api/email/preview --port 3001",
     "og": "platform-og build",
-    "test": "vp test run"
+    "test": "vp test run",
+    "test:integ": "SANDBOX=1 ALCHEMY_DEV=1 bun test ./integ/"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.6.25",
@@ -46,6 +47,7 @@
     "@cloudflare/workers-types": "^5",
     "@react-email/preview-server": "5.2.11",
     "@tailwindcss/vite": "^4",
+    "@types/bun": "^1.3.14",
     "@types/node": "^26.1.1",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

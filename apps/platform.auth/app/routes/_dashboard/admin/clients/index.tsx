@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Badge } from "platform.ui/components/badge";
 import { Button } from "platform.ui/components/button";
-import { isManaged } from "@/lib/clients";
+import { isManaged } from "../../../../../shared/clients";
 import { getClients } from "@/lib/admin-clients.functions";
 
 export const Route = createFileRoute("/_dashboard/admin/clients/")({

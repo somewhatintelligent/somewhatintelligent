@@ -6,7 +6,7 @@ import { refusal, verifyAccess } from "lib.access-jwt";
 import type { IdentitySession } from "./lib/session";
 import type { AppVersion } from "./lib/version";
 import type { IdentityEnv } from "./identity-env";
-import { AUTH_BASE_PATH, AVATAR_PREFIX } from "../shared/ingress.ts";
+import { AVATAR_PREFIX, oauthMetadataTarget, servedByAuth } from "../shared/ingress.ts";
 
 declare module "@tanstack/react-start" {
   interface Register {
@@ -38,8 +38,29 @@ const handler = async (request: Request, env: IdentityEnv): Promise<Response> =>
 
   const { pathname } = new URL(request.url);
 
-  if (pathname.startsWith(AUTH_BASE_PATH)) {
+  if (servedByAuth(pathname)) {
     return env.AUTH.fetch(request);
+  }
+
+  /**
+   * BEFORE the app, and by rewrite rather than redirect.
+   *
+   * The auth server owns these documents but sits behind `AUTH_BASE_PATH`,
+   * where a client looking for the well-known root would never reach it — this
+   * app would answer with its own SPA shell, and a 200 full of HTML is what a
+   * client reports as "not an OAuth server" rather than "wrong URL". A 302
+   * would be no better: RFC 8414 clients are not obliged to follow one, and
+   * some do not.
+   *
+   * So the path is rewritten to the one Better Auth recognises and handed
+   * across. Same origin, same method, same headers; only the pathname differs,
+   * which is what makes the four spellings one document instead of four.
+   */
+  const metadata = oauthMetadataTarget(pathname);
+  if (metadata !== null) {
+    const rewritten = new URL(request.url);
+    rewritten.pathname = metadata;
+    return env.AUTH.fetch(new Request(rewritten, request));
   }
 
   if (pathname.startsWith(AVATAR_PREFIX)) {

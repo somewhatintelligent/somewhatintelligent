@@ -4,6 +4,7 @@ import * as Layer from "effect/Layer";
 
 import { dialect, Signing, UNSIGNED } from "./capabilities.ts";
 import { Origin, UNRESOLVED_ORIGIN } from "./origin.ts";
+import { Resources } from "./resources.ts";
 
 /**
  * The capability set for the DEPLOY host, where `authConfig` is resolved for the
@@ -47,6 +48,13 @@ export const inertly = Layer.mergeAll(
     betterAuthDatabase: tripwire(`${Database.key}.betterAuthDatabase`, {}),
   }),
   inert(Origin, { origin: UNRESOLVED_ORIGIN, cookieDomain: null }),
+  /**
+   * EMPTY, not a stand-in URL. Nothing the deploy host resolves this config for
+   * — the Drizzle schema, the feature manifest — varies with the audience list,
+   * and a plausible-looking one here would be a second answer to the question
+   * `api/worker.ts` already answers from the stage.
+   */
+  inert(Resources, { audiences: [] }),
   inert(Signing, UNSIGNED),
   /**
    * Present but untouchable. Schema generation resolves the whole config,

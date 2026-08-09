@@ -23,7 +23,7 @@ import {
 import { toast } from "platform.ui/components/sonner";
 import { cn } from "platform.ui/lib/utils";
 import { authClient } from "@/lib/auth-client";
-import { getScopeLabel } from "@/lib/scopes";
+import { scopeLabel } from "../../../shared/scopes";
 import { fetchConnections } from "@/lib/connections.functions";
 
 export const Route = createFileRoute("/_dashboard/connections")({
@@ -73,7 +73,7 @@ function ConnectionsPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {consent.scopes.map((scope) => (
                       <Badge key={scope} variant="secondary">
-                        {getScopeLabel(scope)}
+                        {scopeLabel(scope)}
                       </Badge>
                     ))}
                   </div>

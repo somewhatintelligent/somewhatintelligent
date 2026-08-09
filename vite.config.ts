@@ -126,8 +126,17 @@ export default defineConfig({
       },
     ],
   },
+  /**
+   * `integ/` is EXCLUDED here rather than per app, because this list REPLACES
+   * rather than merges: an app that re-states it to add one pattern silently
+   * drops `.git` and the worktrees. Every app's `integ/` is the same kind of
+   * thing — a suite that deploys a stack and runs under `bun test` via its own
+   * `test:integ` script, importing `bun:test`. Collected by Vitest it fails at
+   * import with `protocol 'bun:' not supported`, which is a red suite that says
+   * nothing about the code.
+   */
   test: {
-    exclude: ["**/node_modules/**", "**/.git/**", worktrees],
+    exclude: ["**/node_modules/**", "**/.git/**", "**/integ/**", worktrees],
   },
   run: {
     cache: true,
