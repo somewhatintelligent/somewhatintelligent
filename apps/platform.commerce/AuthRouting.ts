@@ -6,18 +6,27 @@
  * in the package and `workers/Media.ts` needs these — importing back the other
  * way is a cycle. Nothing here imports a Worker, so both ends can read it.
  *
+ * IT IMPORTS NO STACK EITHER, and that is a HARD constraint rather than tidiness.
+ * `workers/Media.ts` is `main: import.meta.url` — the file IS the Worker entry,
+ * so everything it can reach is bundled and evaluated in workerd at startup.
+ * `@swi/infra/cloudflare.stack` declares resources and calls
+ * `Cloudflare.providers()` at MODULE SCOPE, which no tree-shake can drop, and
+ * that pulls the deploy-time bundler in behind it. Measured, on this branch: the
+ * media Worker died at startup with `TypeError: t.resolve is not a function`
+ * inside esbuild's `generateBinPath`, and the site went with it because it binds
+ * media. `accessFacts` — the one export that needed a stack — lives in
+ * `module.ts` now, which no Worker entry can reach.
+ *
  * The tag itself moved out of `platform.site`, where it started, for the mirror
  * of the same reason: three of its four readers are commerce's, and
  * `platform.site` already imports commerce. `platform.site/module.ts`
  * re-exports it so its existing importers were unaffected.
  */
-import * as Output from "alchemy/Output";
+import type * as Output from "alchemy/Output";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 
-import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
 import { requirePreview, type PreviewAccess } from "@swi/infra/stage/preview";
-import { TieredEffect } from "@swi/infra/stage/StandardizedStage";
 
 export type { PreviewAccess };
 
@@ -54,30 +63,3 @@ export const previewFacts: Effect.Effect<PreviewAccess, never, AuthRouting> = Ef
     return requirePreview(previewAud, previewTeamDomain, "commerce");
   },
 );
-
-/**
- * The Access application whose assertions a commerce Worker must accept.
- *
- * TWO DIFFERENT APPLICATIONS, not one with a variable name. On production the
- * unit owns a pinned application bound to its own zone hostname, and that `aud`
- * is already live. Off production every unit in the stage sits behind ONE
- * shared application declared by the auth stack, because an Access cookie is
- * scoped to the application that issued it — and a console the operator has to
- * sign into separately from the site that links to it is not a preview anyone
- * will use.
- */
-export const accessFacts = (id: string, domain: string) =>
-  TieredEffect({
-    production: Effect.gen(function* () {
-      const access = yield* InternalAccessApplication(id, domain);
-      const {
-        organization: { authDomain },
-      } = yield* CloudflareStack.stage["production"]!;
-      return {
-        aud: access.aud.as<string>() as unknown as string,
-        teamDomain: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
-      };
-    }),
-    staging: previewFacts,
-    ephemeral: previewFacts,
-  });

@@ -12,11 +12,46 @@ import CommerceWorker from "./workers/Commerce.ts";
 import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
 
-import { Deployment, StageTier } from "@swi/infra/stage/StandardizedStage";
+import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
+import { Deployment, StageTier, TieredEffect } from "@swi/infra/stage/StandardizedStage";
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
 
 import { UNGATED } from "@swi/infra/stage/preview";
-import { accessFacts } from "./AuthRouting.ts";
+import { previewFacts } from "./AuthRouting.ts";
+
+/**
+ * The Access application whose assertions a commerce Worker must accept.
+ *
+ * TWO DIFFERENT APPLICATIONS, not one with a variable name. On production the
+ * unit owns a pinned application bound to its own zone hostname, and that `aud`
+ * is already live. Off production every unit in the stage sits behind ONE
+ * shared application declared by the auth stack, because an Access cookie is
+ * scoped to the application that issued it — and a console the operator has to
+ * sign into separately from the site that links to it is not a preview anyone
+ * will use.
+ *
+ * IT LIVES HERE, NOT BESIDE THE TAG IN `AuthRouting.ts`, because it is the one
+ * piece that needs `@swi/infra/cloudflare.stack` — and that module declares
+ * resources at module scope, so anything importing it drags the deploy-time
+ * bundler along. `workers/Media.ts` reads the tag and IS a Worker entry, so a
+ * shared home for both would put esbuild inside workerd. It did, once; see the
+ * note in `AuthRouting.ts`. Nothing that runs in a Worker can reach this file.
+ */
+const accessFacts = (id: string, domain: string) =>
+  TieredEffect({
+    production: Effect.gen(function* () {
+      const access = yield* InternalAccessApplication(id, domain);
+      const {
+        organization: { authDomain },
+      } = yield* CloudflareStack.stage["production"]!;
+      return {
+        aud: access.aud.as<string>() as unknown as string,
+        teamDomain: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
+      };
+    }),
+    staging: previewFacts,
+    ephemeral: previewFacts,
+  });
 
 /**
  * Operator console.
