@@ -1,4 +1,4 @@
-# RFC-002 — Subscriptions, and the abstraction apps check them through
+# RFC-003 — Subscriptions, and the abstraction apps check them through
 
 **Status:** Proposed
 **Affects:** `platform.auth` (schema, config, RPC, account UI), `platform.commerce`

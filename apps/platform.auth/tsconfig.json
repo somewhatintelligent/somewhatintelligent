@@ -13,7 +13,7 @@
       "#/*": ["./app/*"]
     },
     "resolveJsonModule": true,
-    "types": ["node", "@cloudflare/workers-types", "vite/client"],
+    "types": ["node", "bun", "@cloudflare/workers-types", "vite/client"],
     "strict": true,
     "noUnusedLocals": true,
     "noEmit": true,
@@ -36,6 +36,12 @@
     "app/**/*.tsx",
     "og/**/*.tsx",
     "og.config.ts",
-    "test/**/*.ts"
+    "test/**/*.ts",
+    /**
+     * The integration suite is IN the project. It deploys `alchemy.run.ts` and
+     * imports `shared/ingress.ts`, so a change that breaks either has to break
+     * it at type-check time rather than at deploy time.
+     */
+    "integ/**/*.ts"
   ]
 }

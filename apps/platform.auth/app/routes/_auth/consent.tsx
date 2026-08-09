@@ -1,8 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { Alert, AlertDescription, AlertTitle } from "platform.ui/components/alert";
 import { Card, CardContent } from "platform.ui/components/card";
-import { getScopeLabel } from "@/lib/scopes";
+import { scopeCopy } from "../../../shared/scopes";
 import { ConsentActions } from "@/components/auth/consent-actions";
-import { resolveClientName } from "@/lib/oauth-clients.functions";
+import { resolveConsentingClient, UNVOUCHED_CLIENT } from "@/lib/oauth-clients.functions";
 
 interface ConsentSearch {
   client_id?: string;
@@ -36,13 +37,14 @@ export const Route = createFileRoute("/_auth/consent")({
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ deps }) => {
     const { search } = deps;
-    const clientName = search.client_id
-      ? await resolveClientName({
-          data: { client_id: search.client_id, oauth_query: buildOAuthQuery(search) },
-        }).catch(() => null)
-      : null;
+    // `beforeLoad` has already redirected when `client_id` is missing, so it is
+    // present here. The fallback on failure is `UNVOUCHED_CLIENT`, and which way
+    // that one defaults is argued where it is defined rather than here.
+    const client = await resolveConsentingClient({
+      data: { client_id: search.client_id!, oauth_query: buildOAuthQuery(search) },
+    }).catch(() => UNVOUCHED_CLIENT);
     return {
-      clientName,
+      client,
       scope: search.scope ?? "openid profile email",
     };
   },
@@ -51,7 +53,7 @@ export const Route = createFileRoute("/_auth/consent")({
 });
 
 function ConsentPage() {
-  const { clientName, scope } = Route.useLoaderData();
+  const { client, scope } = Route.useLoaderData();
   const { client_id } = Route.useSearch();
   const { session } = Route.useRouteContext();
   const requestedScopes = scope.split(" ");
@@ -62,12 +64,29 @@ function ConsentPage() {
       <div className="mb-section text-center">
         <div className="type-display-title">Authorize</div>
         <div className="text-sm text-muted-foreground">
-          <strong className="text-foreground">{clientName ?? client_id}</strong> wants access
+          <strong className="text-foreground">{client.name ?? client_id}</strong> wants access
         </div>
       </div>
 
       <Card className="p-page" style={{ viewTransitionName: "auth-card" }}>
         <CardContent className="space-y-0 p-0">
+          {/*
+            FIRST, above the account and the permissions.
+
+            Anyone may register a client here, and `client.name` is a string
+            they chose — so the line above this card can read "somewhatintelligent"
+            no matter who is asking. This is the only thing on the screen that
+            they did not choose, and it is worth nothing at the bottom.
+          */}
+          {client.selfRegistered && (
+            <Alert variant="destructive" className="mb-8">
+              <AlertTitle>Nobody has vouched for this app</AlertTitle>
+              <AlertDescription>
+                It registered itself and picked its own name, which may imitate one you trust. Only
+                continue if you started this from the app yourself.
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="mb-8 flex items-center gap-3 rounded-sm bg-surface-sunken px-4 py-3">
             <div className="flex size-8 items-center justify-center rounded-sm bg-primary text-xs font-semibold text-primary-foreground">
               {user.name?.charAt(0).toUpperCase() ?? "?"}
@@ -81,15 +100,26 @@ function ConsentPage() {
           <div className="mb-8">
             <div className="type-mono-label mb-3 text-muted-foreground/80">Permissions</div>
             <div className="flex flex-col gap-2">
-              {requestedScopes.map((s) => (
-                <div
-                  key={s}
-                  className="flex items-center gap-2.5 rounded-sm bg-surface-sunken px-4 py-3 text-sm"
-                >
-                  <span className="text-success">✓</span>
-                  {getScopeLabel(s)}
-                </div>
-              ))}
+              {requestedScopes.map((s) => {
+                const copy = scopeCopy(s);
+                return (
+                  <div
+                    key={s}
+                    className="flex items-start gap-2.5 rounded-sm bg-surface-sunken px-4 py-3 text-sm"
+                  >
+                    <span className="text-success">✓</span>
+                    <div>
+                      {/* The raw scope when there is no copy — a client may ask
+                          for one this build does not know, and showing the
+                          string is honest where inventing a sentence is not. */}
+                      <div>{copy?.label ?? s}</div>
+                      {copy && (
+                        <div className="text-xs text-muted-foreground/80">{copy.description}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

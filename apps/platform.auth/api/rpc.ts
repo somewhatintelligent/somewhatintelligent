@@ -3,6 +3,8 @@ import { Effect } from "effect";
 import * as Option from "effect/Option";
 import type { AuthApiError } from "lib.better-auth-effect";
 import { decodeMembership, type Membership } from "platform.entitlements";
+
+import { isManaged } from "../shared/clients.ts";
 import { ALLOWED_AVATAR_TYPES, AVATAR_PREFIX, MAX_AVATAR_BYTES } from "../shared/ingress.ts";
 import { AvatarBucket } from "./avatars.ts";
 import { Billing } from "./billing.ts";
@@ -477,6 +479,49 @@ export const authRpc = function* (auth: Auth) {
           body: { client_id: input.client_id, oauth_query: input.oauth_query },
         }),
       ),
+
+    /**
+     * Who vouched for a client, which is the one thing the consent screen shows
+     * that the client did not choose for itself.
+     *
+     * Registration is open (see `allowUnauthenticatedClientRegistration` in
+     * `api/config.ts`), so `client_name` is an attacker-controlled string and
+     * the screen that renders it needs to say so. `user_id` is null exactly
+     * when nobody was signed in at registration; a managed `reference_id` means
+     * this account provisioned it. Either is a human who can be named, and a
+     * stranger has neither.
+     *
+     * `isManaged`, not `reference_id !== null`: the admin console already reads
+     * this column that way (`shared/clients.ts`), and one column with two
+     * readings is how two screens come to disagree about one client. It is also
+     * the conservative direction — an unrecognised reference reads as unvouched
+     * and shows the warning.
+     *
+     * THROUGH SQL, not `getOAuthClientPublicPrelogin`: that endpoint returns
+     * the seven fields a client supplied about itself and deliberately no
+     * provenance. Reading the row is the only way to learn what the client did
+     * not get to say.
+     *
+     * UNAUTHENTICATED, and safe to be: the answer is one boolean about a
+     * `client_id` the caller already holds, and it is the same answer for
+     * everyone. Gating it behind a session would leave the pre-login consent
+     * path — the one an unregistered visitor lands on — with no warning at all.
+     */
+    clientProvenance: (input: { readonly clientId: string }) =>
+      Effect.gen(function* () {
+        const rows = yield* query<{ user_id: string | null; reference_id: string | null }>(
+          `SELECT "user_id", "reference_id" FROM "oauth_client" WHERE "client_id" = ?1 LIMIT 1`,
+          input.clientId,
+        );
+        const row = rows.results[0];
+        if (row === undefined) return failed("not_found");
+
+        return {
+          ok: true as const,
+          /** Nobody signed in registered it, and this account does not manage it. */
+          selfRegistered: row.user_id === null && !isManaged(row.reference_id),
+        };
+      }),
 
     adminListOrgs: (input: { readonly cookie: string }) =>
       Effect.gen(function* () {

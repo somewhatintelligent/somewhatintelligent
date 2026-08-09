@@ -22,9 +22,11 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
 import { AUTH_BASE_PATH } from "../shared/ingress.ts";
+import { SCOPE_NAMES } from "../shared/scopes.ts";
 import { Billing, refusingClient } from "./billing.ts";
 import { Signing } from "./capabilities.ts";
 import { Origin } from "./origin.ts";
+import { Resources } from "./resources.ts";
 import { allocateUsername, USERNAME_LIMITS } from "./username.ts";
 
 /**
@@ -36,6 +38,38 @@ interface UserLookup {
   findMany: (query: unknown) => Promise<ReadonlyArray<Record<string, unknown>>>;
 }
 
+/**
+ * The claims discovery advertises.
+ *
+ * Restated here because `advertisedMetadata.claims_supported` REPLACES the
+ * plugin's derived list (see its use below) rather than adding to it, so
+ * naming the one custom claim would drop every standard one.
+ *
+ * THE RULE, NOT ITS OUTPUT. What the plugin derives depends on `SCOPE_NAMES`:
+ * eight unconditional claims, plus `email`/`email_verified` iff `email` is
+ * granted, plus four profile claims iff `profile` is. Freezing the resulting
+ * fourteen strings would couple this list to `shared/scopes.ts` through prose
+ * alone — drop `profile` there and this file would go on advertising four
+ * claims nothing issues, with nothing to catch it. Written as the same
+ * conditional the plugin applies, the two move together.
+ *
+ * The mezes scopes contribute none: they are not OIDC scopes and carry no
+ * claims. `test/oauth-provider.test.ts` pins the resulting set against the
+ * resolved configuration.
+ */
+const OIDC_CLAIMS = [
+  "sub",
+  "iss",
+  "aud",
+  "exp",
+  "iat",
+  "sid",
+  "scope",
+  "azp",
+  ...(SCOPE_NAMES.includes("email") ? ["email", "email_verified"] : []),
+  ...(SCOPE_NAMES.includes("profile") ? ["name", "picture", "family_name", "given_name"] : []),
+];
+
 /** What `databaseHooks.user.create.before` is handed. */
 type NewUser = Record<string, unknown>;
 interface CreateContext {
@@ -45,6 +79,7 @@ interface CreateContext {
 export const authConfig = Effect.gen(function* () {
   const bae = yield* Bae;
   const { origin, cookieDomain } = yield* Origin;
+  const { audiences } = yield* Resources;
   const { secret } = yield* Signing;
   /**
    * Resolved HERE, beside `Origin` and `Signing`, because they are the same
@@ -65,10 +100,31 @@ export const authConfig = Effect.gen(function* () {
     secret,
     baseURL: origin,
     basePath: AUTH_BASE_PATH,
-    /** Production alone has a cookie domain — see `Ingress.cookieDomain`. */
-    ...(cookieDomain === null
-      ? {}
-      : { advanced: { crossSubDomainCookies: { enabled: true, domain: cookieDomain } } }),
+    advanced: {
+      /**
+       * WHO A RATE LIMIT COUNTS AGAINST. Without this Better Auth cannot
+       * resolve a client address and falls back to ONE SHARED BUCKET PER PATH,
+       * which turns every rule below into a denial-of-service tool: three failed
+       * logins from anyone, anywhere, and `/sign-in/email` is shut for everybody
+       * for ten seconds. Found by running the integration suite and reading the
+       * warning it printed, not by reasoning about the config.
+       *
+       * `cf-connecting-ip` ALONE. Cloudflare's edge sets it and a client cannot
+       * forge it; `x-forwarded-for` is client-supplied on the way in, so
+       * accepting it as a fallback would let an attacker mint a fresh bucket per
+       * request and walk straight through the limit it is meant to enforce.
+       *
+       * It survives the service-binding hop from `app/worker.ts`, which passes
+       * the request through with its headers — including the rewritten
+       * discovery requests, which copy them. Locally there is no such header and
+       * no meaningful client address either; the fallback is correct there.
+       */
+      ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+      /** Production alone has a cookie domain — see `Ingress.cookieDomain`. */
+      ...(cookieDomain === null
+        ? {}
+        : { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }),
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
@@ -111,8 +167,85 @@ export const authConfig = Effect.gen(function* () {
       oauthProvider({
         loginPage: `/sign-in`,
         consentPage: `/consent`,
-        scopes: ["openid", "profile", "email", "offline_access"],
+        /**
+         * See `shared/scopes.ts`: the same list the consent screen has words
+         * for. Spread because the plugin takes a mutable array and the list is
+         * `readonly` — nothing here should be able to push a scope onto it.
+         */
+        scopes: [...SCOPE_NAMES],
+        /**
+         * What a token may be MADE OUT TO. Naming this list at all replaces the
+         * default — Better Auth otherwise accepts its own base URL and nothing
+         * else — so the base URL is restated here rather than assumed. It has to
+         * be: `/oauth2/userinfo` is addressed by it on every `openid` grant.
+         *
+         * A `resource` outside this list is refused at the token endpoint. That
+         * refusal is the security property: it is what stops a client that
+         * talked a user into consenting from pointing the resulting token at
+         * some other service on the internet.
+         */
+        validAudiences: [`${origin}${AUTH_BASE_PATH}`, ...audiences],
+        /**
+         * RFC 7591 registration, open to callers with no credentials.
+         *
+         * MCP clients bring none and no operator either. A coding agent
+         * discovers this server from mezes' protected-resource metadata,
+         * registers itself, and runs the browser flow — all before any human
+         * has seen a settings page, which is the entire reason there is nothing
+         * to paste.
+         *
+         * The upstream guards bound what a self-registered client can DO:
+         * `token_endpoint_auth_method` is forced to `"none"`, which makes it
+         * public, which makes PKCE mandatory; `client_credentials` is refused
+         * at registration; `skip_consent` is `z.never()` on that endpoint, so
+         * it can never register its way past the screen. Registration by itself
+         * grants nothing — only the person in the browser does.
+         *
+         * NONE OF THAT BOUNDS WHAT IT CAN CLAIM TO BE, which is the part a
+         * person acts on: `client_name` is caller-supplied and it is the
+         * headline of the consent screen. That is consent phishing with this
+         * server's own page, and it is the reason this flag stayed off until
+         * `_auth/consent.tsx` could tell a self-registered client from a
+         * vouched-for one and say so above everything else. It can — see
+         * `clientProvenance` in `api/rpc.ts`. Take that warning away and this
+         * flag has to come off with it.
+         */
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        /**
+         * NO `client_credentials`, for anyone — including the clients an admin
+         * creates by hand. Machine-to-machine callers here use API keys, so the
+         * grant is a second, unused way to obtain a token that carries no user
+         * and passes no consent screen. An unused path is an unwatched one.
+         */
+        grantTypes: ["authorization_code", "refresh_token"],
         allowPublicClientPrelogin: true,
+        /**
+         * Both documents are served, at the root of this origin, by
+         * `app/worker.ts` — the plugin cannot know that and warns on every cold
+         * start otherwise. `test/ingress.test.ts` is what keeps the claim true.
+         */
+        silenceWarnings: { oauthAuthServerConfig: true, openidConfig: true },
+        /**
+         * The advertised claims, RESTATED IN FULL rather than added to.
+         *
+         * The docs say claims here are "in addition to the internally supported
+         * claims". They are not: upstream reads
+         * `advertisedMetadata?.claims_supported ?? claims ?? []`, so naming
+         * `role` alone REPLACES the fourteen the plugin derives from `scopes`
+         * and discovery goes from advertising all of them to advertising one.
+         * Measured against a running server, not reasoned about — and the first
+         * version of this line shipped exactly that regression.
+         *
+         * So the derived set is restated beside the custom one — as the RULE
+         * that produces it, see `OIDC_CLAIMS` above. `role` is the custom one,
+         * injected by both claim callbacks below.
+         *
+         * `scopes_supported` is deliberately NOT overridden beside it: it
+         * defaults to the whole scope list, which is what a client needs to see
+         * to know `mezes:write` can be asked for.
+         */
+        advertisedMetadata: { claims_supported: [...OIDC_CLAIMS, "role"] },
         customUserInfoClaims: ({ user }) => ({
           role: (user as Record<string, unknown>).role ?? "user",
         }),
@@ -219,8 +352,37 @@ export const authConfig = Effect.gen(function* () {
      * already has. The per-route rules are si's, carried over verbatim: a
      * global 100/60s would let an attacker spend the whole budget guessing at
      * `/sign-in/email`.
+     *
+     * `enabled` IS STATED. Better Auth infers it from `NODE_ENV === "production"`,
+     * and nothing in this deploy sets `NODE_ENV` — alchemy's bundler defines
+     * `globalThis.__ALCHEMY_RUNTIME__` and nothing else — so left inferred, every
+     * rule below applies or does not according to a variable no one here
+     * controls. That was survivable while the endpoints behind them all needed a
+     * password to be interesting. `/oauth2/register` takes no credential at all
+     * (see the OAuth provider above), and a rule that silently is not in force is
+     * the failure this whole file is written in the style of.
+     *
+     * THE COST, measured rather than assumed, because the first version of this
+     * comment said "one storage round trip" and that was wrong. `consume` reads
+     * the row and then increments it — two D1 queries — and on the first request
+     * of a new window it also awaits `deleteExpiredRows`, a `DELETE … WHERE
+     * last_request < cutoff` over a column with no index. Window rollover is the
+     * common case for real traffic, so a typical request pays three serialised
+     * round trips.
+     *
+     * Only `/api/auth/*` pays it, and page loads do not: the app reads its
+     * session through `toRpcAsync(env.AUTH).getSession`, not `auth.handler`. So
+     * the bill falls on sign-in, token and register — endpoints that are already
+     * doing database work and are not hot paths.
+     *
+     * Not yet done, deliberately, because each changes behaviour rather than
+     * cost: `advanced.backgroundTasks.handler` would move the prune off the
+     * response path (and the transactional emails with it), and a
+     * `customStorage` over a Durable Object would make the whole thing atomic
+     * and free of D1. Either is a change to make on purpose, not in passing.
      */
     rateLimit: {
+      enabled: true,
       storage: "database" as const,
       window: 60,
       max: 100,
