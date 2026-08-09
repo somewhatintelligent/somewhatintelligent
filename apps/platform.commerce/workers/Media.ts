@@ -9,15 +9,20 @@
  * reachable, un-authenticated media endpoint on the internet for the lifetime
  * of the branch.
  *
- * TWO CALLERS, AND ONLY ONE OF THEM MEETS THE EDGE. A browser reaches an image
- * at the SITE — `Contracts.mediaHref` is the root-relative `/media/<id>` — and
- * `apps/platform.site/src/pages/media/[id].ts` forwards over the `MEDIA`
- * service binding, a hop that stays inside the account and that Access never
- * sees. That route therefore copies the assertion it was given onto the
- * upstream request; without it this gate 403s every product image on every
- * preview. The other caller is a person or a script hitting this worker's own
- * `workers.dev` hostname, which IS one of the stage application's destinations
- * and does meet the edge.
+ * NOTHING EVER POINTS A BROWSER AT THIS WORKER'S OWN HOSTNAME, which is why it
+ * is the one gated unit that is NOT a destination of the stage's Access
+ * application. `Contracts.mediaHref` is the root-relative `/media/<id>`, so an
+ * `<img>` goes to the SITE, and `apps/platform.site/src/pages/media/[id].ts`
+ * forwards over the `MEDIA` service binding — a hop that stays inside the
+ * account and that Access never sees. That route copies the assertion it was
+ * given onto the upstream request; without it this gate 403s every product
+ * image on every preview.
+ *
+ * So the edge never fronts this worker and the check below is the whole gate,
+ * not a second opinion. A script hitting the `workers.dev` hostname directly
+ * gets a 403 from here rather than a login page — correct for a surface with no
+ * UI. See `apps/platform.auth/api/preview-access.ts` for why the destination
+ * list is kept to the surfaces a person actually opens.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";

@@ -32,12 +32,37 @@ import { Deployment, TieredEffect } from "@swi/infra/stage/StandardizedStage";
 import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } from "platform.names";
 
 /**
- * Every hostname the stage's application fronts.
+ * Every hostname the stage's application fronts — THE BROWSABLE ONES, and only
+ * those. Five, and the number is load-bearing.
  *
- * SETTLEMENT IS DELIBERATELY ABSENT. Stripe cannot present an Access
- * credential, and a webhook endpoint behind a login is a webhook that never
- * fires. It authenticates the only way it can — by verifying Stripe's own
- * signature on the payload — and stays outside this application on purpose.
+ * A DESTINATION IS A LOGIN FLOW, NOT A GATE. What a destination buys is that a
+ * browser arriving at that hostname gets redirected to the IdP and comes back
+ * with a cookie. Refusing an unauthenticated request is done by the Worker
+ * itself, in-band, whether or not the hostname is listed here. So a surface
+ * nobody points a browser at needs verification but not a destination.
+ *
+ * MEDIA IS EXACTLY THAT SURFACE, and listing it cost us a deploy: Cloudflare
+ * refused the application outright with `too many destinations for one app`.
+ * New applications default to the eager-redirect cookie, which walks the
+ * browser through every hostname at sign-in, and past five that chain is what
+ * Cloudflare's own changelog warns causes sign-in loops.
+ *
+ * Dropping media is right on the merits rather than a concession to the limit.
+ * `Contracts.mediaHref` is the root-relative `/media/<id>`, so an `<img>` goes
+ * to the SITE, which forwards the assertion over the `MEDIA` service binding
+ * (`apps/platform.site/src/pages/media/[id].ts`). Nothing ever points a browser
+ * at media's own hostname, and a script that does gets a 403 from the worker.
+ *
+ * If a SIXTH browsable surface ever appears, the choice is to turn the eager
+ * redirect off — which costs the one-sign-in property, since a cookie is then
+ * issued only as each hostname is first visited — or to split the stage across
+ * two applications, which costs it outright. Prefer keeping this list to the
+ * surfaces a person actually opens.
+ *
+ * SETTLEMENT IS DELIBERATELY ABSENT for a different reason. Stripe cannot
+ * present an Access credential, and a webhook endpoint behind a login is a
+ * webhook that never fires. It verifies Stripe's signature on the payload
+ * instead and stays outside this application on purpose.
  *
  * The operator console is a ZONE hostname even off production (`module.ts`
  * claims `commerce-<stage>.<zone>`), while the rest answer on workers.dev. One
@@ -47,7 +72,6 @@ import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } fro
 export const previewDestinations = (stage: string): readonly string[] => [
   workersDevHost(PREVIEW_SCRIPTS.auth(stage)),
   workersDevHost(PREVIEW_SCRIPTS.site(stage)),
-  workersDevHost(PREVIEW_SCRIPTS.media(stage)),
   workersDevHost(PREVIEW_SCRIPTS.mezedes(stage)),
   workersDevHost(PREVIEW_SCRIPTS.inbox(stage)),
   `commerce-${stage}.${PRODUCTION_ZONE}`,
