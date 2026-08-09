@@ -1,0 +1,31 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # A PERSONAL ACCESS TOKEN, NOT `GITHUB_TOKEN`, and this is the whole
+          # reason the release is split from the deploy: GitHub does not fire
+          # workflow triggers for refs pushed with `GITHUB_TOKEN`, so a tag
+          # created with it would sit there and `prod.yml` would never run.
+          #
+          # Fine-grained, this repository only, contents:write +
+          # pull-requests:write. It has to be created by hand — nothing in this
+          # repo can mint it.
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}

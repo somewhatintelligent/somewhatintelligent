@@ -1,0 +1,56 @@
+name: alchemy
+description: Deploy or destroy every app stack for one stage, in dependency order.
+
+inputs:
+  command:
+    description: deploy | destroy
+    required: true
+  stage:
+    description: The stage to act on, e.g. production, staging, pr_41
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: "1.3.14"
+
+    - shell: bash
+      run: bun install --frozen-lockfile
+
+    # THE ORDER IS A DEPENDENCY ORDER, not a preference.
+    #
+    # `platform.auth` declares the stage's shared Access application and every
+    # other stack reads its `aud` out of auth's persisted outputs — so auth
+    # deploys first or the other three die with "the auth stack exported an
+    # empty POLICY_AUD". `platform.site` deploys the commerce substrate in the
+    # same stack, so it comes before nothing in particular, but mezedes and the
+    # inbox read auth too.
+    #
+    # Destroy reverses it: tearing auth down first would strand the others'
+    # reference to a stack that no longer has state.
+    - shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        STAGE: ${{ inputs.stage }}
+      run: |
+        set -euo pipefail
+
+        case "$COMMAND" in
+          deploy|destroy) ;;
+          *) echo "::error::command must be deploy or destroy, got '$COMMAND'"; exit 1 ;;
+        esac
+
+        ORDER=(apps/platform.auth apps/platform.site apps/mezedes apps/platform.inbox)
+        if [ "$COMMAND" = "destroy" ]; then
+          REVERSED=()
+          for ((i = ${#ORDER[@]} - 1; i >= 0; i--)); do REVERSED+=("${ORDER[i]}"); done
+          ORDER=("${REVERSED[@]}")
+        fi
+
+        for app in "${ORDER[@]}"; do
+          echo "::group::$COMMAND $app @ $STAGE"
+          bunx alchemy "$COMMAND" "$app/alchemy.run.ts" --stage "$STAGE" --yes
+          echo "::endgroup::"
+        done
