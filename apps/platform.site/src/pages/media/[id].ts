@@ -24,6 +24,7 @@
  */
 import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
+import { ACCESS_HEADER } from "lib.access-jwt";
 
 export const prerender = false;
 
@@ -57,11 +58,11 @@ export const GET: APIRoute = async ({ params, request }) => {
      * Absent on production and under `alchemy dev`, where both ends are
      * ungated. Copying a header that is not there is a no-op.
      */
-    const assertion = request.headers.get("Cf-Access-Jwt-Assertion");
+    const assertion = request.headers.get(ACCESS_HEADER);
 
     return await env.MEDIA.fetch(upstream, {
       method: "GET",
-      ...(assertion === null ? {} : { headers: { "Cf-Access-Jwt-Assertion": assertion } }),
+      ...(assertion === null ? {} : { headers: { [ACCESS_HEADER]: assertion } }),
     });
   } catch {
     // The binding itself failed — the image is not missing, the hop is. 502

@@ -56,10 +56,9 @@ export class AuthRouting extends Context.Service<
   "platform.site/AuthRouting",
 ) {}
 
-/** The stage's shared application, refusing an ungated deploy. */
-export const previewFacts: Effect.Effect<PreviewAccess, never, AuthRouting> = Effect.gen(
-  function* () {
+/** The stage's shared application, refusing an ungated deploy of `unit`. */
+export const previewFacts = (unit: string): Effect.Effect<PreviewAccess, never, AuthRouting> =>
+  Effect.gen(function* () {
     const { previewAud, previewTeamDomain } = yield* AuthRouting;
-    return requirePreview(previewAud, previewTeamDomain, "commerce");
-  },
-);
+    return requirePreview(previewAud, previewTeamDomain, unit);
+  });

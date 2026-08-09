@@ -15,9 +15,12 @@
  * `unauthorized`. There is no path here that returns a principal without one.
  *
  * A LEAF MODULE, and it has to stay that way: no `alchemy` import, no `effect`
- * import, one runtime dependency (`jose`). Five Workers across four apps import
- * it, and a deploy-time symbol reaching any of their bundles is the failure
- * `infra/stage/sandbox.ts` documents for the same reason.
+ * import, one runtime dependency (`jose`). Its importers are the auth worker,
+ * the site's middleware and media route, the media surface, and the operator
+ * console's `access.server.ts` — and a deploy-time symbol reaching any of
+ * their bundles is the failure `infra/stage/sandbox.ts` documents for the same
+ * reason. Mezedes and the inbox still run their own older verifiers; migrating
+ * them here is deliberate follow-up work, not an accident of omission.
  *
  * Lifted from `apps/platform.commerce/app/lib/access.server.ts`, which was the
  * strictest of the three verifiers the repo had grown.
@@ -143,14 +146,17 @@ export const verifyToken = async (
 };
 
 /**
- * Verify the assertion on one request.
+ * Verify one assertion value — the whole gate, minus the header read. For
+ * callers whose request object is not a web `Request` (the Effect HTTP
+ * wrapper's headers are a plain record), so nobody has to build a throwaway
+ * `Request` just to hand this a string.
  *
  * `misconfigured` is deliberately distinct from `unauthorized`: a 403 reads as
  * "you are not staff" and would send someone to fix their Access membership
  * when the deploy is what is broken.
  */
-export const verifyAccess = async (
-  request: Request,
+export const verifyAssertion = async (
+  token: string | undefined,
   env: AccessEnv,
   getKey?: JWTVerifyGetKey,
 ): Promise<Verdict> => {
@@ -164,7 +170,6 @@ export const verifyAccess = async (
     };
   }
 
-  const token = request.headers.get(ACCESS_HEADER);
   if (!token) {
     return {
       ok: false,
@@ -175,6 +180,14 @@ export const verifyAccess = async (
 
   return verifyToken(token, config, getKey ?? jwksFor(config.teamDomain));
 };
+
+/** Verify the assertion on one request. */
+export const verifyAccess = (
+  request: Request,
+  env: AccessEnv,
+  getKey?: JWTVerifyGetKey,
+): Promise<Verdict> =>
+  verifyAssertion(request.headers.get(ACCESS_HEADER) ?? undefined, env, getKey);
 
 /**
  * The response a refused request gets, so five Workers cannot disagree about
@@ -190,27 +203,3 @@ export const refusal = (verdict: Extract<Verdict, { ok: false }>): Response =>
   verdict.error === "misconfigured"
     ? new Response("access is misconfigured for this deployment", { status: 500 })
     : new Response("forbidden", { status: 403 });
-
-/** The principal a local `alchemy dev` session runs as. */
-export const DEV_PRINCIPAL: Principal = { sub: "dev", email: "dev@localhost" };
-
-/**
- * Wrap a plain fetch handler in the gate.
- *
- * `gate` is passed in rather than derived from the env, because a Worker cannot
- * tell a local port from a real one and guessing wrong in the permissive
- * direction is the whole failure. `GateFor` in `StandardizedStage.ts` is what
- * decides, at deploy time, and `"none"` is reachable only under `alchemy dev`.
- */
-export const gated =
-  (
-    gate: "access" | "none",
-    env: AccessEnv,
-    handler: (request: Request, principal: Principal) => Promise<Response> | Response,
-  ) =>
-  async (request: Request): Promise<Response> => {
-    if (gate === "none") return handler(request, DEV_PRINCIPAL);
-    const verdict = await verifyAccess(request, env);
-    if (!verdict.ok) return refusal(verdict);
-    return handler(request, verdict.principal);
-  };

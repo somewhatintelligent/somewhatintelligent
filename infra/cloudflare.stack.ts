@@ -1,6 +1,8 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
+import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
+import type { PreviewAccess } from "./stage/preview.ts";
 import { guardStage, TieredEffect } from "./stage/StandardizedStage.ts";
 
 const organization = Cloudflare.Access.Organization("ZeroTrustOrganization", {
@@ -86,6 +88,42 @@ export default CloudflareStack.make(
     };
   }).pipe(Alchemy.AdoptPolicy.adopt(true)),
 );
+
+/**
+ * The Access facts a gated unit's verifier needs, resolved per tier — the ONE
+ * spelling of a shape that had grown three copies (mezedes, the inbox, the
+ * operator console), each with its own pair of `as unknown as string` casts.
+ * Those casts are exactly where an alchemy `Output` typing change bites, and
+ * with this helper it bites in one place.
+ *
+ * ON PRODUCTION the unit owns a pinned application on its zone hostname and
+ * reads that application's `aud`. OFF PRODUCTION it declares nothing and the
+ * caller supplies where the stage's shared facts come from — the auth stack's
+ * output for sibling stacks, the `AuthRouting` service inside the commerce
+ * graph. The differing sources are the parameter; the shape never was.
+ */
+export const accessFacts = <R>(
+  id: string,
+  domain: string,
+  name: string | undefined,
+  preview: Effect.Effect<PreviewAccess, never, R>,
+) =>
+  TieredEffect({
+    production: Effect.gen(function* () {
+      const access = yield* InternalAccessApplication(id, domain, name);
+      const {
+        organization: { authDomain },
+      } = yield* CloudflareStack.stage["production"]!;
+      return {
+        aud: access.aud.as<string>() as unknown as string,
+        // `authDomain` is bare (`acme.cloudflareaccess.com`); the scheme is
+        // what Access puts in `iss` and what every verifier matches against.
+        teamDomain: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
+      } satisfies PreviewAccess;
+    }),
+    staging: preview,
+    ephemeral: preview,
+  });
 
 /**
  * A ZONE-HOSTNAME Access application, one per unit — and PRODUCTION ONLY.

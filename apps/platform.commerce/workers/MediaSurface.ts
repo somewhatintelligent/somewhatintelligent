@@ -35,7 +35,7 @@ import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import { refusal, verifyAccess } from "lib.access-jwt";
+import { ACCESS_HEADER, refusal, verifyAssertion } from "lib.access-jwt";
 
 import * as MediaDomain from "../domain/Media.ts";
 import { handles, readCapabilities } from "../runtime.ts";
@@ -65,14 +65,15 @@ export const mediaSurface = Effect.gen(function* () {
        * whole stack down twice — `services/StripeConfig.ts` carries the long
        * version of that note.
        *
-       * `verifyAccess` reads exactly one header, so a `Request` built from this
-       * one's headers carries everything it needs; `toWeb` would consume the
-       * body stream and can fail, for nothing gained.
+       * The Effect HTTP wrapper's headers are a plain lowercase-keyed record,
+       * not a web `Headers` — `verifyAssertion` takes the value directly so
+       * nothing has to build a throwaway `Request` around one string.
        */
       const env = yield* Cloudflare.Workers.WorkerEnvironment;
       if (env["GATE"] === "access") {
+        const token = request.headers[ACCESS_HEADER.toLowerCase()];
         const verdict = yield* Effect.promise(() =>
-          verifyAccess(new Request("https://media.internal/", { headers: request.headers }), {
+          verifyAssertion(typeof token === "string" ? token : undefined, {
             POLICY_AUD: typeof env["POLICY_AUD"] === "string" ? env["POLICY_AUD"] : undefined,
             TEAM_DOMAIN: typeof env["TEAM_DOMAIN"] === "string" ? env["TEAM_DOMAIN"] : undefined,
           }),

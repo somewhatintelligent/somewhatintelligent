@@ -16,6 +16,7 @@ import { DEV_PORT, ingress } from "./shared/ingress.ts";
 import { authDefines } from "./shared/surfaces.ts";
 
 import { AuthSchema } from "./api/schema.ts";
+import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
 import { GateFor } from "@swi/infra/stage/StandardizedStage";
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
 import * as Option from "effect/Option";
@@ -73,11 +74,10 @@ class Identity extends Cloudflare.Website.Vite<Identity>()(
          * outside the account should reach, gate included.
          */
         GATE: yield* GateFor({ production: "none" }),
-        POLICY_AUD: Option.match(preview, { onNone: () => "", onSome: ({ aud }) => aud }),
-        TEAM_DOMAIN: Option.match(preview, {
-          onNone: () => "",
-          onSome: ({ teamDomain }) => teamDomain,
-        }),
+        // `UNGATED` is the named empty — the same sentinel `requirePreview`
+        // guards against — so producer and guard cannot drift silently.
+        POLICY_AUD: Option.getOrElse(preview, () => UNGATED).aud,
+        TEAM_DOMAIN: Option.getOrElse(preview, () => UNGATED).teamDomain,
         ...authDefines(yield* authFeatures),
         /**
          * A `Website.Vite` has no impl Effect for a telemetry Layer to bind
@@ -96,6 +96,20 @@ class Identity extends Cloudflare.Website.Vite<Identity>()(
 export type IdentityEnv = Cloudflare.Workers.InferEnv<Identity>;
 
 export class Auth extends Alchemy.Stack<Auth, AuthRouting>()("SomewhatIntelligentAuth") {}
+
+/**
+ * The stage's shared Access facts, read out of this stack's persisted output
+ * and REFUSED if empty — for the sibling stacks (mezedes, the inbox) that
+ * reach auth across the stack boundary. Their two byte-identical copies of
+ * this destructure-and-guard are what this replaces; commerce cannot use it,
+ * because inside its graph the same facts arrive through the `AuthRouting`
+ * service rather than a stack reference.
+ */
+export const previewFactsFor = (unit: string) =>
+  Effect.gen(function* () {
+    const { previewAud, previewTeamDomain } = yield* Auth;
+    return requirePreview(previewAud, previewTeamDomain, unit);
+  });
 
 export default Auth.make(
   {
@@ -126,11 +140,8 @@ export default Auth.make(
       authBaseURL: `${origin}${features.basePath}`,
       cookieDomain,
       features,
-      previewAud: Option.match(preview, { onNone: () => "", onSome: ({ aud }) => aud }),
-      previewTeamDomain: Option.match(preview, {
-        onNone: () => "",
-        onSome: ({ teamDomain }) => teamDomain,
-      }),
+      previewAud: Option.getOrElse(preview, () => UNGATED).aud,
+      previewTeamDomain: Option.getOrElse(preview, () => UNGATED).teamDomain,
       // something is fucked if the below happens and we broke prod
       databaseId: Output.map(database.databaseId, (id) => {
         if (stage === PRODUCTION_STAGE && id !== PRODUCTION_DATABASE_ID) {

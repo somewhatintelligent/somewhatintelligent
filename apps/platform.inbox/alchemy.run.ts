@@ -1,15 +1,14 @@
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
-import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
 
-import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
-import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
-import { Deployment, Tiered, TieredEffect } from "@swi/infra/stage/StandardizedStage";
+import { accessFacts } from "@swi/infra/cloudflare.stack";
+import { UNGATED } from "@swi/infra/stage/preview";
+import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
 import { state } from "@swi/infra/stage/state";
 import { PREVIEW_SCRIPTS, workerSafeStage, workersDevHost } from "platform.names";
-import { Auth } from "platform.auth/alchemy.run";
+import { previewFactsFor } from "platform.auth/alchemy.run";
 
 import { Path } from "effect/Path";
 
@@ -22,55 +21,32 @@ const MAIL_HOST = "mail.somewhatintelligent.ca";
 /** The app the live inbox already sits behind. Pinned so `production` adopts it. */
 const PRODUCTION_ACCESS_APP = "AgenticInbox-InboxAccess-dev-stoli-qamzqweyw7kcrmor";
 
-const previewFacts = Effect.gen(function* () {
-  const { previewAud, previewTeamDomain } = yield* Auth;
-  return requirePreview(previewAud, previewTeamDomain, "inbox");
-});
-
-/**
- * The Access application whose assertions this Worker accepts.
- *
- * ON PRODUCTION, its own, pinned to the name the live one carries and bound to
- * the mail hostname. OFF PRODUCTION it declares nothing and reads the stage's
- * shared application out of the auth stack — which is also why this stack now
- * depends on `platform.auth` and why CI deploys auth first.
- */
-const AccessFacts = TieredEffect({
-  production: Effect.gen(function* () {
-    const access = yield* InternalAccessApplication(
-      "InboxAccess",
-      MAIL_HOST,
-      PRODUCTION_ACCESS_APP,
-    );
-    const {
-      organization: { authDomain },
-    } = yield* CloudflareStack.stage["production"]!;
-    return {
-      aud: access.aud.as<string>() as unknown as string,
-      // `authDomain` is bare (`acme.cloudflareaccess.com`); the scheme is what
-      // `getAccessUrls` parses and what Access puts in `iss`.
-      teamDomain: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
-    };
-  }),
-  staging: previewFacts,
-  ephemeral: previewFacts,
-});
-
 class Inbox extends Cloudflare.Website.Vite<Inbox>()(
   "Inbox",
   Effect.gen(function* () {
     const path = yield* Path;
-    const { stage, dev } = yield* Deployment;
+    const { stage } = yield* Deployment;
     const safeStage = workerSafeStage(stage);
 
     /**
-     * Resolved only when something will verify against it. `workers/app.ts`
-     * skips its Access middleware entirely under `import.meta.env.DEV`, so a
-     * dev run reads neither value — and declaring an application there would
-     * put a real account-level resource in front of a hostname this run does
-     * not deploy.
+     * Facts resolve only when something will verify against them, and
+     * `GateFor` — not a hand-rolled `dev ?` — decides: `workers/app.ts` skips
+     * its Access middleware entirely under `import.meta.env.DEV`, so a dev or
+     * sandbox run reads neither value, and declaring an application there
+     * would put a real account-level resource in front of a hostname the run
+     * does not deploy. On production `accessFacts` adopts the pinned app on
+     * the mail hostname; on a manually-deployed preview it reads the stage's
+     * shared application out of the auth stack.
      */
-    const { aud, teamDomain } = dev ? UNGATED : yield* AccessFacts;
+    const { aud, teamDomain } =
+      (yield* GateFor()) === "none"
+        ? UNGATED
+        : yield* accessFacts(
+            "InboxAccess",
+            MAIL_HOST,
+            PRODUCTION_ACCESS_APP,
+            previewFactsFor("inbox"),
+          );
 
     /**
      * EVERY IDENTITY THIS STACK CLAIMS WAS A CONSTANT, and every one of them is
@@ -97,20 +73,26 @@ class Inbox extends Cloudflare.Website.Vite<Inbox>()(
       ephemeral: { workersDev: true },
     });
 
-    /** What `/api/v1/config` reports as this deployment's reachable host. */
+    /**
+     * What `/api/v1/config` reports as this deployment's reachable host —
+     * DERIVED from `name`, because off production they are the same fact: the
+     * worker answers on `workers.dev` under its own script name. Stated twice
+     * they can drift into a config endpoint advertising a hostname that
+     * resolves to nothing; mezedes derives its `origin` the same way.
+     */
     const mailDomain = yield* Tiered({
       production: MAIL_HOST,
-      staging: workersDevHost(PREVIEW_SCRIPTS.inbox("staging")),
-      ephemeral: workersDevHost(PREVIEW_SCRIPTS.inbox(safeStage)),
+      staging: workersDevHost(name),
+      ephemeral: workersDevHost(name),
     });
 
-    const bucketName = yield* Tiered({
-      production: "agentic-inbox-si",
-      staging: "agentic-inbox-si-staging",
-      ephemeral: `agentic-inbox-si-${safeStage}`,
-    });
-
-    const gatewayId = yield* Tiered({
+    /**
+     * ONE record for the R2 bucket and the AI gateway: they were two
+     * byte-identical tables that had to be edited together with nothing saying
+     * so, and the next per-stage rename would have fixed one and left the
+     * other with a different suffix.
+     */
+    const inboxId = yield* Tiered({
       production: "agentic-inbox-si",
       staging: "agentic-inbox-si-staging",
       ephemeral: `agentic-inbox-si-${safeStage}`,
@@ -142,10 +124,10 @@ class Inbox extends Cloudflare.Website.Vite<Inbox>()(
         POLICY_AUD: aud,
         TEAM_DOMAIN: teamDomain,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
-        BUCKET: Cloudflare.R2.Bucket("Bucket", { name: bucketName }).pipe(
+        BUCKET: Cloudflare.R2.Bucket("Bucket", { name: inboxId }).pipe(
           Alchemy.RemovalPolicy.retain(retainBucket),
         ),
-        AI: Cloudflare.AI.Gateway("Ai", { id: gatewayId }),
+        AI: Cloudflare.AI.Gateway("Ai", { id: inboxId }),
         EMAIL: Cloudflare.Email.SendEmail("Email"),
         MAILBOX: Cloudflare.DurableObject<MailboxDO>("MailboxDO"),
         EMAIL_AGENT: Cloudflare.DurableObject<EmailAgent>("EmailAgent"),

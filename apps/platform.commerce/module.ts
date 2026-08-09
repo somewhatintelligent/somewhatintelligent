@@ -12,49 +12,22 @@ import CommerceWorker from "./workers/Commerce.ts";
 import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
 
-import { CloudflareStack, InternalAccessApplication } from "@swi/infra/cloudflare.stack";
-import { Deployment, StageTier, TieredEffect } from "@swi/infra/stage/StandardizedStage";
+import { accessFacts } from "@swi/infra/cloudflare.stack";
+import { Deployment, GateFor, StageTier } from "@swi/infra/stage/StandardizedStage";
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
 
 import { UNGATED } from "@swi/infra/stage/preview";
 import { previewFacts } from "./AuthRouting.ts";
 
 /**
- * The Access application whose assertions a commerce Worker must accept.
- *
- * TWO DIFFERENT APPLICATIONS, not one with a variable name. On production the
- * unit owns a pinned application bound to its own zone hostname, and that `aud`
- * is already live. Off production every unit in the stage sits behind ONE
- * shared application declared by the auth stack, because an Access cookie is
- * scoped to the application that issued it — and a console the operator has to
- * sign into separately from the site that links to it is not a preview anyone
- * will use.
- *
- * IT LIVES HERE, NOT BESIDE THE TAG IN `AuthRouting.ts`, because it is the one
- * piece that needs `@swi/infra/cloudflare.stack` — and that module declares
- * resources at module scope, so anything importing it drags the deploy-time
- * bundler along. `workers/Media.ts` reads the tag and IS a Worker entry, so a
- * shared home for both would put esbuild inside workerd. It did, once; see the
- * note in `AuthRouting.ts`. Nothing that runs in a Worker can reach this file.
- */
-const accessFacts = (id: string, domain: string) =>
-  TieredEffect({
-    production: Effect.gen(function* () {
-      const access = yield* InternalAccessApplication(id, domain);
-      const {
-        organization: { authDomain },
-      } = yield* CloudflareStack.stage["production"]!;
-      return {
-        aud: access.aud.as<string>() as unknown as string,
-        teamDomain: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
-      };
-    }),
-    staging: previewFacts,
-    ephemeral: previewFacts,
-  });
-
-/**
  * Operator console.
+ *
+ * This file imports `@swi/infra/cloudflare.stack`, which declares resources at
+ * module scope and so drags the deploy-time bundler along — safe HERE because
+ * nothing that runs in a Worker can reach this module, and fatal one directory
+ * over: `workers/Media.ts` is a Worker ENTRY and once died at startup with
+ * esbuild inside workerd for exactly this import. That is why the worker reads
+ * the `AuthRouting` tag from `AuthRouting.ts`, which imports no stack.
  */
 export class Operator extends Cloudflare.Website.Vite<Operator>()(
   "CommerceOperator",
@@ -63,15 +36,18 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
     const { operator } = yield* Hostnames;
 
     /**
-     * Resolved only when something will verify against it. Under `alchemy dev`
-     * `OPERATOR_AUTH` is `"none"`, `resolveOperator` returns the fixed dev
-     * actor without reading either value, and declaring an Access application
-     * would put a real account-level resource in front of a hostname this run
-     * does not deploy.
+     * `GateFor` rather than a hand-rolled `local ? ...`: the hand-rolled form
+     * forgot `SANDBOX`, so a sandbox deploy resolved `"access"`, demanded
+     * facts auth never exported, and died — the exact drift `GateFor` exists
+     * to make impossible. Facts resolve only when something will verify them;
+     * with the gate down, `resolveOperator` returns the fixed dev actor and
+     * never reads either value, and no Access application is declared.
      */
-    const operatorAuth = local ? "none" : "access";
+    const operatorAuth = yield* GateFor();
     const { aud, teamDomain } =
-      operatorAuth === "none" ? UNGATED : yield* accessFacts("OperatorAccess", operator);
+      operatorAuth === "none"
+        ? UNGATED
+        : yield* accessFacts("OperatorAccess", operator, undefined, previewFacts("operator"));
 
     return {
       // Through the table, not spelled inline: `preview-access.ts` names this

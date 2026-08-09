@@ -2,7 +2,7 @@
  * ONE ACCESS APPLICATION PER STAGE, and the auth stack owns it.
  *
  * WHY ONE. An Access session cookie is scoped to the application that issued
- * it. A preview stage is five Workers that call each other — the site pulls
+ * it. A preview stage is several Workers that call each other — the site pulls
  * images from media over `<img>`, talks to auth over XHR, and links to the
  * operator console — and with an application per Worker each of those is a
  * separate cookie the browser does not have. Those subresources fail silently
@@ -11,7 +11,7 @@
  * means one sign-in and one cookie for the whole stage.
  *
  * WHY HERE. Something has to declare it, and it has to be the stack that
- * deploys FIRST — the other four read its `aud` to configure their verifiers.
+ * deploys FIRST — the others read its `aud` to configure their verifiers.
  * Auth is already that stack. The cost is that this file names hostnames
  * belonging to apps it does not import, which is exactly why those names come
  * from `PREVIEW_SCRIPTS` rather than being spelled here: the table is that
@@ -27,9 +27,9 @@ import * as Option from "effect/Option";
 import * as Output from "alchemy/Output";
 
 import { CloudflareStack } from "@swi/infra/cloudflare.stack";
-import { SANDBOX } from "@swi/infra/stage/sandbox";
-import { Deployment, TieredEffect } from "@swi/infra/stage/StandardizedStage";
-import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } from "platform.names";
+import type { PreviewAccess } from "@swi/infra/stage/preview";
+import { Deployment, GateFor, TieredEffect } from "@swi/infra/stage/StandardizedStage";
+import { PREVIEW_SCRIPTS, workerSafeStage, workersDevHost } from "platform.names";
 
 /**
  * Every hostname the stage's application fronts — THE BROWSABLE ONES, and only
@@ -68,24 +68,19 @@ import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } fro
  * never fires. It verifies Stripe's signature on the payload instead and stays
  * outside this application on purpose.
  *
- * The operator console is a ZONE hostname even off production (`module.ts`
- * claims `commerce-<stage>.<zone>`), while the rest answer on workers.dev. One
- * application can mix the two, and has to: they share a cookie only by sharing
- * an application.
+ * The operator console is a ZONE hostname even off production, while the rest
+ * answer on workers.dev. One application can mix the two, and has to: they
+ * share a cookie only by sharing an application. Its hostname comes from the
+ * same `Deployment.host` that `apps/platform.commerce/hostnames.ts` uses to
+ * CLAIM it — two independent spellings of that formula were how the one
+ * destination not covered by `PREVIEW_SCRIPTS` could silently drift.
  */
-export const previewDestinations = (stage: string): readonly string[] => [
+const previewDestinations = (stage: string, host: (label: string) => string): readonly string[] => [
   workersDevHost(PREVIEW_SCRIPTS.auth(stage)),
   workersDevHost(PREVIEW_SCRIPTS.site(stage)),
   workersDevHost(PREVIEW_SCRIPTS.mezedes(stage)),
-  `commerce-${stage}.${PRODUCTION_ZONE}`,
+  host("commerce"),
 ];
-
-/** What a gated Worker needs in order to verify an assertion this app minted. */
-export interface PreviewAccessFacts {
-  readonly aud: string;
-  /** With the scheme: it is what Access puts in `iss`, and what `jose` matches. */
-  readonly teamDomain: string;
-}
 
 /**
  * The stage's shared application, or `None` on production.
@@ -95,25 +90,19 @@ export interface PreviewAccessFacts {
  * to declare two — the inbox's `InboxAccess` was already used this way.
  */
 export const PreviewAccessApp = Effect.gen(function* () {
-  const { stage, dev } = yield* Deployment;
+  const { stage, host } = yield* Deployment;
 
   /**
-   * `None` UNDER `alchemy dev` AND UNDER `SANDBOX`, and the decision belongs
-   * here rather than at the consumer — the same call `api/secret.ts` makes, for
-   * the same reason.
-   *
-   * An Access application is an ACCOUNT-LEVEL resource with no local provider.
-   * Under dev the Workers run in a local workerd on localhost, so this would
-   * create a real application fronting `*.workers.dev` hostnames that the run
-   * never deploys — the exact orphan this change removes from mezedes and the
-   * inbox. Under `SANDBOX` the run has no standing to write to the account at
-   * all.
-   *
-   * Nothing is lost either way: `GateFor` is `"none"` under dev, so no Worker
-   * in the graph has an assertion to verify and none of them reads an `aud`.
+   * `None` WHENEVER NO GATE WILL VERIFY — which `GateFor` decides, and this
+   * deliberately does not re-derive. Under `alchemy dev` the Workers run in a
+   * local workerd, so a real account-level application here would front
+   * `*.workers.dev` hostnames the run never deploys — the exact orphan this
+   * branch removed from mezedes and the inbox. Under `SANDBOX` the run has no
+   * standing to write to the account at all. `GateFor` answers `"none"` in
+   * both cases; spelling the conditions here a second time is how the two
+   * once drifted and shipped `GATE="access"` with an empty `POLICY_AUD`.
    */
-  if (dev) return Option.none<PreviewAccessFacts>();
-  if (yield* Effect.orDie(SANDBOX)) return Option.none<PreviewAccessFacts>();
+  if ((yield* GateFor()) === "none") return Option.none<PreviewAccess>();
 
   const make = Effect.gen(function* () {
     const {
@@ -125,7 +114,7 @@ export const PreviewAccessApp = Effect.gen(function* () {
 
     /**
      * DESTINATIONS AND NO `domain`. `domain` is the legacy single-hostname
-     * shorthand and this application is six hostnames by definition.
+     * shorthand and this application is four hostnames by definition.
      *
      * One consequence worth knowing: alchemy's `read` recovers a lost
      * application by scanning for its `domain`, so an application with none
@@ -136,7 +125,7 @@ export const PreviewAccessApp = Effect.gen(function* () {
     const app = yield* Cloudflare.Access.Application("PreviewAccess", {
       name: `Preview — ${stage}`,
       type: "self_hosted",
-      destinations: previewDestinations(workerSafeStage(stage)).map((uri) => ({
+      destinations: previewDestinations(workerSafeStage(stage), host).map((uri) => ({
         type: "public" as const,
         uri,
       })),
@@ -153,7 +142,7 @@ export const PreviewAccessApp = Effect.gen(function* () {
       adopt: true,
     });
 
-    return Option.some({
+    return Option.some<PreviewAccess>({
       aud: app.aud.as<string>() as unknown as string,
       // `authDomain` is bare (`acme.cloudflareaccess.com`); the scheme is what
       // Access puts in `iss` and what the verifier matches against.
@@ -162,7 +151,7 @@ export const PreviewAccessApp = Effect.gen(function* () {
   });
 
   return yield* TieredEffect({
-    production: Effect.succeed(Option.none<PreviewAccessFacts>()),
+    production: Effect.succeed(Option.none<PreviewAccess>()),
     staging: make,
     ephemeral: make,
   });

@@ -28,6 +28,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.14"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
 
       - name: destroy stages whose pull request is closed
@@ -38,7 +42,10 @@ jobs:
           # `alchemy state stages` needs the STACK NAME, which is the string
           # each `Alchemy.Stack(...)` is constructed with — not the directory.
           # Listed in destroy order (the reverse of the deploy order in
-          # `.github/actions/alchemy`), so auth goes last.
+          # `.github/actions/alchemy`), so auth goes last. The inbox is here
+          # even though previews never deploy it: sweeping a stack with no
+          # state for a stage is skipped below, and listing it means a stage
+          # someone deployed BY HAND still gets cleaned up.
           ENTRIES=(
             "apps/platform.inbox:AgenticInbox"
             "apps/mezedes:Mezedes"
@@ -46,9 +53,15 @@ jobs:
             "apps/platform.auth:SomewhatIntelligentAuth"
           )
 
-          # Collect the doomed stages FIRST, across every stack, then destroy
-          # each in dependency order. Destroying per-stack as we discover would
-          # tear auth down before the stacks that reference it.
+          # ONE listing of open PRs, up front — the alternative re-asked GitHub
+          # about the same PR number once per stack that carried its stage.
+          OPEN_PRS="$(gh pr list --state open --limit 1000 --json number --jq '.[].number' || true)"
+          is_open() { grep -qx "$1" <<<"$OPEN_PRS"; }
+
+          # Collect doomed (app, stage) PAIRS first — keying by stage alone
+          # made the destroy loop a full cross product, spawning an alchemy
+          # process even for stacks that never held the stage. Then destroy in
+          # ENTRIES order, so auth still goes down after its dependents.
           declare -A DOOMED=()
           for entry in "${ENTRIES[@]}"; do
             app="${entry%%:*}"
@@ -59,13 +72,12 @@ jobs:
               | grep -E '^pr_[0-9]+$' || true)"
             for stage in $stages; do
               number="${stage#pr_}"
-              state="$(gh pr view "$number" --json state -q .state 2>/dev/null || echo UNKNOWN)"
-              # UNKNOWN means the PR could not be read at all — a deleted or
-              # never-existent number. Sweeping it is right; leaving it is the
-              # leak this job exists for.
-              if [ "$state" != "OPEN" ]; then
-                DOOMED["$stage"]=1
-                echo "pr_$number is $state — queued for destroy"
+              # Not in the open list covers closed, merged, and deleted alike —
+              # a PR that cannot be found is exactly the leak this job exists
+              # to catch.
+              if ! is_open "$number"; then
+                DOOMED["$app|$stage"]=1
+                echo "$app @ $stage — PR $number is not open, queued for destroy"
               fi
             done
           done
@@ -75,13 +87,14 @@ jobs:
             exit 0
           fi
 
-          for stage in "${!DOOMED[@]}"; do
-            for entry in "${ENTRIES[@]}"; do
-              app="${entry%%:*}"
+          for entry in "${ENTRIES[@]}"; do
+            app="${entry%%:*}"
+            for key in "${!DOOMED[@]}"; do
+              [ "${key%%|*}" = "$app" ] || continue
+              stage="${key##*|}"
               echo "::group::destroy $app @ $stage"
-              # `|| true`: a stack that was never deployed to this stage has no
-              # state to destroy, and one stack failing must not strand the
-              # rest of the sweep.
+              # `|| true`: one stack failing must not strand the rest of the
+              # sweep; next week's run retries whatever survived.
               bunx alchemy destroy "$app/alchemy.run.ts" --stage "$stage" --yes || true
               echo "::endgroup::"
             done

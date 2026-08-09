@@ -3,7 +3,7 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 
-import { InternalAccessApplication, CloudflareStack } from "@swi/infra/cloudflare.stack";
+import { accessFacts } from "@swi/infra/cloudflare.stack";
 import { state } from "@swi/infra/stage/state";
 
 import type { Env } from "./src/server/env.ts";
@@ -11,9 +11,9 @@ import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import { Path } from "effect/Path";
 import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage, workersDevHost } from "platform.names";
-import { Deployment, Tiered, TieredEffect } from "@swi/infra/stage/StandardizedStage";
-import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
-import { Auth } from "platform.auth/alchemy.run";
+import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
+import { UNGATED } from "@swi/infra/stage/preview";
+import { previewFactsFor } from "platform.auth/alchemy.run";
 import type { Owner as OwnerClass } from "./src/server/entry.ts";
 
 const ARTIFACT_ZONE = "somewhatintelligent.dev";
@@ -47,41 +47,6 @@ const Blobs = Cloudflare.R2.Bucket(
 
 const OwnerObject = Cloudflare.DurableObject<OwnerClass>("Owner", { className: "Owner" });
 
-const previewFacts = Effect.gen(function* () {
-  const { previewAud, previewTeamDomain } = yield* Auth;
-  return requirePreview(previewAud, previewTeamDomain, "mezedes");
-});
-
-/**
- * The Access application whose assertions this Worker accepts.
- *
- * ON PRODUCTION it declares and owns its own, bound to the apex hostname, with
- * the pinned name the live one already carries.
- *
- * OFF PRODUCTION it declares NOTHING and reads the stage's shared application
- * out of the auth stack. Two things follow. One, the orphan bug is fixed by
- * construction: this stack used to mint an `Access.Application` in every stage
- * — pointed at a hostname the stage did not own — and destroying the stage left
- * it behind. Two, mezedes now depends on `platform.auth`, so CI deploys auth
- * first, and locally both stacks must be run FROM THE SAME DIRECTORY, since
- * `infra/stage/state.ts` keys a sandbox's store by `process.cwd()`.
- */
-const AccessFacts = TieredEffect({
-  production: Effect.gen(function* () {
-    const { apex } = yield* Hostnames;
-    const access = yield* InternalAccessApplication("MezedesAccess", apex, PRODUCTION.access);
-    const {
-      organization: { authDomain },
-    } = yield* CloudflareStack.stage["production"]!;
-    return {
-      aud: access.aud.as<string>() as unknown as string,
-      teamDomain: Output.interpolate`https://${authDomain}`.as<string>() as unknown as string,
-    };
-  }),
-  staging: previewFacts,
-  ephemeral: previewFacts,
-});
-
 export type { Env };
 export default Alchemy.Stack(
   "Mezedes",
@@ -92,14 +57,25 @@ export default Alchemy.Stack(
     const { apex, artifactSuffix, named } = yield* Hostnames;
 
     /**
-     * The gate this Worker deploys behind, and the reason the Access
-     * application is resolved conditionally: under `alchemy dev` there is no
-     * edge in front of a local workerd, `src/server/auth.ts` is never asked to
-     * verify anything, and declaring an application would put a real
-     * account-level resource in front of hostnames this run does not deploy.
+     * The gate this Worker deploys behind — `GateFor`, not a hand-rolled
+     * `dev ? ...`: the hand-rolled form forgot `SANDBOX` and would have
+     * demanded facts auth never exported. With the gate down nothing verifies,
+     * so no facts resolve and no Access application is declared.
+     *
+     * ON PRODUCTION `accessFacts` adopts the pinned application on the apex;
+     * off production it declares NOTHING and reads the stage's shared
+     * application out of the auth stack — which is why this stack depends on
+     * `platform.auth`, CI deploys auth first, and locally both stacks must run
+     * FROM THE SAME DIRECTORY (`infra/stage/state.ts` keys a sandbox's store
+     * by `process.cwd()`). The orphan bug is fixed by construction: this stack
+     * used to mint an application in every stage, pointed at a hostname the
+     * stage did not own, and destroying the stage left it behind.
      */
-    const auth = dev ? "none" : "access";
-    const { aud, teamDomain } = auth === "none" ? UNGATED : yield* AccessFacts;
+    const auth = yield* GateFor();
+    const { aud, teamDomain } =
+      auth === "none"
+        ? UNGATED
+        : yield* accessFacts("MezedesAccess", apex, PRODUCTION.access, previewFactsFor("mezedes"));
 
     /**
      * PINNED PER STAGE, where non-production used to take whatever alchemy
@@ -165,6 +141,15 @@ export default Alchemy.Stack(
         ...(yield* telemetryEnv("mezedes")),
       },
     });
+    /**
+     * ARTIFACTS ARE PRODUCTION-ONLY, and saying so is the point. The wildcard
+     * `routes` that make `<slug>.${artifactSuffix}` resolve are declared in
+     * the `named` branch alone, because a route per stage would have every
+     * stage contending for records on the zone — the same reason `Ingress`
+     * gives for not claiming a hostname per stage. Reporting an address that
+     * nothing serves is worse than reporting none.
+     */
+    const NO_ARTIFACT_ROUTES = "production only — a preview stage registers no artifact routes";
     return dev
       ? {
           shell: worker.url.as<string>(),
@@ -172,27 +157,15 @@ export default Alchemy.Stack(
           artifacts: "not reachable by hostname under `alchemy dev` — deploy to see them",
           previews: "likewise: a preview is its own origin, which the dev proxy rewrites away",
         }
-      : named
-        ? {
-            shell: origin,
-            mcp: `${origin}/mcp`,
-            previews: "p--<token>.<artifactZone>, from the shell",
-            artifacts: `https://<slug>.${artifactSuffix}`,
-          }
-        : {
-            shell: origin,
-            mcp: `${origin}/mcp`,
-            /**
-             * ARTIFACTS ARE PRODUCTION-ONLY, and saying so is the point. The
-             * wildcard `routes` that make `<slug>.${artifactSuffix}` resolve are
-             * declared in the `named` branch alone, because a route per stage
-             * would have every stage contending for records on the zone — the
-             * same reason `Ingress` gives for not claiming a hostname per stage.
-             * Reporting an address that nothing serves is worse than reporting
-             * none.
-             */
-            previews: "production only — a preview stage registers no artifact routes",
-            artifacts: "production only — a preview stage registers no artifact routes",
-          };
+      : {
+          shell: origin,
+          mcp: `${origin}/mcp`,
+          ...(named
+            ? {
+                previews: "p--<token>.<artifactZone>, from the shell",
+                artifacts: `https://<slug>.${artifactSuffix}`,
+              }
+            : { previews: NO_ARTIFACT_ROUTES, artifacts: NO_ARTIFACT_ROUTES }),
+        };
   }).pipe(Alchemy.AdoptPolicy.adopt(true)),
 );

@@ -2,7 +2,7 @@ import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
 import { PREVIEW_SCRIPTS, PRODUCTION_ZONE, workerSafeStage } from "platform.names";
-import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
+import { UNGATED } from "@swi/infra/stage/preview";
 import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
 
 import CommerceWorker from "platform.commerce/workers/Commerce";
@@ -14,8 +14,8 @@ import MediaWorker from "platform.commerce/workers/Media";
  * module without a cycle. Re-exported here so this module's existing importers
  * — `alchemy.run.ts` among them — did not have to move with it.
  */
-export { AuthRouting } from "platform.commerce/AuthRouting";
-import { AuthRouting } from "platform.commerce/AuthRouting";
+import { AuthRouting, previewFacts } from "platform.commerce/AuthRouting";
+export { AuthRouting };
 
 /**
  * THE PUBLIC SITE, deployed in the SAME STACK as the commerce substrate it
@@ -63,10 +63,7 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
     });
 
     const gate = yield* GateFor({ production: "none" });
-    const { aud, teamDomain } =
-      gate === "none"
-        ? UNGATED
-        : requirePreview(auth.previewAud, auth.previewTeamDomain, "platform.site");
+    const { aud, teamDomain } = gate === "none" ? UNGATED : yield* previewFacts("platform.site");
     return {
       name,
       rootDir: import.meta.dirname,

@@ -32,7 +32,7 @@ import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 import { PREVIEW_SCRIPTS, workerSafeStage } from "platform.names";
 
 import { UNGATED } from "@swi/infra/stage/preview";
-import { Deployment, GateFor, Tiered } from "@swi/infra/stage/StandardizedStage";
+import { Deployment, GateFor, Tiered, type Gate } from "@swi/infra/stage/StandardizedStage";
 import { previewFacts } from "../AuthRouting.ts";
 import { mediaSurface } from "./MediaSurface.ts";
 
@@ -83,7 +83,7 @@ const mediaProps = Effect.gen(function* () {
    * production, and `alchemy dev` — the two values are never read, so there is
    * nothing to resolve and `AuthRouting` is not required.
    */
-  const { aud, teamDomain } = gate === "none" ? UNGATED : yield* previewFacts;
+  const { aud, teamDomain } = gate === "none" ? UNGATED : yield* previewFacts("media");
 
   return {
     main: import.meta.url,
@@ -100,7 +100,7 @@ const mediaProps = Effect.gen(function* () {
   name?: string;
   env: {
     OTEL_SERVICE_NAME: string;
-    GATE: "access" | "none";
+    GATE: Gate;
     POLICY_AUD: string;
     TEAM_DOMAIN: string;
   };
