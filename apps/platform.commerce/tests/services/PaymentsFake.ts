@@ -95,7 +95,7 @@ const toSession = (row: typeof fakeSession.$inferSelect): Session => ({
  * WHY NOT A MIGRATION. A migration set is linear and applies to every database
  * at every stage, so a table declared there reaches production whether or not
  * production can use it — and this one it cannot: `PaymentsProvider.resolve`
- * calls `Effect.die` for `preprod` and `prod` before this layer is ever built.
+ * calls `Effect.die` for `staging` and `production` before this layer is ever built.
  * Putting the DDL here makes that structural rather than documented. The only
  * database that can acquire a `fake_session` is one belonging to a stage that
  * runs the fake.

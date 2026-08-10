@@ -2,7 +2,7 @@
  * Stripe if this machine has it, the fake otherwise.
  *
  * THE FALLBACK THAT USED TO LIVE IN `services/PaymentsProvider.ts`. It was gated
- * correctly there — preprod and prod died rather than taking it — but a gated
+ * correctly there — staging and production died rather than taking it — but a gated
  * branch still puts `PaymentsFake` in the import graph of every Worker that
  * imports the provider module, which is to say in production's bundle; and its
  * `fake_session` table was re-exported from the schema module to reach
@@ -25,7 +25,7 @@
 import * as Effect from "effect/Effect";
 
 import { stripeProvider, unconfigured, type Provider } from "../../services/PaymentsProvider.ts";
-import type { StripeEnvironment } from "@swi/infra/stripe";
+import type { Tier } from "@swi/infra/stage/StandardizedStage";
 import { storefrontOrigin } from "../../hostnames.ts";
 import { StripeConfig } from "../../services/StripeConfig.ts";
 import * as PaymentsFake from "./PaymentsFake.ts";
@@ -39,14 +39,12 @@ import * as PaymentsFake from "./PaymentsFake.ts";
  * more valuable the closer they run to production, and the fake is the floor
  * rather than the target.
  */
-export const resolveWithFake = Effect.fn("FakeProvider.resolveWithFake")(function* (
-  environment: StripeEnvironment,
-) {
+export const resolveWithFake = Effect.fn("FakeProvider.resolveWithFake")(function* (tier: Tier) {
   // Same derivation the real resolver uses, so a suite that reaches Stripe
   // returns the buyer to the same origin a deploy of this stage would.
   const storefrontUrl = yield* storefrontOrigin;
 
-  return yield* StripeConfig.load(environment, storefrontUrl).pipe(
+  return yield* StripeConfig.load(tier, storefrontUrl).pipe(
     Effect.map(stripeProvider),
     /**
      * `catchCause` rather than a tag match because both ways of failing mean the
@@ -55,7 +53,7 @@ export const resolveWithFake = Effect.fn("FakeProvider.resolveWithFake")(functio
      */
     Effect.catchCause((cause) =>
       Effect.flatMap(
-        Effect.logInfo(`${unconfigured(environment, cause)} Falling back to the fake provider.`),
+        Effect.logInfo(`${unconfigured(tier, cause)} Falling back to the fake provider.`),
         (): Effect.Effect<Provider> =>
           Effect.succeed({
             layer: PaymentsFake.layer,

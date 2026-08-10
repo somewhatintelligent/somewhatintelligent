@@ -44,7 +44,7 @@ export default Alchemy.Stack(
       Alchemy.AdoptPolicy.adopt(true),
     );
 
-    if (stripeArmed && commerce.paymentsEnvironment === "dev") {
+    if (stripeArmed && commerce.paymentsTier === "ephemeral") {
       yield* StripeDev.forwarder(commerce.webhookUrl);
     }
 

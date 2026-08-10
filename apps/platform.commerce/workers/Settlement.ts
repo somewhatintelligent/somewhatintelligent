@@ -24,7 +24,6 @@ import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 
 import { Hostnames } from "../hostnames.ts";
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";
-import { environmentFor } from "@swi/infra/stripe";
 import { settlementSurface } from "./SettlementSurface.ts";
 
 /**
@@ -82,7 +81,7 @@ export default class SettlementWorker extends Cloudflare.Worker<SettlementWorker
      * environment gate in `settle` reads a constant rather than re-deriving the
      * account from a key on every event.
      */
-    const provider = yield* PaymentsProvider.resolve(environmentFor(yield* StageTier));
+    const provider = yield* PaymentsProvider.resolve(yield* StageTier);
 
     return yield* settlementSurface(provider);
   }).pipe(

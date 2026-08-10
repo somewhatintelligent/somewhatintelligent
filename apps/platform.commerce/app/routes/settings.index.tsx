@@ -39,7 +39,7 @@ export const Route = createFileRoute("/settings/")({
 
 function Settings() {
   const { minting, settling } = Route.useLoaderData();
-  const { actor, paymentsEnvironment, version } = Route.useRouteContext();
+  const { actor, paymentsTier, version } = Route.useRouteContext();
 
   return (
     <>
@@ -51,16 +51,15 @@ function Settings() {
         <Section title="Payments">
           <Facts
             rows={[
-              ["Environment", paymentsEnvironment ?? "unknown"],
+              ["Tier", paymentsTier ?? "unknown"],
               ["Checkout mints with", minting ?? "unreadable"],
               ["Settlement settles with", settling?.kind ?? "unreadable"],
               ["Live mode", liveModeLabel(settling)],
             ]}
           />
           <Hint>
-            The environment is derived from the deploy&rsquo;s stage name: <code>prod</code> is
-            live, <code>preprod</code> and <code>staging</code> are the sandbox, everything else is
-            dev.
+            The tier is derived from the deploy&rsquo;s stage name: <code>production</code> settles
+            live, and every other tier shares one test account.
           </Hint>
         </Section>
 

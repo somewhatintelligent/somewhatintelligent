@@ -25,7 +25,7 @@ import {
 import { ingress } from "../shared/ingress.ts";
 import { STRIPE_SECRET_KEY } from "@swi/infra/stripe";
 import type { StripeAccount } from "../api/billing.ts";
-import type { StripeEnvironment } from "@swi/infra/stripe";
+import type { Tier } from "@swi/infra/stage/StandardizedStage";
 
 /**
  * ASSEMBLED, NEVER WRITTEN OUT. A key-shaped literal in a test file is a
@@ -40,28 +40,22 @@ const TEST_KEY = keyLike("test");
 const LIVE_KEY = keyLike("live");
 const ENDPOINT_SECRET = `whsec_${"0".repeat(24)}`;
 
-const resolve = (environment: StripeEnvironment, env: Record<string, string>) =>
+const resolve = (tier: Tier, env: Record<string, string>) =>
   Effect.runSyncExit(
-    load(environment).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env)))),
+    load(tier).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env)))),
   );
 
 /** The resolved account, or `null` for a deployment with billing switched off. */
-const accountOf = (
-  environment: StripeEnvironment,
-  env: Record<string, string>,
-): StripeAccount | null => {
-  const exit = resolve(environment, env);
+const accountOf = (tier: Tier, env: Record<string, string>): StripeAccount | null => {
+  const exit = resolve(tier, env);
   if (!Exit.isSuccess(exit)) throw new Error(`expected success, got ${String(exit)}`);
   return Option.getOrNull(exit.value.account);
 };
 
 /** The same, for the rows that are supposed to produce one. */
-const mustResolve = (
-  environment: StripeEnvironment,
-  env: Record<string, string>,
-): StripeAccount => {
-  const account = accountOf(environment, env);
-  if (account === null) throw new Error(`expected an account for ${environment}`);
+const mustResolve = (tier: Tier, env: Record<string, string>): StripeAccount => {
+  const account = accountOf(tier, env);
+  if (account === null) throw new Error(`expected an account for ${tier}`);
   return account;
 };
 
@@ -72,23 +66,23 @@ const configured = {
 
 describe("a stage with no Stripe credentials still boots", () => {
   test("nothing set resolves to no account, not a failure", () => {
-    expect(accountOf("dev", {})).toBeNull();
+    expect(accountOf("ephemeral", {})).toBeNull();
   });
 
   // The whole point of the "off" state: the IdP has sign-in, passkeys, OAuth and
   // organisation invitations to serve, none of which involve Stripe.
   test("even production boots with no credentials at all", () => {
-    expect(accountOf("prod", {})).toBeNull();
+    expect(accountOf("production", {})).toBeNull();
   });
 
   test("an endpoint secret alone is still off — the key is what enables billing", () => {
-    expect(accountOf("dev", { [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET })).toBeNull();
+    expect(accountOf("ephemeral", { [AUTH_WEBHOOK_SECRET_VARIABLE]: ENDPOINT_SECRET })).toBeNull();
   });
 
   // `Option.none()` rather than a record of sentinels: there is no client to
   // take, so no reader can take one that would throw.
   test("switched off means there is nothing to read, not a client that lies", () => {
-    const exit = resolve("dev", {});
+    const exit = resolve("ephemeral", {});
     expect(Exit.isSuccess(exit) && Option.isNone(exit.value.account)).toBe(true);
   });
 });
@@ -113,7 +107,7 @@ describe("a key with no endpoint secret", () => {
   // secret there really does mean billing was set up and the webhook forgotten
   // — and the payment it would take is real.
   test("production refuses to resolve", () => {
-    const exit = resolve("prod", { [STRIPE_SECRET_KEY]: LIVE_KEY });
+    const exit = resolve("production", { [STRIPE_SECRET_KEY]: LIVE_KEY });
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain(AUTH_WEBHOOK_SECRET_VARIABLE);
   });
@@ -124,7 +118,7 @@ describe("a key with no endpoint secret", () => {
   // the old suggestion to unset the secret key, which `platform.commerce` shares
   // and refuses to resolve without.
   test("the message names the real endpoint and no remedy that breaks the store", () => {
-    const message = String(resolve("prod", { [STRIPE_SECRET_KEY]: LIVE_KEY }));
+    const message = String(resolve("production", { [STRIPE_SECRET_KEY]: LIVE_KEY }));
     expect(message).toContain(`${ingress(PRODUCTION_STAGE, false).origin}${WEBHOOK_PATH}`);
     expect(message).not.toContain(`unset ${STRIPE_SECRET_KEY}`);
   });
@@ -132,9 +126,9 @@ describe("a key with no endpoint secret", () => {
   // Off production the key arrives INHERITED from a checked-in encrypted file
   // that dev, every preview and staging all decrypt. Nobody intended anything
   // by it, and dying took down every preview deploy.
-  for (const environment of ["dev", "preprod"] as const) {
-    test(`${environment} keeps checkout and loses only verification`, () => {
-      const account = mustResolve(environment, { [STRIPE_SECRET_KEY]: TEST_KEY });
+  for (const tier of ["ephemeral", "staging"] as const) {
+    test(`${tier} keeps checkout and loses only verification`, () => {
+      const account = mustResolve(tier, { [STRIPE_SECRET_KEY]: TEST_KEY });
       expect(Option.isNone(account.webhookSecret)).toBe(true);
       expect(account.livemode).toBe(false);
     });
@@ -143,7 +137,7 @@ describe("a key with no endpoint secret", () => {
   // The guarantee that makes the softer branch safe: a live key cannot reach it,
   // because the environment check runs first and fences livemode to production.
   test("a live key off production still dies, before the endpoint secret is read", () => {
-    const exit = resolve("preprod", { [STRIPE_SECRET_KEY]: LIVE_KEY });
+    const exit = resolve("staging", { [STRIPE_SECRET_KEY]: LIVE_KEY });
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain("LIVE");
     expect(String(exit)).not.toContain(AUTH_WEBHOOK_SECRET_VARIABLE);
@@ -152,13 +146,13 @@ describe("a key with no endpoint secret", () => {
 
 describe("a key for the wrong environment is fatal", () => {
   test("a live key outside production refuses to resolve", () => {
-    const exit = resolve("preprod", { ...configured, [STRIPE_SECRET_KEY]: LIVE_KEY });
+    const exit = resolve("staging", { ...configured, [STRIPE_SECRET_KEY]: LIVE_KEY });
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain("LIVE");
   });
 
   test("a test key on production refuses to resolve", () => {
-    const exit = resolve("prod", configured);
+    const exit = resolve("production", configured);
     expect(Exit.isSuccess(exit)).toBe(false);
     expect(String(exit)).toContain("live key");
   });
@@ -166,7 +160,7 @@ describe("a key for the wrong environment is fatal", () => {
 
 describe("a complete configuration resolves", () => {
   test("test keys off production", () => {
-    const account = mustResolve("dev", configured);
+    const account = mustResolve("ephemeral", configured);
     expect(account.livemode).toBe(false);
     expect(Redacted.value(Option.getOrThrow(account.webhookSecret))).toBe(ENDPOINT_SECRET);
   });
@@ -174,14 +168,14 @@ describe("a complete configuration resolves", () => {
   // `livemode` is derived from the key's prefix rather than configured, so it
   // cannot disagree with the account the client is actually talking to.
   test("a live key on production reports livemode", () => {
-    expect(mustResolve("prod", { ...configured, [STRIPE_SECRET_KEY]: LIVE_KEY }).livemode).toBe(
-      true,
-    );
+    expect(
+      mustResolve("production", { ...configured, [STRIPE_SECRET_KEY]: LIVE_KEY }).livemode,
+    ).toBe(true);
   });
 
   // The shape a log line would take: an object holding the secret, serialised.
   test("the endpoint secret is redacted, so it cannot land in a log", () => {
-    const account = mustResolve("dev", configured);
+    const account = mustResolve("ephemeral", configured);
     const secret = Option.getOrThrow(account.webhookSecret);
     expect(JSON.stringify({ webhookSecret: secret })).not.toContain(ENDPOINT_SECRET);
   });

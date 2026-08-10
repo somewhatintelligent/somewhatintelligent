@@ -22,7 +22,6 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 import { commerceSurface } from "../../workers/CommerceSurface.ts";
-import { environmentFor } from "@swi/infra/stripe";
 import { resolveWithFake } from "../services/FakeProvider.ts";
 
 export default class TestCommerceWorker extends Cloudflare.Worker<TestCommerceWorker>()(
@@ -34,7 +33,7 @@ export default class TestCommerceWorker extends Cloudflare.Worker<TestCommerceWo
      * provider cannot be settled by the other, so both test entries resolve
      * through the same function and the test stack declares them together.
      */
-    const provider = yield* resolveWithFake(environmentFor(yield* StageTier));
+    const provider = yield* resolveWithFake(yield* StageTier);
 
     return yield* commerceSurface(provider);
   }).pipe(

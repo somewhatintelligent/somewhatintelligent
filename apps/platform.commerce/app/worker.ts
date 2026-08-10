@@ -30,7 +30,7 @@ declare module "@tanstack/react-start" {
       requestContext: {
         requestId: string;
         actor: OperatorActor;
-        paymentsEnvironment: string;
+        paymentsTier: string;
         version: { id: string; tag: string; timestamp: string };
       };
     };
@@ -120,7 +120,7 @@ const handler = async (request: Request, env: OperatorEnv): Promise<Response> =>
     context: {
       requestId: crypto.randomUUID(),
       actor: resolved.value,
-      paymentsEnvironment: env.PAYMENTS_ENVIRONMENT,
+      paymentsTier: env.PAYMENTS_TIER,
       version: env.CF_VERSION_METADATA,
     },
   });

@@ -41,7 +41,6 @@ import * as Layer from "effect/Layer";
 
 import * as StripeDev from "../infrastructure/StripeDev.ts";
 import { CommerceDatabase, CommerceSchema, MediaBucket } from "../runtime.ts";
-import { environmentFor } from "@swi/infra/stripe";
 import TestCommerceWorker from "./workers/Commerce.ts";
 import TestMediaWorker from "./workers/Media.ts";
 import EdgeWorker from "./workers/Edge.ts";
@@ -125,7 +124,7 @@ export default Alchemy.Stack(
      * `listenCommand`. This is here so `alchemy dev` on the test stack behaves
      * like `alchemy dev` on the real one.
      */
-    if (stripeArmed && environmentFor(yield* StageTier) === "dev") {
+    if (stripeArmed && (yield* StageTier) === "ephemeral") {
       yield* StripeDev.forwarder(webhookUrl);
     }
 

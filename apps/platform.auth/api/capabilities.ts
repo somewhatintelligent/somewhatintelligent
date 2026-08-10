@@ -9,7 +9,6 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
-import { environmentFor } from "@swi/infra/stripe";
 import { StageTier } from "@swi/infra/stage/StandardizedStage";
 
 import { Billing, load as loadBilling } from "./billing.ts";
@@ -125,14 +124,11 @@ export const live = Layer.mergeAll(
   ),
   /**
    * The Stripe account, resolved from the STAGE rather than from anything the
-   * request carries. `environmentFor` maps a validated tier, which is what makes
-   * a live key unreachable from anywhere but production — see
+   * request carries. The tier is decoded from a validated stage, which is what
+   * makes a live key unreachable from anywhere but production — see
    * `@swi/infra/stripe`.
    */
-  Layer.effect(
-    Billing,
-    Effect.flatMap(StageTier, (tier) => loadBilling(environmentFor(tier))),
-  ),
+  Layer.effect(Billing, Effect.flatMap(StageTier, loadBilling)),
   Layer.effect(
     Origin,
     Effect.flatMap(Cloudflare.Workers.WorkerEnvironment, (env) => {

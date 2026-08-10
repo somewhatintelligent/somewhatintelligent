@@ -1,17 +1,16 @@
 /**
  * Which Stripe account a deployment talks to, and with what secrets.
  *
- * THREE ENVIRONMENTS, ONE RULE: the keys are never chosen by the code, only by
- * the stage. Every environment reads the SAME two variable names and gets
- * different values, because the separation lives in the encrypted `.env` file a
- * stage decrypts rather than in the spelling of a variable.
+ * ONE RULE: the keys are never chosen by the code, only by the stage. Every tier
+ * reads the SAME two variable names and gets different values, because the
+ * separation lives in the encrypted `.env` file a stage decrypts rather than in
+ * the spelling of a variable.
  *
- *   dev       → `.env.development`. `stripe listen` on the developer's machine
- *               mints the signing secret and exports it at deploy time (see
- *               `Infrastructure/StripeDev.ts`), so nothing is checked in.
- *   preprod   → the SANDBOX account. Test-mode keys, sandbox webhook endpoint.
- *               Safe to point a staging storefront at.
- *   prod      → `.env.production`. The LIVE account, and `livemode` events only.
+ *   production → `.env.production`. The LIVE account, `livemode` events only.
+ *   everything → `.env.development`, one test account shared by local runs,
+ *   else         every preview stage and staging. On a laptop `stripe listen`
+ *                mints the signing secret at deploy time (see
+ *                `infrastructure/StripeDev.ts`), so nothing is checked in.
  *
  * WHAT STOPS A STAGE READING ANOTHER'S KEYS, now that the names are shared: the
  * `livemode` guard below, which derives the mode from the key's own prefix and
@@ -53,22 +52,17 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Redacted from "effect/Redacted";
 
-import {
-  assertKeyMatchesEnvironment,
-  livemodeOf,
-  STRIPE_SECRET_KEY,
-  type StripeEnvironment,
-} from "@swi/infra/stripe";
+import { assertKeyMatchesTier, livemodeOf, STRIPE_SECRET_KEY } from "@swi/infra/stripe";
+import type { Tier } from "@swi/infra/stage/StandardizedStage";
 
 /**
  * The two variable names this deployment reads.
  *
- * NOT RE-EXPORTED THROUGH THIS MODULE, and that is deliberate. `environmentFor`
- * and `STRIPE_SECRET_KEY` are ACCOUNT-level and every call site imports them
- * from `@swi/infra/stripe` directly, so a reader can tell an account-wide rule
- * from a store-local one by where it came from. Behind a facade here they read
- * as the store's to change — and changing either silently moves the IdP's Stripe
- * environment too.
+ * NOT RE-EXPORTED THROUGH THIS MODULE, and that is deliberate. `STRIPE_SECRET_KEY`
+ * is ACCOUNT-level and every call site imports it from `@swi/infra/stripe`
+ * directly, so a reader can tell an account-wide rule from a store-local one by
+ * where it came from. Behind a facade here it reads as the store's to change —
+ * and changing it silently moves the IdP's Stripe account too.
  */
 export const VARIABLES = {
   secretKey: STRIPE_SECRET_KEY,
@@ -96,7 +90,7 @@ const DEFAULT_GOODS_TAX_CODE = "txcd_99999999";
 export class StripeConfig extends Context.Service<
   StripeConfig,
   {
-    readonly environment: StripeEnvironment;
+    readonly tier: Tier;
     /** Live secret key, or test/sandbox. Redacted so it never reaches a log. */
     readonly secretKey: Redacted.Redacted<string>;
     /** The endpoint signing secret this deployment verifies against. */
@@ -135,7 +129,7 @@ export class StripeConfig extends Context.Service<
    * {@link storefrontOrigin}, and `PaymentsProvider.resolve` for the one caller
    * that supplies it.
    */
-  static readonly load = (environment: StripeEnvironment, storefrontUrl: string) =>
+  static readonly load = (tier: Tier, storefrontUrl: string) =>
     Effect.gen(function* () {
       const secretKey = yield* Config.redacted(VARIABLES.secretKey);
       const webhookSecret = yield* Config.redacted(VARIABLES.webhookSecret);
@@ -153,7 +147,7 @@ export class StripeConfig extends Context.Service<
        * makes the opposite call with the same check, because it has sign-in to
        * keep serving — see `apps/platform.auth/api/billing.ts`.
        */
-      const mismatch = assertKeyMatchesEnvironment(environment, livemode);
+      const mismatch = assertKeyMatchesTier(tier, livemode);
       if (mismatch !== null) return yield* mismatch;
 
       const goodsTaxCode = yield* Config.string(GOODS_TAX_CODE_VARIABLE).pipe(
@@ -161,7 +155,7 @@ export class StripeConfig extends Context.Service<
       );
 
       return StripeConfig.of({
-        environment,
+        tier,
         secretKey,
         webhookSecret,
         livemode,

@@ -784,7 +784,7 @@ export const deletionIntent = sqliteTable("store_operator_deletion_intent", {
  * That put `CREATE TABLE fake_session` in the one linear migration set, which is
  * applied to EVERY database at EVERY stage — so production carried an empty
  * table belonging to a test double, forever, that nothing could ever write to.
- * `PaymentsProvider.resolve` dies on `preprod` and `prod` before the fake is
+ * `PaymentsProvider.resolve` dies on `staging` and `production` before the fake is
  * ever constructed, so the table was unreachable by the only code that knows
  * what it is for.
  *

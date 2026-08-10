@@ -46,12 +46,12 @@ import type * as Redacted from "effect/Redacted";
 import type Stripe from "stripe";
 
 import {
-  assertKeyMatchesEnvironment,
+  assertKeyMatchesTier,
   livemodeOf,
   STRIPE_SECRET_KEY,
   stripeClient,
-  type StripeEnvironment,
 } from "@swi/infra/stripe";
+import type { Tier } from "@swi/infra/stage/StandardizedStage";
 import { PRODUCTION_STAGE } from "platform.names";
 
 import { AUTH_BASE_PATH, ingress } from "../shared/ingress.ts";
@@ -169,7 +169,7 @@ export const unconfigured: Billing["Service"] = Billing.of({ account: Option.non
  *   nothing set          → off, with a warning naming both variables
  *   endpoint secret only → off, with a warning (the key is what enables billing)
  *   key for the wrong    → die: a live key outside production, or a test key on
- *   environment            production, is the mistake nobody may deploy past
+ *   tier                   production, is the mistake nobody may deploy past
  *   key, no endpoint     → prod dies. Everywhere else: checkout works, the
  *   secret                 webhook route refuses, and a warning says so.
  *
@@ -181,7 +181,7 @@ export const unconfigured: Billing["Service"] = Billing.of({ account: Option.non
  * Nobody intended anything by it, and the rule took down every preview deploy.
  *
  * What makes the softer answer safe is a guarantee that already exists one
- * branch above: `assertKeyMatchesEnvironment` fences a live key to the
+ * branch above: `assertKeyMatchesTier` fences a live key to the
  * production tier. So a stage reaching this row can only be holding a TEST key,
  * and a checkout opened there cannot move real money. Production keeps the
  * fatal rule, because it is the one stage with a registered endpoint and the one
@@ -203,7 +203,7 @@ const optionalSecret = (name: string) =>
     ),
   );
 
-export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Service"]> =>
+export const load = (tier: Tier): Effect.Effect<Billing["Service"]> =>
   Effect.gen(function* () {
     const secretKey = yield* optionalSecret(STRIPE_SECRET_KEY);
     const webhookSecret = yield* optionalSecret(AUTH_WEBHOOK_SECRET_VARIABLE);
@@ -223,7 +223,7 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
      * that makes the softer branch below safe to take.
      */
     const livemode = livemodeOf(secretKey.value);
-    const mismatch = assertKeyMatchesEnvironment(environment, livemode);
+    const mismatch = assertKeyMatchesTier(tier, livemode);
     if (mismatch !== null) return yield* Effect.die(new Error(mismatch.detail));
 
     if (Option.isNone(webhookSecret)) {
@@ -234,7 +234,7 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
        * that takes REAL money and a webhook that can never confirm it: the row
        * stays `incomplete`, the customer is charged, and nothing raises.
        */
-      if (environment === "prod") {
+      if (tier === "production") {
         return yield* Effect.die(
           new Error(
             `${STRIPE_SECRET_KEY} is set but ${AUTH_WEBHOOK_SECRET_VARIABLE} is not. ` +
@@ -247,7 +247,7 @@ export const load = (environment: StripeEnvironment): Effect.Effect<Billing["Ser
         );
       }
       yield* Effect.logWarning(
-        `auth: ${AUTH_WEBHOOK_SECRET_VARIABLE} is unset on ${environment}. Checkout will open ` +
+        `auth: ${AUTH_WEBHOOK_SECRET_VARIABLE} is unset on ${tier}. Checkout will open ` +
           `against the test account, but /stripe/webhook cannot verify a signature — so a ` +
           `completed payment will NOT activate a subscription here. Point ` +
           `\`stripe listen\` at this stage, or expect rows to stay incomplete.`,
