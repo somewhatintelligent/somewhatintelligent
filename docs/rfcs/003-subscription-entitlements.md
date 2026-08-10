@@ -383,12 +383,19 @@ of the abstraction.
 3. Create a Price per `PURCHASABLE_PLANS` entry carrying that entry's
    `lookup_key`, in both test mode and live mode.
 
-Until (2), a production deploy **fails on the deploy host** — by design (ADR-9),
-and this is a merge blocker rather than a note for later. `.env.production`
-already carries `STRIPE_SECRET_KEY`, because `platform.commerce` needs it, so the
-first production deploy after this lands walks straight into the fatal row of
-ADR-9's table. `.github/actions/alchemy/action.yml` deploys `apps/platform.auth`
-first, so nothing else in the stage is attempted either.
+Until (2), a production deploy **fails on the deploy host** — by design (ADR-9).
+`.env.production` already carries `STRIPE_SECRET_KEY`, because
+`platform.commerce` needs it, so a production deploy walks straight into the
+fatal row of ADR-9's table, and `.github/actions/alchemy/action.yml` deploys
+`apps/platform.auth` first, so nothing else in the stage is attempted either.
+
+WHICH MERGE THAT BLOCKS, precisely: the RELEASE PR, not this one. `release.yml`
+gates its `prod` job on `releases_created`, which is true only when
+release-please's own PR is merged — an ordinary feature merge to `trunk` updates
+the release PR and deploys `staging`, and skips `prod` entirely. So this lands
+on `trunk` and runs on staging with billing on, checkout against the test
+account, and webhooks unverifiable; the endpoint and the secret are what the
+release needs, whenever billing is meant to be live.
 
 Two consequences worth stating outright, because both have already fooled a
 reader of this document:
