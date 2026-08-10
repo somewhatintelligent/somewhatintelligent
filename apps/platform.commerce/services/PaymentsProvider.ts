@@ -34,6 +34,7 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
+import { storefrontOrigin } from "../hostnames.ts";
 import { Database } from "./Database.ts";
 import { Ids } from "./Ids.ts";
 import { Payments } from "./Payments.ts";
@@ -73,9 +74,18 @@ export const stripeProvider = (config: StripeConfig["Service"]): Provider => ({
  * same thing whichever worker it hit.
  */
 export const unconfigured = (environment: StripeEnvironment, cause: unknown): string => {
+  /**
+   * NAMES EVERY VARIABLE THAT CAN CAUSE THIS, not two of them. The message used
+   * to name the secret key and the endpoint secret alone, so a `ConfigError`
+   * from any OTHER read was reported as a missing Stripe secret — a staging
+   * deploy that failed on `STORE_STOREFRONT_URL` was read as a missing webhook
+   * signing secret, and the cause, which named the real variable, was buried
+   * behind the prose that contradicted it. Read the cause first.
+   */
   return (
     `${environment} cannot resolve its Stripe configuration ` +
-    `(${VARIABLES.secretKey} / ${VARIABLES.webhookSecret}): ${String(cause)}.`
+    `(${VARIABLES.secretKey}, ${VARIABLES.webhookSecret}, or the tax code). ` +
+    `THE CAUSE NAMES THE VARIABLE — read it before assuming which: ${String(cause)}.`
   );
 };
 
@@ -92,7 +102,15 @@ export const unconfigured = (environment: StripeEnvironment, cause: unknown): st
 export const resolve = Effect.fn("PaymentsProvider.resolve")(function* (
   environment: StripeEnvironment,
 ) {
-  return yield* StripeConfig.load(environment).pipe(
+  /**
+   * Derived HERE rather than inside `load`, which sees only the environment —
+   * and `dev` is every ephemeral stage, each answering on its own hostname.
+   * This call site already has the stack in context (its callers yield
+   * `StageTier` to compute `environment`), so the stage costs nothing to reach.
+   */
+  const storefrontUrl = yield* storefrontOrigin;
+
+  return yield* StripeConfig.load(environment, storefrontUrl).pipe(
     Effect.map(stripeProvider),
     /**
      * `catchCause` rather than a tag match because both ways of failing mean the

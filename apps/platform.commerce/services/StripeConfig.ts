@@ -60,8 +60,6 @@ import {
   type StripeEnvironment,
 } from "@swi/infra/stripe";
 
-import { STOREFRONT_ORIGIN } from "../hostnames.ts";
-
 /**
  * The two variable names this deployment reads.
  *
@@ -82,12 +80,6 @@ export const VARIABLES = {
    */
   webhookSecret: "STRIPE_WEBHOOK_SIGNING_SECRET",
 } as const;
-
-/** Where the buyer returns after a hosted checkout. Origin only, no path. */
-const STOREFRONT_URL_VARIABLE = "STORE_STOREFRONT_URL";
-
-/** A developer's storefront, by convention. Never used outside `dev`. */
-const DEV_STOREFRONT_URL = "http://localhost:5173";
 
 /**
  * Stripe's tax codes for what this store sells.
@@ -136,36 +128,17 @@ export class StripeConfig extends Context.Service<
    * Fails with `ConfigError` when a secret is absent. That is a legitimate state
    * for `dev` and a deploy-stopping one everywhere else; the caller decides,
    * because only the caller knows which stage it is.
+   *
+   * `storefrontUrl` ARRIVES AS AN ARGUMENT rather than being read here, because
+   * it is derived from the stage and this function only knows the environment —
+   * `dev` covers every ephemeral stage, each on its own hostname. See
+   * {@link storefrontOrigin}, and `PaymentsProvider.resolve` for the one caller
+   * that supplies it.
    */
-  static readonly load = (environment: StripeEnvironment) =>
+  static readonly load = (environment: StripeEnvironment, storefrontUrl: string) =>
     Effect.gen(function* () {
       const secretKey = yield* Config.redacted(VARIABLES.secretKey);
       const webhookSecret = yield* Config.redacted(VARIABLES.webhookSecret);
-
-      /**
-       * A hosted checkout REFUSES to open without somewhere to return the buyer
-       * to, so this is not optional configuration — it is the difference between
-       * a working Buy button and `Missing required param: success_url`.
-       *
-       * PRODUCTION DERIVES IT AND CANNOT BE TOLD OTHERWISE. The storefront
-       * answers on the apex, this stack deploys that storefront, and the origin
-       * is therefore a fact about the deployment rather than a setting — see
-       * {@link STOREFRONT_ORIGIN}. It used to be read from the environment like
-       * the other two, and that was the one variable whose being wrong is
-       * silent: every session still opens, every payment still succeeds, and
-       * every buyer is returned to a dead page afterwards.
-       *
-       * Dev may guess, because a developer's storefront is conventionally on a
-       * local port and making them export a variable to place a test order is
-       * friction with no safety value. Preprod has no hostname of its own yet,
-       * so it MUST still declare one: there is no defensible default for where
-       * a real buyer lands after paying.
-       */
-      const storefrontUrl = yield* environment === "prod"
-        ? Effect.succeed(STOREFRONT_ORIGIN)
-        : environment === "dev"
-          ? Config.string(STOREFRONT_URL_VARIABLE).pipe(Config.withDefault(DEV_STOREFRONT_URL))
-          : Config.string(STOREFRONT_URL_VARIABLE);
 
       // `sk_live_…` is the only prefix that settles real money.
       const livemode = livemodeOf(secretKey);
