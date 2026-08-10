@@ -74,8 +74,15 @@ import { PREVIEW_SCRIPTS, workerSafeStage, workersDevHost } from "platform.names
  * same `Deployment.host` that `apps/platform.commerce/hostnames.ts` uses to
  * CLAIM it — two independent spellings of that formula were how the one
  * destination not covered by `PREVIEW_SCRIPTS` could silently drift.
+ *
+ * AUTH IS FIRST BY CONTRACT, not by accident — the return type is a non-empty
+ * tuple so it stays that way. It is the stage's PRIMARY hostname (`domain`
+ * below), and the ordering is load-bearing for the reason spelled there.
  */
-const previewDestinations = (stage: string, host: (label: string) => string): readonly string[] => [
+const previewDestinations = (
+  stage: string,
+  host: (label: string) => string,
+): readonly [primary: string, ...rest: string[]] => [
   workersDevHost(PREVIEW_SCRIPTS.auth(stage)),
   workersDevHost(PREVIEW_SCRIPTS.site(stage)),
   workersDevHost(PREVIEW_SCRIPTS.mezedes(stage)),
@@ -112,20 +119,47 @@ export const PreviewAccessApp = Effect.gen(function* () {
       previewMachinePolicy: { policyId: machinePolicyId },
     } = yield* CloudflareStack.stage["production"]!;
 
+    const destinations = previewDestinations(workerSafeStage(stage), host);
+    const [primary] = destinations;
+
     /**
-     * DESTINATIONS AND NO `domain`. `domain` is the legacy single-hostname
-     * shorthand and this application is four hostnames by definition.
+     * `domain` AND `destinations`, and the pair is not a redundancy.
      *
-     * One consequence worth knowing: alchemy's `read` recovers a lost
-     * application by scanning for its `domain`, so an application with none
-     * cannot be recovered that way and a state-store loss would plan a fresh
-     * `create` with a new `aud`. For a preview stage that is a re-deploy, not
-     * an outage — the same deploy hands every Worker the new `aud`.
+     * `domain` is NOT the deprecated multi-hostname field — that is
+     * `self_hosted_domains`, which is what Cloudflare says `destinations`
+     * supersedes. `domain` is "the primary hostname and path secured by
+     * Access", the one the App Launcher displays. An application of four
+     * hostnames still has a primary, and this one's is auth: it is the surface
+     * a person opens first and the only destination every stage is guaranteed
+     * to have.
+     *
+     * WHAT IT ACTUALLY BUYS IS ADOPTION, which is why omitting it cost us
+     * `staging` outright. Alchemy recovers an existing application two ways
+     * and no third: by the `applicationId` in state, or — with no state — by
+     * scanning the account for one whose `domain` matches. Declare no `domain`
+     * and the second door is shut, so the engine can only ever plan a blind
+     * `create`, `adopt: true` has nothing to match on, and ANY application
+     * already holding one of these hostnames is a permanent
+     * `access.api.error.application_already_exists`. That is not only the
+     * state-loss case it reads as: an application predating this stack, or one
+     * made by hand, wedges the stage forever. `si-identity-staging` was
+     * exactly that.
+     *
+     * Adoption does not cost standardization. The engine forces an update
+     * straight after taking one over, and the update is a full PUT of the body
+     * below — name, destinations, IdP, both policies, session duration. An
+     * adopted application is indistinguishable from one this stack created,
+     * except that it keeps its `aud`, which is opaque and read from this
+     * stack's output by everything that verifies against it.
      */
     const app = yield* Cloudflare.Access.Application("PreviewAccess", {
       name: `Preview — ${stage}`,
       type: "self_hosted",
-      destinations: previewDestinations(workerSafeStage(stage), host).map((uri) => ({
+      domain: primary,
+      // The primary stays in the list too: `domain` names which destination is
+      // primary, it does not add one, and dropping it here would take auth out
+      // of the set a browser can sign in at.
+      destinations: destinations.map((uri) => ({
         type: "public" as const,
         uri,
       })),
