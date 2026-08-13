@@ -70,7 +70,7 @@ const mediaProps = Effect.gen(function* () {
    */
   const name = yield* Tiered({
     production: undefined,
-    staging: PREVIEW_SCRIPTS.media("staging"),
+    staging: PREVIEW_SCRIPTS.media(workerSafeStage("staging")),
     ephemeral: PREVIEW_SCRIPTS.media(workerSafeStage(stage)),
   });
 

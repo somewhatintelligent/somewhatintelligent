@@ -29,7 +29,12 @@ import * as Output from "alchemy/Output";
 import { CloudflareStack } from "@swi/infra/cloudflare.stack";
 import type { PreviewAccess } from "@swi/infra/stage/preview";
 import { Deployment, GateFor, TieredEffect } from "@swi/infra/stage/StandardizedStage";
-import { PREVIEW_SCRIPTS, workerSafeStage, workersDevHost } from "platform.names";
+import {
+  PREVIEW_SCRIPTS,
+  workerSafeStage,
+  workersDevHost,
+  type WorkerSafeStage,
+} from "platform.names";
 
 /**
  * Every hostname the stage's application fronts — THE BROWSABLE ONES, and only
@@ -80,7 +85,7 @@ import { PREVIEW_SCRIPTS, workerSafeStage, workersDevHost } from "platform.names
  * below), and the ordering is load-bearing for the reason spelled there.
  */
 const previewDestinations = (
-  stage: string,
+  stage: WorkerSafeStage,
   host: (label: string) => string,
 ): readonly [primary: string, ...rest: string[]] => [
   workersDevHost(PREVIEW_SCRIPTS.auth(stage)),
