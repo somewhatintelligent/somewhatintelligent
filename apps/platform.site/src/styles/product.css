@@ -465,6 +465,28 @@
   margin-top: 11px;
 }
 
+/*
+ * THE ROUTE TO CHECKOUT, under the state line that announces the add. A link
+ * rather than a button — the buy control is this sheet's one button, and this
+ * is navigation. The `[hidden]` guard is load-bearing: `display: inline-block`
+ * would otherwise out-compete the UA's `[hidden]` rule and show the link
+ * before any script decided the cart holds something.
+ */
+.product-cart-link {
+  display: inline-block;
+  margin-top: 11px;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-decoration: underline;
+  text-transform: uppercase;
+}
+
+.product-cart-link[hidden] {
+  display: none;
+}
+
 /* THE BUY CONTROL. It lived in `shop.css` and the product page does not load
    that sheet, so the button rendered completely unstyled — shrink-wrapped to
    its text and sitting on top of the size grid.

@@ -12,6 +12,7 @@
 // the destination pins Stripe's address form to one
 // country. Everything else — name, street, card — is Stripe's to collect.
 import Base from "../../layouts/Base.astro";
+import InAppBrowserNote from "../../components/InAppBrowserNote.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
@@ -24,6 +25,7 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
 <Base title="Cart — somewhatintelligent" description="Your cart." noindex>
   <div class="site-frame">
     <SiteHeader />
+    <InAppBrowserNote />
 
     <main class="cart-main">
       <section class="cart-head">
@@ -32,8 +34,18 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
       </section>
 
       <section class="cart-body" aria-label="Cart">
+        {/*
+          THE SAME EMPTY STATE THE SCRIPT RENDERS, link included. It used to
+          lack the link, so a visitor whose cart script never ran — which is
+          how the Instagram in-app browser bug first presented — was left on a
+          dead end: an "empty" cart, a disabled Pay button, and no route
+          anywhere. The fallback now reads identically to the live state, so a
+          script failure degrades to a working page instead of a broken one.
+        */}
         <div class="cart-lines" id="cart-lines" aria-live="polite">
-          <p class="cart-empty" id="cart-empty">Nothing in the cart yet.</p>
+          <p class="cart-empty" id="cart-empty">
+            Nothing in the cart yet. <a href="/shop/">See the objects</a>.
+          </p>
         </div>
 
         <form class="cart-checkout" id="cart-checkout" novalidate>

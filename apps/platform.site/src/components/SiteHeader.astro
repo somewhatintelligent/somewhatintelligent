@@ -88,7 +88,32 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
    * Until this existed, adding to the cart moved the state line on the product
    * page and left the header saying nothing at all.
    */
-  import { cartCount, subscribeCart } from "../lib/cart.ts";
+  import { cartCount, importCart, subscribeCart } from "../lib/cart.ts";
+  import { CART_PARAM, parseCartParam } from "../core/cart-link.ts";
+
+  /**
+   * A CART CARRIED IN THE LINK, imported before the first count renders. This
+   * is the receiving end of the in-app-browser escape hatch — see
+   * `InAppBrowserNote.astro`: storage does not cross browsers, so the link
+   * brings the lines. In the header rather than on one page because the
+   * escape reopens whatever URL the shopper was on.
+   *
+   * THE PARAMETER IS STRIPPED ONCE READ. A URL that kept it would re-import on
+   * every reload and shadow every later edit; the import itself only fills
+   * gaps, so even an un-stripped copy cannot double a line.
+   */
+  const params = new URLSearchParams(window.location.search);
+  const carried = params.get(CART_PARAM);
+  if (carried !== null) {
+    importCart(parseCartParam(carried));
+    params.delete(CART_PARAM);
+    const query = params.toString();
+    history.replaceState(
+      history.state,
+      "",
+      `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+    );
+  }
 
   const link = document.getElementById("site-cart-link");
   const count = document.getElementById("site-cart-count");

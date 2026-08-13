@@ -57,5 +57,15 @@ const descriptionHtml = renderMarkdown(view.description);
 
   <p class="product-state" id="buy-state" aria-live="polite">{availability}</p>
 
+  {/*
+    THE ROUTE TO CHECKOUT, from the place the item was just added. The header's
+    cart glyph is the persistent way there, but a shopper who just pressed "Add
+    to cart" is looking HERE — and the only answer used to be a state line with
+    no link in it. Ships `hidden`, revealed whenever the cart holds anything:
+    same rule as the zoom openers, so a dead script shows a page without the
+    affordance rather than a link into a cart that never renders.
+  */}
+  <a class="product-cart-link" id="view-cart" href="/cart/" hidden>View cart</a>
+
   <ProductPanels panels={view.panels} />
 </section>

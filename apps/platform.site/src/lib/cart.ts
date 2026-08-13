@@ -24,6 +24,7 @@ import {
   type CartHint,
   type CartLine,
 } from "../core/cart.ts";
+import { mergeImported } from "../core/cart-link.ts";
 
 export { MAX_QUANTITY, MIN_QUANTITY, type CartHint } from "../core/cart.ts";
 
@@ -102,6 +103,20 @@ export const clearCart = (): void => {
     // ignore
   }
   announce();
+};
+
+/**
+ * A cart carried in by LINK — the in-app-browser escape hatch arriving. The
+ * merge semantics live in `core/cart-link.ts` and only fill gaps; this
+ * persists only when something new landed, so reloading an already-imported
+ * link moves nothing and announces nothing.
+ */
+export const importCart = (imported: readonly CartLine[]): CartLine[] => {
+  const current = readCart();
+  const merged = mergeImported(current, imported);
+  // `mergeImported` only appends, so an unchanged length is an unchanged cart.
+  if (merged.length === current.length) return current;
+  return persist(merged);
 };
 
 export const cartCount = (): number => countUnits(readCart());
