@@ -78,6 +78,20 @@ export default Alchemy.Stack(
             [`com.cloudflare.api.account.${accountId}`]: "*",
           },
         },
+        /**
+         * Zone-scoped, so it needs its own policy and the nested resource —
+         * under the flat account resource above it would grant nothing,
+         * silently. Mezedes' `*.somewhatintelligent.dev/*` is the only route.
+         */
+        {
+          effect: "allow",
+          permissionGroups: ["Workers Routes Write"],
+          resources: {
+            [`com.cloudflare.api.account.${accountId}`]: {
+              "com.cloudflare.api.account.zone.*": "*",
+            },
+          },
+        },
       ],
     });
     /**
