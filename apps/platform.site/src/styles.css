@@ -233,72 +233,94 @@ a:focus-visible {
 }
 
 /*
- * THE IN-APP BROWSER NOTE — a strip under the header, in the chrome's own
- * voice. Revealed by script only inside an embedded browser (see
- * `InAppBrowserNote.astro`), which is always a phone — so on desktop, where
- * `.site-frame` is a fixed three-row grid, it stays `hidden` and occupies no
- * track.
+ * THE IN-APP BROWSER DIALOG. Opened by script only inside an embedded browser
+ * (see `InAppBrowserDialog.astro`), which is always a phone.
  *
- * THE `[hidden]` GUARD IS LOAD-BEARING: `display: flex` on the class would
- * out-compete the UA's `[hidden] { display: none }` and reveal the note to
- * everyone. Same for the `hidden` children inside it.
+ * NO `display` ON THE DIALOG ITSELF, and that is the rule this whole block is
+ * arranged around: the UA closes a dialog with `dialog:not([open]) { display:
+ * none }`, and any `display` on the class out-competes it and paints the
+ * dialog on every page for everyone. Layout therefore belongs to `.iab-body`
+ * inside it.
+ *
+ * POSITION, INSET AND MARGIN ARE RESTATED rather than inherited. A modal is
+ * centred by the UA with `inset: 0` plus `margin: auto`, and `reset.css` opens
+ * with `*, *::before, *::after { margin: 0 }`, which beats a UA rule — an
+ * uncorrected modal sits in the top-left corner. `.product-zoom` carries the
+ * same correction and the same reason.
  */
-.iab-note {
-  position: relative;
-  z-index: 20;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 14px;
-  padding: 10px 44px 10px 18px;
-  border-bottom: 1px solid var(--color-border);
+.iab-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(90vw, 400px);
+  height: fit-content;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--color-border);
   background: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-mono);
-  font-size: 11px;
 }
 
-.iab-note[hidden],
-.iab-note [hidden] {
-  display: none;
+.iab-dialog::backdrop {
+  background: rgb(0 0 0 / 0.72);
 }
 
-.iab-note strong {
-  color: var(--color-primary);
+.iab-body {
+  display: grid;
+  gap: 14px;
+  padding: 22px 20px 18px;
+}
+
+.iab-dialog h2 {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.iab-dialog p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.iab-hint {
+  opacity: 0.75;
+  font-size: 10px;
+}
+
+.iab-hint strong {
   font-weight: 400;
   text-transform: uppercase;
 }
 
-.iab-note .iab-hint strong {
-  color: inherit;
-}
-
+/* The one control that matters: the site's own inverted button, full width. */
 .iab-open {
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  color: inherit;
+  padding: 14px 10px;
+  background: var(--color-foreground);
+  color: var(--color-background);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-align: center;
   text-decoration: none;
   text-transform: uppercase;
 }
 
-.iab-dismiss {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  display: flex;
-  width: 28px;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
+/* Plainly secondary — leaving is a choice, not the recommendation. */
+.iab-stay {
+  width: 100%;
+  padding: 0;
   appearance: none;
   border: 0;
   background: transparent;
   color: inherit;
   cursor: pointer;
-  font-size: 15px;
-  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.7;
+  text-decoration: underline;
+  text-transform: uppercase;
 }
 
-.iab-dismiss:focus-visible,
+.iab-stay:focus-visible,
 .iab-open:focus-visible {
   outline: 1px solid var(--color-primary);
   outline-offset: 2px;

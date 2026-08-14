@@ -1,0 +1,136 @@
+---
+// THE IN-APP BROWSER DIALOG — shown once inside one, and nowhere else.
+//
+// Instagram and Facebook open links in their own embedded browser: the same
+// WebKit as the phone's real one, a different environment — no console, no
+// devtools, separate storage. Checkout has misbehaved there in ways it does
+// not anywhere else, and an embedded browser CANNOT BE INSPECTED, so until the
+// fault is named the honest move is the standard one: say so, and offer the
+// phone's real browser.
+//
+// A NATIVE `<dialog>`, NOT A REACT ONE, and that is a deliberate choice rather
+// than the absence of a component library. `platform.ui` does hold a Base UI
+// `Dialog` — and it is dressed in Tailwind and consumed by the two React admin
+// apps, neither of which this is. Rendering it here would mean adding a React
+// integration to an Astro storefront that ships none, plus React, plus the
+// Tailwind runtime this site's hand-written CSS deliberately does without —
+// TO SHOW A DIALOG WHOSE ENTIRE JOB IS RESCUING PEOPLE FROM AN ENVIRONMENT
+// WHERE JAVASCRIPT IS ALREADY FAILING MYSTERIOUSLY. The rescue must be the
+// lightest thing on the page, not the heaviest. `showModal()` brings the focus
+// trap, the inert background, the real `::backdrop` and `Esc` with it; the
+// zoom viewer next door is the same bet.
+//
+// THE CART TRAVELS IN THE LINK. Storage does not cross browsers, so escaping
+// with a bare URL would arrive at an empty cart. The page's URL carries the
+// cart as a query parameter (`core/cart-link.ts`) while this is open, so every
+// route out — the button, iOS's ⋯ menu, a copied link — arrives holding the
+// same lines. The header's script imports the parameter and strips it.
+---
+
+{/*
+  OUTSIDE `.site-frame` at every call site, matching `ProductZoom`. A modal is
+  painted in the top layer wherever it sits, but keeping it out of a `100dvh`
+  clipped subtree means none of the page's scroll discipline has to be relaxed.
+*/}
+<dialog class="iab-dialog" id="iab-dialog" aria-labelledby="iab-title">
+  <div class="iab-body">
+    <h2 id="iab-title">This is Instagram’s browser</h2>
+    <p>
+      Instagram’s in-app browser sucks and breaks things — checkout included.
+      Tap below to open this in your phone’s real browser. Your cart comes with
+      you.
+    </p>
+
+    <a class="iab-open" id="iab-open" href="/">Open</a>
+
+    {/*
+      ALWAYS VISIBLE ON iOS, under the button rather than instead of it. iOS has
+      no reliable programmatic escape: `x-safari-https://` is an undocumented
+      scheme that current Instagram builds intercept SILENTLY — no error, no
+      navigation, nothing. So the button attempts it (free when blocked, works
+      on the builds that don't) and the menu route is written out for when
+      nothing happens, which is most of the time.
+    */}
+    <p class="iab-hint" id="iab-hint" hidden>
+      Nothing happened? Tap <strong>⋯</strong> at the top right, then
+      <strong>Open in external browser</strong>.
+    </p>
+
+    {/*
+      A form rather than a click handler: `method="dialog"` closes it as a
+      platform behaviour, with no JavaScript of ours in the path — so the way
+      out still works if the script that opened it has since thrown.
+    */}
+    <form method="dialog">
+      <button type="submit" class="iab-stay">Continue here anyway</button>
+    </form>
+  </div>
+</dialog>
+
+<script>
+  import { readCart, subscribeCart } from "../lib/cart.ts";
+  import { CART_PARAM, serializeCart } from "../core/cart-link.ts";
+
+  const dialog = document.getElementById("iab-dialog") as HTMLDialogElement | null;
+  const open = document.getElementById("iab-open") as HTMLAnchorElement | null;
+  const hint = document.getElementById("iab-hint");
+
+  const ua = navigator.userAgent;
+  /** Meta's embedded browsers all say so: Instagram by name, Facebook as FBAN/FBAV/FB_IAB. */
+  const embedded = /Instagram|FBAN|FBAV|FB_IAB/i.test(ua);
+  const android = /Android/i.test(ua);
+
+  /**
+   * ONCE PER SESSION. A modal on every page load is worse than the bug it is
+   * warning about — this interrupts once, and the header's cart link is the
+   * standing route out afterwards.
+   */
+  const SEEN = "si:iab:seen";
+  const alreadySeen = (): boolean => {
+    try {
+      return window.sessionStorage.getItem(SEEN) === "1";
+    } catch {
+      // Storage refused. Better to show it again than to swallow the warning.
+      return false;
+    }
+  };
+
+  if (dialog && open && embedded && !alreadySeen()) {
+    /**
+     * The page's own URL carries the cart, so every route out carries it too.
+     * Re-synced on every cart change; `replaceState`, so history gains no
+     * entry and back still means back.
+     */
+    const sync = (): void => {
+      const url = new URL(window.location.href);
+      const lines = readCart();
+      if (lines.length > 0) url.searchParams.set(CART_PARAM, serializeCart(lines));
+      else url.searchParams.delete(CART_PARAM);
+      history.replaceState(history.state, "", url);
+
+      const tail = `${url.host}${url.pathname}${url.search}`;
+      /**
+       * TWO ESCAPES, ONE BUTTON. `intent://` is Android's documented handoff to
+       * the system browser and it is reliable. `x-safari-https://` is iOS's
+       * undocumented one and it is not — see the note above. A REAL ANCHOR
+       * either way: a custom scheme only launches inside a genuine tap's
+       * transient activation, and a synthetic `.click()` forfeits that the
+       * moment anything async slips in.
+       */
+      open.href = android
+        ? `intent://${tail}#Intent;scheme=https;end`
+        : `x-safari-https://${tail}`;
+    };
+    sync();
+    subscribeCart(sync);
+
+    if (!android && hint) hint.hidden = false;
+
+    try {
+      window.sessionStorage.setItem(SEEN, "1");
+    } catch {
+      // It will interrupt again next page. Bearable, and better than silence.
+    }
+    dialog.showModal();
+  }
+</script>

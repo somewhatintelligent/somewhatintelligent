@@ -94,7 +94,7 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
   /**
    * A CART CARRIED IN THE LINK, imported before the first count renders. This
    * is the receiving end of the in-app-browser escape hatch — see
-   * `InAppBrowserNote.astro`: storage does not cross browsers, so the link
+   * `InAppBrowserDialog.astro`: storage does not cross browsers, so the link
    * brings the lines. In the header rather than on one page because the
    * escape reopens whatever URL the shopper was on.
    *

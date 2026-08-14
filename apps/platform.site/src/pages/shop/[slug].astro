@@ -14,7 +14,7 @@
 // SIZES are live, because inventory deliberately sits outside the release model
 // — pinning stock into a release would resurrect sold-out sizes on republish.
 import Base from "../../layouts/Base.astro";
-import InAppBrowserNote from "../../components/InAppBrowserNote.astro";
+import InAppBrowserDialog from "../../components/InAppBrowserDialog.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import ProductGallery from "../../components/ProductGallery.astro";
@@ -143,7 +143,6 @@ const jsonLd = graph([
 
   <div class="site-frame product-frame">
     <SiteHeader />
-    <InAppBrowserNote />
 
     <main class="product-main">
       <section class="product-stage" aria-labelledby="product-title">
@@ -163,6 +162,7 @@ const jsonLd = graph([
     scroll discipline has to be relaxed to let it through.
   */}
   <ProductZoom />
+  <InAppBrowserDialog />
 </Base>
 
 <script>

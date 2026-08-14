@@ -12,7 +12,7 @@
 // the destination pins Stripe's address form to one
 // country. Everything else — name, street, card — is Stripe's to collect.
 import Base from "../../layouts/Base.astro";
-import InAppBrowserNote from "../../components/InAppBrowserNote.astro";
+import InAppBrowserDialog from "../../components/InAppBrowserDialog.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import { MARKET_COOKIE, parseMarket } from "../../core/market.ts";
@@ -25,7 +25,6 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
 <Base title="Cart — somewhatintelligent" description="Your cart." noindex>
   <div class="site-frame">
     <SiteHeader />
-    <InAppBrowserNote />
 
     <main class="cart-main">
       <section class="cart-head">
@@ -86,6 +85,11 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
 
     <SiteFooter />
   </div>
+
+  {/* Outside the frame, for the reason `ProductZoom` is: `.site-frame` is a
+      `100dvh` grid with a clipped track, and a modal has no business
+      depending on that. */}
+  <InAppBrowserDialog />
 </Base>
 
 <script>
