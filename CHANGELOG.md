@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.0...v1.0.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* decrypt the env file in CI instead of binding ciphertext as secrets ([#15](https://github.com/somewhatintelligent/somewhatintelligent/issues/15)) ([81074d1](https://github.com/somewhatintelligent/somewhatintelligent/commit/81074d10e2d207cdda7a94445aa17528006a23b8))
+
 ## 1.0.0 (2026-08-14)
 
 
