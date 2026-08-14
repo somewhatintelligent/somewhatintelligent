@@ -1,0 +1,31 @@
+name: pr-title
+
+# THE PR TITLE IS THE COMMIT MESSAGE, so it is the thing that has to parse.
+#
+# Merges here are squashes, and a squash takes its subject from the PULL
+# REQUEST TITLE, not from any commit on the branch. So release-please only ever
+# reads titles — and of the 64 commits on `trunk` when this landed, 62 were
+# unparseable, which is why the changelog was empty and every release run
+# logged twenty `unexpected token` errors before doing nothing.
+#
+# Linting commits instead would check a string nothing downstream ever sees.
+on:
+  pull_request:
+    # `edited` is the load-bearing one: a title fixed after the fact has to
+    # clear the check without pushing a commit to re-trigger it.
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      # Reads the title through the API and never checks the branch out, so a
+      # fork's PR cannot run anything of its own here. `pull_request` rather
+      # than `pull_request_target` for the same reason — the read-only token a
+      # fork gets is all this needs.
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
