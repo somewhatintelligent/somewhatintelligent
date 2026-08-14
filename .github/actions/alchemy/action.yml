@@ -49,6 +49,38 @@ runs:
           *) echo "::error::command must be deploy or destroy, got '$COMMAND'"; exit 1 ;;
         esac
 
+        # THE SECRETS ARE ENCRYPTED AT REST AND SOMETHING HAS TO DECRYPT THEM.
+        #
+        # `.env.production` and `.env.development` hold dotenvx ciphertext —
+        # `STRIPE_SECRET_KEY="encrypted:BCLOY…"`. Bun loads whichever file
+        # matches `NODE_ENV` all by itself, which is what made this look wired
+        # up, but it has no idea what dotenvx is: it puts the CIPHERTEXT in the
+        # environment verbatim. `Config.redacted("STRIPE_SECRET_KEY")` then
+        # resolves a perfectly good string that is not a key.
+        #
+        # It failed closed on production and NOWHERE ELSE, which is why it took
+        # a release to find. `livemode` is derived from an `sk_live_` prefix, so
+        # ciphertext reads as test-mode: production refused the deploy with
+        # `StripeKeyMismatch`, and every preview and staging deploy before it
+        # went green while binding ciphertext to its workers as a secret.
+        #
+        # `dotenvx run` is what actually decrypts, using the private key named
+        # after the FILE — `DOTENV_PRIVATE_KEY_PRODUCTION` for
+        # `.env.production`. It injects before spawning, and values already in
+        # the environment win over the ones bun loads afterwards, so the
+        # plaintext survives bun re-reading the same file.
+        #
+        # The file is chosen by stage rather than by `NODE_ENV`: production is
+        # the only stage that talks to the live Stripe account, and every other
+        # stage — staging, a pull request, a `dev_` stage run by hand — shares
+        # the sandbox one.
+        if [ "$STAGE" = "production" ]; then
+          ENV_FILE=.env.production
+        else
+          ENV_FILE=.env.development
+        fi
+        echo "decrypting $ENV_FILE for stage $STAGE"
+
         ORDER=(apps/platform.auth apps/platform.site apps/mezedes)
 
         # THE INBOX IS PRODUCTION-ONLY, and deliberately not a preview surface.
@@ -81,14 +113,17 @@ runs:
           #
           # Keyed off the script rather than naming mezedes, so the next app to
           # need a prebuilt artifact gets one without editing this file.
+          # The build is wrapped too: a client bundle can bake in a publishable
+          # key, and reading `encrypted:…` there fails at a customer's browser
+          # rather than at the deploy.
           if [ "$COMMAND" = "deploy" ] &&
              node -e "process.exit(require('./$app/package.json').scripts?.build ? 0 : 1)"; then
             echo "::group::build $app"
-            bun run --cwd "$app" build
+            bunx dotenvx run -f "$ENV_FILE" -- bun run --cwd "$app" build
             echo "::endgroup::"
           fi
 
           echo "::group::$COMMAND $app @ $STAGE"
-          bunx alchemy "$COMMAND" "$app/alchemy.run.ts" --stage "$STAGE" --yes
+          bunx dotenvx run -f "$ENV_FILE" -- bunx alchemy "$COMMAND" "$app/alchemy.run.ts" --stage "$STAGE" --yes
           echo "::endgroup::"
         done
