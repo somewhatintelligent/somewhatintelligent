@@ -44,12 +44,13 @@
     <a class="iab-open" id="iab-open" href="/">Open</a>
 
     {/*
-      ALWAYS VISIBLE ON iOS, under the button rather than instead of it. iOS has
-      no reliable programmatic escape: `x-safari-https://` is an undocumented
-      scheme that current Instagram builds intercept SILENTLY — no error, no
-      navigation, nothing. So the button attempts it (free when blocked, works
-      on the builds that don't) and the menu route is written out for when
-      nothing happens, which is most of the time.
+      ALWAYS VISIBLE ON iOS, under the button rather than instead of it — it is
+      the floor of the fallback stack the script describes, and the only route
+      out that is nobody's code. iOS has no reliable programmatic escape:
+      `x-safari-https://` is an undocumented scheme that current Instagram
+      builds intercept SILENTLY — no error, no navigation, nothing. So this is
+      phrased for the case that already happened rather than as a warning about
+      one that might.
     */}
     <p class="iab-hint" id="iab-hint" hidden>
       Nothing happened? Tap <strong>⋯</strong> at the top right, then
@@ -110,12 +111,9 @@
 
       const tail = `${url.host}${url.pathname}${url.search}`;
       /**
-       * TWO ESCAPES, ONE BUTTON. `intent://` is Android's documented handoff to
-       * the system browser and it is reliable. `x-safari-https://` is iOS's
-       * undocumented one and it is not — see the note above. A REAL ANCHOR
-       * either way: a custom scheme only launches inside a genuine tap's
-       * transient activation, and a synthetic `.click()` forfeits that the
-       * moment anything async slips in.
+       * TWO ESCAPES, ONE ANCHOR. `intent://` is Android's documented handoff
+       * to the system browser and it is reliable. `x-safari-https://` is iOS's
+       * undocumented one and it is not — see the note above.
        */
       open.href = android
         ? `intent://${tail}#Intent;scheme=https;end`
@@ -132,5 +130,27 @@
       // It will interrupt again next page. Bearable, and better than silence.
     }
     dialog.showModal();
+
+    /**
+     * THREE ROUTES OUT, WEAKEST FIRST — and the order is the point, because
+     * each one only has to work where the one before it did not.
+     *
+     *   1  this synthetic click, which asks to leave without being asked to;
+     *   2  the button, tapped, which is the same anchor with a real gesture
+     *      behind it — and therefore the transient activation a custom scheme
+     *      wants;
+     *   3  the ⋯ menu, written out above, which is nobody's code and cannot
+     *      be intercepted.
+     *
+     * The automatic attempt is the LEAST likely of the three: no genuine tap
+     * has happened, so there is no activation to spend, and Instagram
+     * intercepts the iOS scheme regardless. It is here because failure is
+     * SILENT — a blocked scheme navigates nowhere and throws nothing — so the
+     * cost of trying is zero and the payoff is a visitor who never had to read
+     * the dialog at all. It runs after `showModal()` so the fallbacks are
+     * already on screen for the overwhelmingly likely case that nothing
+     * happens.
+     */
+    open.click();
   }
 </script>
