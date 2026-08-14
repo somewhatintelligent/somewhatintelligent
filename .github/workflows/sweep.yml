@@ -68,7 +68,12 @@ jobs:
             stack="${entry##*:}"
             # `state stages` prints one stage per line, or "(no stages in X)".
             # It has no --json flag, so this is the parse.
-            stages="$(bunx alchemy state stages "$app/alchemy.run.ts" --stack "$stack" 2>/dev/null \
+            # `dotenvx run` for the same reason the composite action uses it:
+            # evaluating a stack resolves its `Config` reads, and the raw file
+            # holds ciphertext. Every stage this job touches is a `pr_<n>`, so
+            # the file is always the development one.
+            stages="$(bunx dotenvx run -f .env.development -- \
+              bunx alchemy state stages "$app/alchemy.run.ts" --stack "$stack" 2>/dev/null \
               | grep -E '^pr_[0-9]+$' || true)"
             for stage in $stages; do
               number="${stage#pr_}"
@@ -95,7 +100,8 @@ jobs:
               echo "::group::destroy $app @ $stage"
               # `|| true`: one stack failing must not strand the rest of the
               # sweep; next week's run retries whatever survived.
-              bunx alchemy destroy "$app/alchemy.run.ts" --stage "$stage" --yes || true
+              bunx dotenvx run -f .env.development -- \
+                bunx alchemy destroy "$app/alchemy.run.ts" --stage "$stage" --yes || true
               echo "::endgroup::"
             done
           done
