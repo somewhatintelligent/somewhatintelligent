@@ -71,15 +71,20 @@
 <script>
   import { readCart, subscribeCart } from "../lib/cart.ts";
   import { CART_PARAM, serializeCart } from "../core/cart-link.ts";
+  import { escapeUrl, isAndroid, isEmbeddedBrowser } from "../core/in-app-browser.ts";
 
   const dialog = document.getElementById("iab-dialog") as HTMLDialogElement | null;
   const open = document.getElementById("iab-open") as HTMLAnchorElement | null;
   const hint = document.getElementById("iab-hint");
 
+  /**
+   * WHICH BROWSER, AND WHERE IT CAN BE SENT, both decided in `core/` against
+   * real user-agent strings — see `core/in-app-browser.ts` and its test. What
+   * is left here is the part that genuinely needs a browser.
+   */
   const ua = navigator.userAgent;
-  /** Meta's embedded browsers all say so: Instagram by name, Facebook as FBAN/FBAV/FB_IAB. */
-  const embedded = /Instagram|FBAN|FBAV|FB_IAB/i.test(ua);
-  const android = /Android/i.test(ua);
+  const embedded = isEmbeddedBrowser(ua);
+  const android = isAndroid(ua);
 
   /**
    * ONCE PER SESSION. A modal on every page load is worse than the bug it is
@@ -109,15 +114,8 @@
       else url.searchParams.delete(CART_PARAM);
       history.replaceState(history.state, "", url);
 
-      const tail = `${url.host}${url.pathname}${url.search}`;
-      /**
-       * TWO ESCAPES, ONE ANCHOR. `intent://` is Android's documented handoff
-       * to the system browser and it is reliable. `x-safari-https://` is iOS's
-       * undocumented one and it is not — see the note above.
-       */
-      open.href = android
-        ? `intent://${tail}#Intent;scheme=https;end`
-        : `x-safari-https://${tail}`;
+      /** Two schemes, one anchor — which one is `core/in-app-browser.ts`'s call. */
+      open.href = escapeUrl(ua, url.href);
     };
     sync();
     subscribeCart(sync);
