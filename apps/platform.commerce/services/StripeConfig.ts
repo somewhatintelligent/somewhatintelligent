@@ -44,9 +44,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 
-import type { Tier } from "@swi/infra/stage/StandardizedStage";
+import { Deployment, type Tier } from "@swi/infra/stage/StandardizedStage";
 
-import { STOREFRONT_ORIGIN } from "../hostnames.ts";
+import { STOREFRONT_ORIGIN, storefrontOriginFor } from "../hostnames.ts";
 import * as Schema from "effect/Schema";
 
 export type StripeEnvironment = "dev" | "preprod" | "prod";
@@ -65,10 +65,7 @@ export const VARIABLES = {
   webhookSecret: "STRIPE_WEBHOOK_SIGNING_SECRET",
 } as const;
 
-/** Where the buyer returns after a hosted checkout. Origin only, no path. */
-const STOREFRONT_URL_VARIABLE = "STORE_STOREFRONT_URL";
-
-/** A developer's storefront, by convention. Never used outside `dev`. */
+/** A developer's storefront, by convention. Only under `alchemy dev`. */
 const DEV_STOREFRONT_URL = "http://localhost:5173";
 
 /**
@@ -159,25 +156,33 @@ export class StripeConfig extends Context.Service<
        * to, so this is not optional configuration — it is the difference between
        * a working Buy button and `Missing required param: success_url`.
        *
-       * PRODUCTION DERIVES IT AND CANNOT BE TOLD OTHERWISE. The storefront
-       * answers on the apex, this stack deploys that storefront, and the origin
-       * is therefore a fact about the deployment rather than a setting — see
-       * {@link STOREFRONT_ORIGIN}. It used to be read from the environment like
-       * the other two, and that was the one variable whose being wrong is
-       * silent: every session still opens, every payment still succeeds, and
-       * every buyer is returned to a dead page afterwards.
+       * EVERY STAGE DERIVES IT AND NONE CAN BE TOLD OTHERWISE. The stack that
+       * resolves this config is the stack that deploys the storefront, so the
+       * origin is a fact about the deployment rather than a setting. Production
+       * already worked this way; the rest read `STORE_STOREFRONT_URL`, and that
+       * was the one variable whose being wrong is silent — every session still
+       * opens, every payment still succeeds, and every buyer is returned to a
+       * dead page afterwards.
        *
-       * Dev may guess, because a developer's storefront is conventionally on a
-       * local port and making them export a variable to place a test order is
-       * friction with no safety value. Preprod has no hostname of its own yet,
-       * so it MUST still declare one: there is no defensible default for where
-       * a real buyer lands after paying.
+       * It was also the one variable NOTHING PROVIDED. Production derived, an
+       * ephemeral stage resolved to `dev` and defaulted to localhost, and only
+       * `preprod` reached the bare `Config.string` — so staging asked for a
+       * value absent from both `.env` files and died at
+       * `PaymentsProvider.resolve`, in the one tier no preview exercises.
+       *
+       * `dev` IS NOW THE LOCAL WORKERD, NOT A TIER. `environmentFor` maps every
+       * ephemeral stage to the `dev` Stripe environment, so keying the localhost
+       * guess off that name pointed a DEPLOYED preview's buyers at the
+       * developer's own machine. `Deployment.dev` is the narrower question — is
+       * a workerd serving this here — and it is the only one localhost answers.
        */
-      const storefrontUrl = yield* environment === "prod"
-        ? Effect.succeed(STOREFRONT_ORIGIN)
-        : environment === "dev"
-          ? Config.string(STOREFRONT_URL_VARIABLE).pipe(Config.withDefault(DEV_STOREFRONT_URL))
-          : Config.string(STOREFRONT_URL_VARIABLE);
+      const { stage, dev: local } = yield* Deployment;
+      const storefrontUrl =
+        environment === "prod"
+          ? STOREFRONT_ORIGIN
+          : local
+            ? DEV_STOREFRONT_URL
+            : storefrontOriginFor(stage);
 
       // `sk_live_…` is the only prefix that settles real money.
       const livemode = Redacted.value(secretKey).startsWith("sk_live_");

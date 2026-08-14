@@ -57,7 +57,7 @@ class Inbox extends Cloudflare.Website.Vite<Inbox>()(
      */
     const name = yield* Tiered({
       production: "agentic-inbox-si",
-      staging: PREVIEW_SCRIPTS.inbox("staging"),
+      staging: PREVIEW_SCRIPTS.inbox(workerSafeStage("staging")),
       ephemeral: PREVIEW_SCRIPTS.inbox(safeStage),
     });
 
