@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.1...v1.0.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* give the CI token the zone permission a worker route needs ([#17](https://github.com/somewhatintelligent/somewhatintelligent/issues/17)) ([2d0a1e4](https://github.com/somewhatintelligent/somewhatintelligent/commit/2d0a1e4ea2d44bbeee8bf70b94d4765fb2d0fcff))
+
 ## [1.0.1](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.0...v1.0.1) (2026-08-14)
 
 
