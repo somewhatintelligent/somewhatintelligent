@@ -54,7 +54,7 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
       // imports this file, and a documentary copy of a name is one that drifts.
       // `PREVIEW_SCRIPTS.operator("prod")` is the string production already
       // carries, so this is not a rename.
-      name: PREVIEW_SCRIPTS.operator(production ? "prod" : workerSafeStage(stage)),
+      name: PREVIEW_SCRIPTS.operator(workerSafeStage(production ? "prod" : stage)),
       rootDir: PACKAGE_DIR,
       main: "./app/worker.ts",
       compatibility: { flags: ["nodejs_compat"] },

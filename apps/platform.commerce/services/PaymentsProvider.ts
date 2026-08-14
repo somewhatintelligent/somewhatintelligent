@@ -34,7 +34,6 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import { storefrontOrigin } from "../hostnames.ts";
 import { Database } from "./Database.ts";
 import { Ids } from "./Ids.ts";
 import { Payments } from "./Payments.ts";
@@ -100,15 +99,7 @@ export const unconfigured = (tier: Tier, cause: unknown): string => {
  * while acking real money into a ledger nobody is watching.
  */
 export const resolve = Effect.fn("PaymentsProvider.resolve")(function* (tier: Tier) {
-  /**
-   * Derived HERE rather than inside `load`, which sees only the environment —
-   * and `dev` is every ephemeral stage, each answering on its own hostname.
-   * This call site already has the stack in context (its callers yield
-   * `StageTier` to compute `environment`), so the stage costs nothing to reach.
-   */
-  const storefrontUrl = yield* storefrontOrigin;
-
-  return yield* StripeConfig.load(tier, storefrontUrl).pipe(
+  return yield* StripeConfig.load(tier).pipe(
     Effect.map(stripeProvider),
     /**
      * `catchCause` rather than a tag match because both ways of failing mean the

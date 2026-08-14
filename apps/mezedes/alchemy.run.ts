@@ -89,7 +89,7 @@ export default Alchemy.Stack(
      */
     const name = yield* Tiered({
       production: PRODUCTION.worker,
-      staging: PREVIEW_SCRIPTS.mezedes("staging"),
+      staging: PREVIEW_SCRIPTS.mezedes(workerSafeStage("staging")),
       ephemeral: PREVIEW_SCRIPTS.mezedes(workerSafeStage(stage)),
     });
 

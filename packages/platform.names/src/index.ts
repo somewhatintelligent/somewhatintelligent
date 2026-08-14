@@ -57,19 +57,44 @@ export const SOCIAL_PROFILES = [
   { label: "Instagram", url: "https://instagram.com/somewhatintelligent" },
 ] as const;
 
+declare const WorkerSafe: unique symbol;
+
+/**
+ * A stage name that has been through {@link workerSafeStage}, as a type nothing
+ * else can produce.
+ *
+ * NOMINAL, AND SPELLED BY HAND rather than with `effect/Brand`, because this
+ * package imports nothing and must keep importing nothing — `PRODUCTION_ZONE`
+ * is read by client code, so a dependency here reaches a browser bundle. A
+ * `unique symbol` in a phantom property costs no runtime and needs no library.
+ *
+ * NOT `StandardizedStage`, which is the OTHER brand and lives in
+ * `@swi/infra/stage/StandardizedStage`. That one says a name is a legal stage;
+ * this one says a string is legal in a Cloudflare resource name. They are
+ * different claims — `dev_stoli` satisfies the first and fails the second — and
+ * this package could not import that one anyway: infra imports THIS module, so
+ * the arrow only points one way.
+ */
+export type WorkerSafeStage = string & { readonly [WorkerSafe]: true };
+
 /**
  * A stage name reduced to what a Cloudflare resource name accepts.
  *
  * Stages carry characters resource names do not — `dev_stoli` is the common
  * one. This is for names we build ourselves (`si-identity-<stage>`); alchemy
  * derives its own physical names and needs no help.
+ *
+ * THE ONLY CONSTRUCTOR of {@link WorkerSafeStage}, which is what makes
+ * {@link PREVIEW_SCRIPTS} unreachable with a raw string. The cast is the trust
+ * boundary and it is deliberately the only one — every other name in this file
+ * is built from a value that came through here.
  */
-export const workerSafeStage = (stage: string): string =>
+export const workerSafeStage = (stage: string): WorkerSafeStage =>
   stage
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replace(/^-|-$/g, "") as WorkerSafeStage;
 
 /**
  * The account's `workers.dev` subdomain. Off production every unit answers at
@@ -78,7 +103,15 @@ export const workerSafeStage = (stage: string): string =>
  */
 export const ACCOUNT_SUBDOMAIN = "apostoli-geyer";
 
-export const workersDevHost = (script: string): string =>
+/**
+ * The hostname a script answers on, as a TYPE — so a caller that builds a URL
+ * out of one keeps the scheme, the subdomain and the suffix in its own type
+ * instead of widening to `string` at the first interpolation.
+ */
+export type WorkersDevHost<Script extends string = string> =
+  `${Script}.${typeof ACCOUNT_SUBDOMAIN}.workers.dev`;
+
+export const workersDevHost = <Script extends string>(script: Script): WorkersDevHost<Script> =>
   `${script}.${ACCOUNT_SUBDOMAIN}.workers.dev`;
 
 /**
@@ -96,14 +129,28 @@ export const workersDevHost = (script: string): string =>
  * each app — `si-identity-prod`, `agentic-inbox-si`, the alchemy-generated ones
  * — and never routes through this table. Adding one here would invite a rename
  * that replaces a live worker.
+ *
+ * EACH RETURNS A TEMPLATE LITERAL TYPE, not `string`. The prefix is the half of
+ * a script name that never varies, so carrying it in the type costs nothing and
+ * means a hostname built from one of these still knows what it is — see
+ * `WorkersDevHost` and `apps/platform.commerce/hostnames.ts`, which composes
+ * both into an origin whose type pins everything except the stage itself.
+ *
+ * AND EACH TAKES A {@link WorkerSafeStage}, so the table cannot be reached with
+ * a name that never met {@link workerSafeStage}. A raw stage is the wrong shape
+ * for half of these — `dev_stoli` names no worker Cloudflare will accept — and
+ * the symptom of getting it wrong is a deploy that fails late on a name it
+ * built itself. Literals that are already safe say so by passing through the
+ * normalizer, which is a no-op on them: `workerSafeStage("staging")`.
  */
 export const PREVIEW_SCRIPTS = {
   /** Matches what `apps/platform.auth/shared/ingress.ts` already builds. */
-  auth: (stage: string) => `si-identity-${stage}`,
-  site: (stage: string) => `si-site-${stage}`,
-  media: (stage: string) => `si-commerce-media-${stage}`,
+  auth: (stage: WorkerSafeStage): `si-identity-${string}` => `si-identity-${stage}`,
+  site: (stage: WorkerSafeStage): `si-site-${string}` => `si-site-${stage}`,
+  media: (stage: WorkerSafeStage): `si-commerce-media-${string}` => `si-commerce-media-${stage}`,
   /** Matches what `apps/platform.commerce/module.ts` already builds. */
-  operator: (stage: string) => `si-commerce-operator-${stage}`,
-  mezedes: (stage: string) => `si-mezedes-${stage}`,
-  inbox: (stage: string) => `agentic-inbox-si-${stage}`,
+  operator: (stage: WorkerSafeStage): `si-commerce-operator-${string}` =>
+    `si-commerce-operator-${stage}`,
+  mezedes: (stage: WorkerSafeStage): `si-mezedes-${string}` => `si-mezedes-${stage}`,
+  inbox: (stage: WorkerSafeStage): `agentic-inbox-si-${string}` => `agentic-inbox-si-${stage}`,
 } as const;

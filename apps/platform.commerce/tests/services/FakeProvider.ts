@@ -26,7 +26,6 @@ import * as Effect from "effect/Effect";
 
 import { stripeProvider, unconfigured, type Provider } from "../../services/PaymentsProvider.ts";
 import type { Tier } from "@swi/infra/stage/StandardizedStage";
-import { storefrontOrigin } from "../../hostnames.ts";
 import { StripeConfig } from "../../services/StripeConfig.ts";
 import * as PaymentsFake from "./PaymentsFake.ts";
 
@@ -40,11 +39,7 @@ import * as PaymentsFake from "./PaymentsFake.ts";
  * rather than the target.
  */
 export const resolveWithFake = Effect.fn("FakeProvider.resolveWithFake")(function* (tier: Tier) {
-  // Same derivation the real resolver uses, so a suite that reaches Stripe
-  // returns the buyer to the same origin a deploy of this stage would.
-  const storefrontUrl = yield* storefrontOrigin;
-
-  return yield* StripeConfig.load(tier, storefrontUrl).pipe(
+  return yield* StripeConfig.load(tier).pipe(
     Effect.map(stripeProvider),
     /**
      * `catchCause` rather than a tag match because both ways of failing mean the

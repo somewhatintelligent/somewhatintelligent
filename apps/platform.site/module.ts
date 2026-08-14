@@ -58,7 +58,7 @@ export class Site extends Cloudflare.Website.Astro<Site>()(
      */
     const name = yield* Tiered({
       production: "platformcommerce-site-production-rgrpfsan2olmqfri",
-      staging: PREVIEW_SCRIPTS.site("staging"),
+      staging: PREVIEW_SCRIPTS.site(workerSafeStage("staging")),
       ephemeral: PREVIEW_SCRIPTS.site(workerSafeStage(stage)),
     });
 

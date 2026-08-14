@@ -53,7 +53,9 @@ import * as Layer from "effect/Layer";
 import type * as Redacted from "effect/Redacted";
 
 import { assertKeyMatchesTier, livemodeOf, STRIPE_SECRET_KEY } from "@swi/infra/stripe";
-import type { Tier } from "@swi/infra/stage/StandardizedStage";
+import { Deployment, type Tier } from "@swi/infra/stage/StandardizedStage";
+
+import { STOREFRONT_ORIGIN, storefrontOriginFor } from "../hostnames.ts";
 
 /**
  * The two variable names this deployment reads.
@@ -74,6 +76,9 @@ export const VARIABLES = {
    */
   webhookSecret: "STRIPE_WEBHOOK_SIGNING_SECRET",
 } as const;
+
+/** A developer's storefront, by convention. Only under `alchemy dev`. */
+const DEV_STOREFRONT_URL = "http://localhost:5173";
 
 /**
  * Stripe's tax codes for what this store sells.
@@ -120,19 +125,45 @@ export class StripeConfig extends Context.Service<
    * footgun, and the reason this is a named function rather than an inline read.
    *
    * Fails with `ConfigError` when a secret is absent. That is a legitimate state
-   * for `dev` and a deploy-stopping one everywhere else; the caller decides,
+   * on a laptop and a deploy-stopping one everywhere else; the caller decides,
    * because only the caller knows which stage it is.
-   *
-   * `storefrontUrl` ARRIVES AS AN ARGUMENT rather than being read here, because
-   * it is derived from the stage and this function only knows the environment —
-   * `dev` covers every ephemeral stage, each on its own hostname. See
-   * {@link storefrontOrigin}, and `PaymentsProvider.resolve` for the one caller
-   * that supplies it.
    */
-  static readonly load = (tier: Tier, storefrontUrl: string) =>
+  static readonly load = (tier: Tier) =>
     Effect.gen(function* () {
       const secretKey = yield* Config.redacted(VARIABLES.secretKey);
       const webhookSecret = yield* Config.redacted(VARIABLES.webhookSecret);
+
+      /**
+       * A hosted checkout REFUSES to open without somewhere to return the buyer
+       * to, so this is not optional configuration — it is the difference between
+       * a working Buy button and `Missing required param: success_url`.
+       *
+       * EVERY STAGE DERIVES IT AND NONE CAN BE TOLD OTHERWISE. The stack that
+       * resolves this config is the stack that deploys the storefront, so the
+       * origin is a fact about the deployment rather than a setting. Production
+       * already worked this way; the rest read `STORE_STOREFRONT_URL`, and that
+       * was the one variable whose being wrong is silent — every session still
+       * opens, every payment still succeeds, and every buyer is returned to a
+       * dead page afterwards.
+       *
+       * It was also the one variable NOTHING PROVIDED. Production derived, an
+       * ephemeral stage defaulted to localhost, and only staging reached the
+       * bare `Config.string` — so it asked for a value absent from both `.env`
+       * files and died at `PaymentsProvider.resolve`, in the one tier no preview
+       * exercises.
+       *
+       * LOCALHOST IS ABOUT THE WORKERD, NOT THE TIER. `Deployment.dev` asks the
+       * narrow question — is a workerd serving this here — and it is the only
+       * one localhost answers. Keying the guess off the tier instead would point
+       * a DEPLOYED ephemeral stage's buyers at the developer's own machine.
+       */
+      const { stage, dev: local } = yield* Deployment;
+      const storefrontUrl =
+        tier === "production"
+          ? STOREFRONT_ORIGIN
+          : local
+            ? DEV_STOREFRONT_URL
+            : storefrontOriginFor(stage);
 
       // `sk_live_…` is the only prefix that settles real money.
       const livemode = livemodeOf(secretKey);
