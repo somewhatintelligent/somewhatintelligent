@@ -129,3 +129,53 @@ Mode: built-in OpenAI image generation. No CLI/API fallback was used. The suppli
 - No gradients, glass, soft shadows, generic SaaS cards, fake dashboards, tactical imagery, or random crosshairs.
 - The visual signature is one controlled private leak per surface.
 - Personal identity photographs are not part of the brand deliverable; all temporary normalized copies were removed after the direction changed.
+
+## 2026-08-13 — canonical wordmark garment extension
+
+The later `SOMEWHAT / INTELLIGENT` shirt study follows the same image-world and
+identity constraints. Its four selected campaign/product concepts, prompt
+cores, exact-artwork invariants, and source-asset authority are documented in
+`../somewhat-intelligent-shirt-concepts/README.md`.
+
+### Surreal extension
+
+The subsequent four-frame extension is documented in
+`../somewhat-intelligent-shirt-surreal-concepts/README.md`. It is grounded in
+the newer red-car/data-center campaign world and follows one additional rule:
+each selected surreal image contains one impossible fact photographed with the
+same deadpan material realism as everything around it.
+
+`01-red-car-impossible-office-lead-4x3.png` is the selected campaign lead. The
+open car interior continues into a fluorescent office corridor larger than the
+vehicle, while the wet car, drainage creek, data center, laptop, and garment
+remain ordinary. The render is preserved unchanged.
+
+The printer-facing garment field was corrected after generation to exactly
+`16in wide × 18in high` (`4800 × 5400` at 300 ppi). Those dimensions describe
+the physical print area, not the 4:3 campaign canvas or the garment itself.
+
+### Soft-glare surreal extension
+
+The next four campaign studies are documented in
+`../somewhat-intelligent-shirt-soft-glare-concepts/README.md`. They retain the
+one-impossible-fact rule while shifting the photographic treatment toward
+sharp, affectionate adult subjects against washed fluorescent glare, halation,
+shallow focus, and dragged-shutter infrastructure blur.
+
+The scenes are deliberately distinct from the red-car lead: a biometric hall
+whose scanner produces clover, a data-center bedroom with oceans inside the
+racks, a rooftop satellite dish holding level water, and an automated
+fulfillment floor beneath reverse-falling emergency-shower water.
+
+### Mixed-shirt extension
+
+The collection-level study is documented in
+`../mixed-shirt-surreal-concepts/README.md`. It combines the exact SOMEWHAT
+front, FRIEND front, and FRIEND documentation-back artwork across three new
+scenes while cooling the relationship direction from intimate couple imagery
+to friends, collaborators, and co-conspirators.
+
+The selected image grammar covers both readable fronts in an automated parking
+garage, SOMEWHAT front plus FRIEND back in a moon-wafer cleanroom, and both
+fronts during an unauthorized network build beneath a continuous fish moving
+across surveillance displays.
