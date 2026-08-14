@@ -4,6 +4,7 @@
   "versioning": "always-bump-patch",
   "separate-pull-requests": false,
   "include-component-in-tag": false,
+  "bootstrap-sha": "f8d0105698ea713f00bdc2988edcb958e08e004d",
   "packages": {
     ".": {}
   }
