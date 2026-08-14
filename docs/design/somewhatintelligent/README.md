@@ -2,6 +2,22 @@
 
 This directory is the self-contained art-direction source for somewhatintelligent. The current platform site already implements the mockup-derived system; use this archive to understand, evaluate, and extend it.
 
+The current garment wordmark masters and their generated campaign/product
+concepts live under
+`brand-study/source-assets/somewhat-intelligent-shirt/` and
+`somewhat-intelligent-shirt-concepts/` respectively. The later surreal campaign
+direction is in `somewhat-intelligent-shirt-surreal-concepts/`; its red-car
+impossible-office frame is the selected lead.
+
+The softer, more intimate surreal extension is in
+`somewhat-intelligent-shirt-soft-glare-concepts/`. It keeps subjects and garment
+typography sharp while surveillance, computation, and logistics infrastructure
+dissolve into washed glare, halation, and motion blur.
+
+The two-shirt collection study is in `mixed-shirt-surreal-concepts/`. It pairs
+the SOMEWHAT and FRIEND objects through friends/collaborators occupying the same
+system, with both front/front and front/documentation-back coverage.
+
 ## Start here
 
 1. [`brand-study/01-brand-theory.md`](./brand-study/01-brand-theory.md) — brand thesis and visual system.
