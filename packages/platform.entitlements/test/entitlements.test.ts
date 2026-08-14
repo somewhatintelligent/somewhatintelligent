@@ -41,7 +41,10 @@ describe("the catalogue is total and internally consistent", () => {
   test("every tier answers every entitlement key", () => {
     for (const [id, tier] of Object.entries(TIERS)) {
       for (const key of Object.keys(ENTITLEMENTS)) {
-        expect(tier.entitlements, `${id} is missing ${key}`).toHaveProperty(key);
+        // `Object.hasOwn` rather than `toHaveProperty`, which reads a dot as a
+        // path — every key here has one, so it looked for `entitlements.systems
+        // .mezedes` and this assertion could never pass.
+        expect(Object.hasOwn(tier.entitlements, key), `${id} is missing ${key}`).toBe(true);
       }
     }
   });
