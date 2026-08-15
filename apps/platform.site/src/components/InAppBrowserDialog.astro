@@ -1,0 +1,159 @@
+---
+// THE IN-APP BROWSER DIALOG — shown once inside one, and nowhere else.
+//
+// Instagram and Facebook open links in their own embedded browser: the same
+// WebKit as the phone's real one, a different environment — no console, no
+// devtools, separate storage. Checkout has misbehaved there in ways it does
+// not anywhere else, and an embedded browser CANNOT BE INSPECTED, so until the
+// fault is named the honest move is the standard one: say so, and offer the
+// phone's real browser.
+//
+// A NATIVE `<dialog>`, NOT A REACT ONE, and that is a deliberate choice rather
+// than the absence of a component library. `platform.ui` does hold a Base UI
+// `Dialog` — and it is dressed in Tailwind and consumed by the two React admin
+// apps, neither of which this is. Rendering it here would mean adding a React
+// integration to an Astro storefront that ships none, plus React, plus the
+// Tailwind runtime this site's hand-written CSS deliberately does without —
+// TO SHOW A DIALOG WHOSE ENTIRE JOB IS RESCUING PEOPLE FROM AN ENVIRONMENT
+// WHERE JAVASCRIPT IS ALREADY FAILING MYSTERIOUSLY. The rescue must be the
+// lightest thing on the page, not the heaviest. `showModal()` brings the focus
+// trap, the inert background, the real `::backdrop` and `Esc` with it; the
+// zoom viewer next door is the same bet.
+//
+// THE CART TRAVELS IN THE LINK. Storage does not cross browsers, so escaping
+// with a bare URL would arrive at an empty cart. The page's URL carries the
+// cart for as long as this browser is the one in use — see `syncCartToUrl` in
+// `lib/cart.ts` — so every route out, the button, the app's own ⋯ menu and a
+// copied link alike, arrives holding the same lines. `importCartFromUrl` in
+// the header is the receiving end, on whatever page the escape lands.
+//
+// IN `Base.astro`, so no page has to remember it. It renders after the slot
+// and therefore outside `.site-frame` — a modal is painted in the top layer
+// wherever it sits, but keeping it out of a `100dvh` clipped subtree means
+// none of a page's scroll discipline has to be relaxed. The two commerce
+// routes carried it by hand first, which left `/` and `/shop/` — the likeliest
+// links in a bio — warning nobody.
+---
+<dialog class="iab-dialog" id="iab-dialog" aria-labelledby="iab-title">
+  <div class="iab-body">
+    {/*
+      `data-app` IS THE APP'S NAME, and the script corrects it when the webview
+      is Facebook's rather than Instagram's. Instagram is the server-rendered
+      default because it is the overwhelming case and because a dialog that
+      named the wrong app would have spent the only credibility it has.
+    */}
+    <h2 id="iab-title">This is <span data-app>Instagram</span>’s browser</h2>
+    <p>
+      <span data-app>Instagram</span>’s in-app browser sucks and breaks shit,
+      checkout included. Tap below to open this in your phone’s real browser.
+      Your cart comes with you.
+    </p>
+
+    <a class="iab-open" id="iab-open" href="/">Open</a>
+
+    {/*
+      ALWAYS VISIBLE ON iOS, under the button rather than instead of it — it is
+      the floor of the fallback stack the script describes, and the only route
+      out that is nobody's code. iOS has no reliable programmatic escape:
+      `x-safari-https://` is an undocumented scheme that current Instagram
+      builds intercept SILENTLY — no error, no navigation, nothing. So this is
+      phrased for the case that already happened rather than as a warning about
+      one that might.
+    */}
+    <p class="iab-hint" id="iab-hint" hidden>
+      Nothing happened? Tap <strong>⋯</strong> at the top right, then
+      <strong>Open in external browser</strong>.
+    </p>
+
+    {/*
+      A form rather than a click handler: `method="dialog"` closes it as a
+      platform behaviour, with no JavaScript of ours in the path — so the way
+      out still works if the script that opened it has since thrown.
+    */}
+    <form method="dialog">
+      <button type="submit" class="iab-stay">Continue here anyway</button>
+    </form>
+  </div>
+</dialog>
+
+<script>
+  import { subscribeCart, syncCartToUrl } from "../lib/cart.ts";
+  import { embeddedApp, escapeRoute } from "../core/in-app-browser.ts";
+
+  const dialog = document.getElementById("iab-dialog") as HTMLDialogElement | null;
+  const open = document.getElementById("iab-open") as HTMLAnchorElement | null;
+  const hint = document.getElementById("iab-hint");
+
+  /**
+   * WHICH APP THIS IS, and where it can be sent — both decided in `core/`
+   * against real user-agent strings, see `core/in-app-browser.ts` and its
+   * test. What is left here is the part that genuinely needs a browser.
+   */
+  const ua = navigator.userAgent;
+  const app = embeddedApp(ua);
+
+  if (dialog && open && app !== null) {
+    /**
+     * THE URL CARRIES THE CART FOR THE WHOLE SESSION, not just while the
+     * dialog is up — because the app's own ⋯ menu is always there, and it
+     * hands the CURRENT url to the real browser. Someone who dismissed this,
+     * added another size, and then escaped by hand must not arrive empty.
+     * That is why the sync sits outside the once-per-session gate below and
+     * stays subscribed: it has nothing to do with the dialog being open.
+     */
+    const sync = (): void => {
+      open.href = escapeRoute(ua, syncCartToUrl().href).href;
+    };
+    sync();
+    subscribeCart(sync);
+
+    /** The floor of the fallback stack, and only where the escape is unreliable. */
+    if (hint) hint.hidden = escapeRoute(ua, window.location.href).reliable;
+
+    /** Facebook's webview is not Instagram's, and saying so costs one string. */
+    if (app !== "Instagram") {
+      for (const el of document.querySelectorAll("[data-app]")) el.textContent = app;
+    }
+
+    /**
+     * THE DIALOG ITSELF IS ONCE PER SESSION. A modal on every page load is
+     * worse than the bug it warns about — it interrupts once, and the URL sync
+     * above goes on working for the rest of the visit either way.
+     */
+    const SEEN = "si:iab:seen";
+    let seen = false;
+    try {
+      seen = window.sessionStorage.getItem(SEEN) === "1";
+      window.sessionStorage.setItem(SEEN, "1");
+    } catch {
+      // Storage refused, so this interrupts again next page. Bearable, and
+      // better than swallowing the one warning that explains the breakage.
+    }
+
+    if (!seen) {
+      dialog.showModal();
+
+      /**
+       * THREE ROUTES OUT, WEAKEST FIRST — and the order is the point, because
+       * each one only has to work where the one before it did not.
+       *
+       *   1  this synthetic click, which asks to leave without being asked to;
+       *   2  the button, tapped, which is the same anchor with a real gesture
+       *      behind it — and therefore the transient activation a custom
+       *      scheme wants;
+       *   3  the ⋯ menu, written out above, which is nobody's code and cannot
+       *      be intercepted.
+       *
+       * The automatic attempt is the LEAST likely of the three: no genuine tap
+       * has happened, so there is no activation to spend, and Instagram
+       * intercepts the iOS scheme regardless. It is here because failure is
+       * SILENT — a blocked scheme navigates nowhere and throws nothing — so
+       * the cost of trying is zero and the payoff is a visitor who never had
+       * to read the dialog at all. It runs after `showModal()` so the
+       * fallbacks are already on screen for the overwhelmingly likely case
+       * that nothing happens.
+       */
+      open.click();
+    }
+  }
+</script>

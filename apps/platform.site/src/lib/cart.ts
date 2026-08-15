@@ -18,12 +18,14 @@ import {
   countUnits,
   normalize,
   normalizeHints,
+  unheldLines,
   withLine,
   withQuantity,
   withoutLine,
   type CartHint,
   type CartLine,
 } from "../core/cart.ts";
+import { takeCartParam, writeCartParam } from "../core/cart-link.ts";
 
 export { MAX_QUANTITY, MIN_QUANTITY, type CartHint } from "../core/cart.ts";
 
@@ -102,6 +104,60 @@ export const clearCart = (): void => {
     // ignore
   }
   announce();
+};
+
+/**
+ * THE CART AS IT TRAVELS — both halves of it, because they are one mechanism
+ * and neither belongs to the chrome that happens to invoke it.
+ *
+ * Storage does not cross browsers, so escaping an in-app browser with a bare
+ * URL would arrive at an empty cart (see `components/InAppBrowserDialog.astro`
+ * for why anyone is escaping). The lines ride in a query parameter instead;
+ * the codec and the parameter's name are `core/cart-link.ts`'s, and what is
+ * here is the part that needs a `window`.
+ *
+ * `replaceState` THROUGHOUT, so history gains no entry and back still means
+ * back.
+ */
+
+/** A cart arriving by link. Call it on any page; it is a no-op without one. */
+export const importCartFromUrl = (): void => {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  const carried = takeCartParam(url);
+  if (carried === null) return;
+  importCart(carried);
+  history.replaceState(history.state, "", url);
+};
+
+/**
+ * Put the current cart on the page's own URL and hand that URL back — so a
+ * caller can swap its scheme without re-parsing, and so EVERY route out of an
+ * in-app browser carries the cart: the escape button, the app's own ⋯ menu, a
+ * copied link.
+ */
+export const syncCartToUrl = (): URL => {
+  const url = new URL(window.location.href);
+  writeCartParam(url, readCart());
+  // Nothing to rewrite when the URL already says this — an empty cart on an
+  // already-clean address is the common case on a first page.
+  if (url.search !== window.location.search) {
+    history.replaceState(history.state, "", url);
+  }
+  return url;
+};
+
+/**
+ * A cart carried in by link, merged into whatever this browser already holds.
+ * `unheldLines` decides what may be added and the incumbent always wins; an
+ * empty answer means the link brought nothing new, so nothing is written and
+ * no subscriber is woken.
+ */
+export const importCart = (imported: readonly CartLine[]): CartLine[] => {
+  const current = readCart();
+  const additions = unheldLines(current, imported);
+  if (additions.length === 0) return current;
+  return persist([...current, ...additions]);
 };
 
 export const cartCount = (): number => countUnits(readCart());
