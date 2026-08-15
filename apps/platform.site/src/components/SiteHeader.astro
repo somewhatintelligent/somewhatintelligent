@@ -88,7 +88,16 @@ const market = parseMarket(Astro.cookies.get(MARKET_COOKIE)?.value);
    * Until this existed, adding to the cart moved the state line on the product
    * page and left the header saying nothing at all.
    */
-  import { cartCount, subscribeCart } from "../lib/cart.ts";
+  import { cartCount, importCartFromUrl, subscribeCart } from "../lib/cart.ts";
+
+  /**
+   * A CART CARRIED IN THE LINK, imported before the first count renders — the
+   * receiving end of the in-app-browser escape hatch. The header is where it
+   * is INVOKED rather than where it lives, and that is the point: the escape
+   * reopens whatever URL the shopper was on, so every route needs this and no
+   * route should have to remember it.
+   */
+  importCartFromUrl();
 
   const link = document.getElementById("site-cart-link");
   const count = document.getElementById("site-cart-count");

@@ -2,6 +2,7 @@
 import { brand } from "platform.design/logo";
 
 import "../styles.css";
+import InAppBrowserDialog from "../components/InAppBrowserDialog.astro";
 import PostHogLayout from "./PostHogLayout.astro";
 import { absoluteUrl, canonicalPath, markdownPath } from "../core/site.ts";
 import { BRAND_NAME, serialize, type JsonLdNode } from "../core/structured-data.ts";
@@ -176,6 +177,13 @@ const robots = noindex
   <body>
     <PostHogLayout>
       <slot />
+      {/*
+        AFTER THE SLOT, so it lands outside whatever frame the page built —
+        which is the placement a modal wants and the one two pages were
+        maintaining by hand. Its script self-gates on the user agent, so on
+        every ordinary browser this costs one regex test and nothing else.
+      */}
+      <InAppBrowserDialog />
     </PostHogLayout>
   </body>
 </html>

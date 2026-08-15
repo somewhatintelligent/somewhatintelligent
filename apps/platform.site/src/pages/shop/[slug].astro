@@ -181,12 +181,33 @@ const jsonLd = graph([
    * — the hint written alongside it is a rendering snapshot for `/cart` and is
    * never sent anywhere, because checkout re-prices from the active release.
    */
-  import { addLine, cartCount } from "../../lib/cart.ts";
+  import { addLine, cartCount, subscribeCart } from "../../lib/cart.ts";
+  import { countUnits } from "../../core/cart.ts";
 
   const sheet = document.querySelector<HTMLElement>(".product-sheet[data-slug]");
   const addBtn = document.getElementById("add-to-cart") as HTMLButtonElement | null;
   const stateEl = document.getElementById("buy-state");
+  const cartLink = document.getElementById("view-cart") as HTMLAnchorElement | null;
   const sizeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".product-size"));
+
+  /**
+   * THE ROUTE TO CHECKOUT, revealed whenever the cart holds anything — on
+   * load, after an add here, after a change in another tab. Driven off the
+   * cart rather than off the add button so it never claims a cart that is not
+   * there, and never hides one that is.
+   */
+  const showCartLink = (): void => {
+    if (!cartLink) return;
+    const count = cartCount();
+    if (count === 0) {
+      cartLink.hidden = true;
+      return;
+    }
+    cartLink.textContent = `View cart (${count})`;
+    cartLink.hidden = false;
+  };
+  subscribeCart(showCartLink);
+  showCartLink();
 
   let selected: { variantId: string; size: string } | null = null;
 
@@ -207,7 +228,8 @@ const jsonLd = graph([
 
   addBtn?.addEventListener("click", () => {
     if (!selected || !sheet) return;
-    addLine(selected.variantId, 1, {
+    /** `addLine` hands back the cart it just wrote — counting that costs no second read. */
+    const lines = addLine(selected.variantId, 1, {
       slug: sheet.dataset.slug ?? "",
       title: sheet.dataset.title ?? "",
       size: selected.size,
@@ -216,7 +238,7 @@ const jsonLd = graph([
       coverHref: sheet.dataset.cover ? sheet.dataset.cover : null,
     });
     if (stateEl) {
-      const count = cartCount();
+      const count = countUnits(lines);
       stateEl.textContent = `Added. ${count} ${count === 1 ? "item" : "items"} in the cart.`;
     }
   });

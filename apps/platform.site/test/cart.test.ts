@@ -16,6 +16,7 @@ import {
   countUnits,
   normalize,
   normalizeHints,
+  unheldLines,
   withLine,
   withQuantity,
   withoutLine,
@@ -149,5 +150,44 @@ describe("normalizeHints", () => {
       v: { slug: "s", title: "t", size: "M", priceCents: 1, currency: "cad", coverHref: null },
     };
     expect(normalizeHints(hints)).toEqual(hints);
+  });
+});
+
+/**
+ * THE INCUMBENT WINS. This is what stops a cart carried in from somewhere else
+ * — today a link out of an in-app browser, tomorrow a reorder — from doubling
+ * a line the shopper has since adjusted.
+ */
+describe("unheldLines", () => {
+  test("only what is not already held", () => {
+    expect(
+      unheldLines(
+        [{ variantId: "held", quantity: 1 }],
+        [
+          { variantId: "held", quantity: 9 },
+          { variantId: "new", quantity: 2 },
+        ],
+      ),
+    ).toEqual([{ variantId: "new", quantity: 2 }]);
+  });
+
+  test("nothing new is an empty answer, which is how a caller knows not to write", () => {
+    expect(
+      unheldLines([{ variantId: "a", quantity: 1 }], [{ variantId: "a", quantity: 5 }]),
+    ).toEqual([]);
+    expect(unheldLines([], [])).toEqual([]);
+  });
+
+  test("everything, when the cart is empty", () => {
+    const incoming = [{ variantId: "a", quantity: 2 }];
+    expect(unheldLines([], incoming)).toEqual(incoming);
+  });
+
+  test("does not mutate its arguments", () => {
+    const current = [{ variantId: "a", quantity: 1 }];
+    const incoming = [{ variantId: "b", quantity: 1 }];
+    unheldLines(current, incoming);
+    expect(current).toEqual([{ variantId: "a", quantity: 1 }]);
+    expect(incoming).toEqual([{ variantId: "b", quantity: 1 }]);
   });
 });

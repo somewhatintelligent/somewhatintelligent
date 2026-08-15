@@ -122,6 +122,28 @@ export const withQuantity = (
 export const withoutLine = (lines: readonly CartLine[], variantId: string): CartLine[] =>
   lines.filter((line) => line.variantId !== variantId);
 
+/**
+ * The lines of `incoming` this cart does not already hold — which is the whole
+ * of what merging two carts may add.
+ *
+ * THE INCUMBENT WINS, always. A cart carried in from somewhere else (a link,
+ * and one day a reorder) is older than the one in front of the shopper, so a
+ * variant they already hold keeps the quantity THEY set; anything else would
+ * let a stale link double a line someone has since adjusted.
+ *
+ * Returning the additions rather than the merged cart is deliberate: the
+ * caller has to decide whether anything is worth persisting, and `[]` says so
+ * outright instead of leaving it to be inferred from a length that did not
+ * change.
+ */
+export const unheldLines = (
+  current: readonly CartLine[],
+  incoming: readonly CartLine[],
+): CartLine[] => {
+  const held = new Set(current.map((line) => line.variantId));
+  return incoming.filter((line) => !held.has(line.variantId));
+};
+
 /** Total units across lines — the header badge's number. */
 export const countUnits = (lines: readonly CartLine[]): number =>
   lines.reduce((sum, line) => sum + line.quantity, 0);
