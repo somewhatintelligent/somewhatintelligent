@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.2...v1.0.3) (2026-08-15)
+
+
+### Bug Fixes
+
+* patch the checkout journey for in-app browsers ([#11](https://github.com/somewhatintelligent/somewhatintelligent/issues/11)) ([53de82b](https://github.com/somewhatintelligent/somewhatintelligent/commit/53de82b558f112f18d8f589dba67e00545e447e5))
+
 ## [1.0.2](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.1...v1.0.2) (2026-08-14)
 
 
