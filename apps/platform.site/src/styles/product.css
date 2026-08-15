@@ -224,28 +224,17 @@
  * three are cleared here rather than fought with later.
  */
 /*
- * CENTRED EXPLICITLY, in both axes, and that is a correction rather than a
- * flourish. A modal `<dialog>` is centred by the UA with `inset: 0` plus
- * `margin: auto` on a `fit-content` box — and `reset.css` opens with
- * `*, *::before, *::after { margin: 0 }`, which out-competes a UA rule and
- * leaves every modal on this site pinned to the top-left corner of the
- * viewport. It shipped that way.
- *
- * So none of the four properties below is inherited from anywhere: position,
- * inset, the `fit-content` sizing and the auto margins are all restated. A
- * class beats `*` on specificity regardless of import order, which is what
- * makes this hold no matter where the sheet lands in the cascade.
+ * THE CENTRING IS NOT HERE ANY MORE. It is a `dialog` element rule in
+ * `styles.css`, because it is a correction every modal on this site needs —
+ * `reset.css`'s `margin: 0` beats the UA's `margin: auto` and pins an
+ * uncorrected modal to the top-left corner. What is left below is this
+ * dialog's own: how big it may be, and what it looks like.
  */
 .product-zoom {
-  position: fixed;
-  inset: 0;
   width: fit-content;
   height: fit-content;
   max-width: 96vw;
   max-height: 96dvh;
-  margin: auto;
-  padding: 0;
-  border: 0;
   background: transparent;
   overflow: hidden;
 }

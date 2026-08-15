@@ -14,7 +14,6 @@
 // SIZES are live, because inventory deliberately sits outside the release model
 // — pinning stock into a release would resurrect sold-out sizes on republish.
 import Base from "../../layouts/Base.astro";
-import InAppBrowserDialog from "../../components/InAppBrowserDialog.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import ProductGallery from "../../components/ProductGallery.astro";
@@ -162,7 +161,6 @@ const jsonLd = graph([
     scroll discipline has to be relaxed to let it through.
   */}
   <ProductZoom />
-  <InAppBrowserDialog />
 </Base>
 
 <script>
@@ -184,6 +182,7 @@ const jsonLd = graph([
    * never sent anywhere, because checkout re-prices from the active release.
    */
   import { addLine, cartCount, subscribeCart } from "../../lib/cart.ts";
+  import { countUnits } from "../../core/cart.ts";
 
   const sheet = document.querySelector<HTMLElement>(".product-sheet[data-slug]");
   const addBtn = document.getElementById("add-to-cart") as HTMLButtonElement | null;
@@ -229,7 +228,8 @@ const jsonLd = graph([
 
   addBtn?.addEventListener("click", () => {
     if (!selected || !sheet) return;
-    addLine(selected.variantId, 1, {
+    /** `addLine` hands back the cart it just wrote — counting that costs no second read. */
+    const lines = addLine(selected.variantId, 1, {
       slug: sheet.dataset.slug ?? "",
       title: sheet.dataset.title ?? "",
       size: selected.size,
@@ -238,7 +238,7 @@ const jsonLd = graph([
       coverHref: sheet.dataset.cover ? sheet.dataset.cover : null,
     });
     if (stateEl) {
-      const count = cartCount();
+      const count = countUnits(lines);
       stateEl.textContent = `Added. ${count} ${count === 1 ? "item" : "items"} in the cart.`;
     }
   });

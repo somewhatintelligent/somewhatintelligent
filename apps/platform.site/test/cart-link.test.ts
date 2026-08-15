@@ -9,7 +9,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { MAX_QUANTITY } from "../src/core/cart.ts";
-import { mergeImported, parseCartParam, serializeCart } from "../src/core/cart-link.ts";
+import {
+  CART_PARAM,
+  parseCartParam,
+  serializeCart,
+  takeCartParam,
+  writeCartParam,
+} from "../src/core/cart-link.ts";
 
 describe("serializeCart / parseCartParam", () => {
   test("round-trips a cart", () => {
@@ -47,29 +53,59 @@ describe("serializeCart / parseCartParam", () => {
   });
 });
 
-describe("mergeImported", () => {
-  test("fills only the gaps", () => {
-    const current = [{ variantId: "held", quantity: 1 }];
-    const imported = [
-      { variantId: "held", quantity: 9 },
-      { variantId: "new", quantity: 2 },
+/**
+ * The URL half. Both ends of the feature go through these, which is the point
+ * — the reader and the writer used to spell the same thing two ways.
+ */
+describe("writeCartParam", () => {
+  test("puts the cart on the URL", () => {
+    const url = new URL("https://shop.example/cart/");
+    writeCartParam(url, [{ variantId: "v", quantity: 2 }]);
+    expect(url.searchParams.get(CART_PARAM)).toBe("v:2");
+  });
+
+  test("an empty cart takes the parameter off rather than writing nothing", () => {
+    const url = new URL("https://shop.example/cart/?cart=v%3A2&keep=1");
+    writeCartParam(url, []);
+    expect(url.searchParams.has(CART_PARAM)).toBe(false);
+    expect(url.searchParams.get("keep")).toBe("1");
+  });
+
+  test("leaves the rest of the URL alone", () => {
+    const url = new URL("https://shop.example/cart/?keep=1#frag");
+    writeCartParam(url, [{ variantId: "v", quantity: 1 }]);
+    expect(url.pathname).toBe("/cart/");
+    expect(url.hash).toBe("#frag");
+    expect(url.searchParams.get("keep")).toBe("1");
+  });
+});
+
+describe("takeCartParam", () => {
+  test("reads the cart and strips the parameter", () => {
+    const url = new URL("https://shop.example/cart/?cart=v%3A2&keep=1");
+    expect(takeCartParam(url)).toEqual([{ variantId: "v", quantity: 2 }]);
+    expect(url.searchParams.has(CART_PARAM)).toBe(false);
+    expect(url.searchParams.get("keep")).toBe("1");
+  });
+
+  test("null when the URL carried nothing — distinct from carrying nothing usable", () => {
+    expect(takeCartParam(new URL("https://shop.example/cart/"))).toBeNull();
+    expect(takeCartParam(new URL("https://shop.example/cart/?cart=%%%"))).toEqual([]);
+  });
+
+  test("a hash survives the strip", () => {
+    const url = new URL("https://shop.example/cart/?cart=v%3A1#frag");
+    takeCartParam(url);
+    expect(url.toString()).toBe("https://shop.example/cart/#frag");
+  });
+
+  test("round-trips against writeCartParam", () => {
+    const lines = [
+      { variantId: "a", quantity: 2 },
+      { variantId: "b", quantity: 1 },
     ];
-    expect(mergeImported(current, imported)).toEqual([
-      { variantId: "held", quantity: 1 },
-      { variantId: "new", quantity: 2 },
-    ]);
-  });
-
-  test("an empty link changes nothing", () => {
-    const current = [{ variantId: "held", quantity: 4 }];
-    expect(mergeImported(current, [])).toEqual(current);
-  });
-
-  test("does not mutate its arguments", () => {
-    const current = [{ variantId: "a", quantity: 1 }];
-    const imported = [{ variantId: "b", quantity: 1 }];
-    mergeImported(current, imported);
-    expect(current).toEqual([{ variantId: "a", quantity: 1 }]);
-    expect(imported).toEqual([{ variantId: "b", quantity: 1 }]);
+    const url = new URL("https://shop.example/cart/");
+    writeCartParam(url, lines);
+    expect(takeCartParam(url)).toEqual(lines);
   });
 });

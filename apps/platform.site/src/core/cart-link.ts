@@ -14,11 +14,15 @@
  * behind: they are a rendering cache, and a line without one still renders and
  * still checks out.
  *
- * PURE, like `core/cart.ts` — the URL and `history` belong to whoever calls.
+ * THE CODEC AND THE PARAMETER, AND NOTHING ELSE. Reading and writing a `URL`
+ * is here because both halves of the feature need the same idiom and neither
+ * should spell the parameter's name; `history` and `location` belong to
+ * `lib/cart.ts`, which owns the browser. Merging two carts is not here at all
+ * — that is cart arithmetic and lives in `core/cart.ts` beside the rest of it.
  */
-import { normalize, withLine, type CartLine } from "./cart.ts";
+import { normalize, type CartLine } from "./cart.ts";
 
-/** The parameter's name, shared by the writer (the in-app note) and the reader (the header). */
+/** The parameter's name. It should not need to appear anywhere else. */
 export const CART_PARAM = "cart";
 
 /**
@@ -33,16 +37,15 @@ export const serializeCart = (lines: readonly CartLine[]): string =>
  * Total: garbage in, empty cart out, never a throw. A mangled percent-escape
  * throws in `decodeURIComponent`, so each entry decodes inside its own guard
  * and one bad line drops without voiding the rest. `normalize` then applies
- * the same clamps storage gets — quantity bounds, dedupe, `MAX_LINES` — so a
- * link cannot claim a cart storage could not hold.
+ * the same rules storage gets — the empty-id check, the quantity bounds, the
+ * dedupe, `MAX_LINES` — so a link cannot claim a cart storage could not hold.
  */
 export const parseCartParam = (value: string): CartLine[] => {
   const entries: { variantId: string; quantity: number }[] = [];
   for (const entry of value.split(",")) {
     const [id, quantity] = entry.split(":");
-    if (!id) continue;
     try {
-      entries.push({ variantId: decodeURIComponent(id), quantity: Number(quantity) });
+      entries.push({ variantId: decodeURIComponent(id ?? ""), quantity: Number(quantity) });
     } catch {
       // One mangled escape is one bad line, not a bad link.
     }
@@ -51,20 +54,24 @@ export const parseCartParam = (value: string): CartLine[] => {
 };
 
 /**
- * FILL THE GAPS, TOUCH NOTHING HELD. The live cart is the shopper's own and
- * newer than any link, so a variant the cart already holds keeps its quantity
- * — an import must not double a line someone has since adjusted. Only variants
- * the cart does not hold come across, through `withLine` so the line cap
- * holds.
+ * Put the cart on a URL, or take it off when there is none to carry. Mutates
+ * the `URL` it is handed rather than returning a string, so a caller can go on
+ * to read `.href` for a scheme swap without re-parsing.
  */
-export const mergeImported = (
-  current: readonly CartLine[],
-  imported: readonly CartLine[],
-): CartLine[] => {
-  let merged = [...current];
-  for (const line of imported) {
-    if (merged.some((held) => held.variantId === line.variantId)) continue;
-    merged = withLine(merged, line.variantId, line.quantity);
-  }
-  return merged;
+export const writeCartParam = (url: URL, lines: readonly CartLine[]): void => {
+  if (lines.length > 0) url.searchParams.set(CART_PARAM, serializeCart(lines));
+  else url.searchParams.delete(CART_PARAM);
+};
+
+/**
+ * Read the cart off a URL AND STRIP IT, because a URL that kept the parameter
+ * would re-import on every reload and shadow every later edit. `null` when
+ * there was nothing to take — distinct from a parameter that carried nothing
+ * usable, which is an empty cart and still worth stripping.
+ */
+export const takeCartParam = (url: URL): CartLine[] | null => {
+  const carried = url.searchParams.get(CART_PARAM);
+  if (carried === null) return null;
+  url.searchParams.delete(CART_PARAM);
+  return parseCartParam(carried);
 };

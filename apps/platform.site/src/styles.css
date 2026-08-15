@@ -233,28 +233,40 @@ a:focus-visible {
 }
 
 /*
- * THE IN-APP BROWSER DIALOG. Opened by script only inside an embedded browser
- * (see `InAppBrowserDialog.astro`), which is always a phone.
+ * EVERY MODAL ON THIS SITE IS CENTRED HERE, once.
  *
- * NO `display` ON THE DIALOG ITSELF, and that is the rule this whole block is
- * arranged around: the UA closes a dialog with `dialog:not([open]) { display:
- * none }`, and any `display` on the class out-competes it and paints the
- * dialog on every page for everyone. Layout therefore belongs to `.iab-body`
- * inside it.
+ * A modal `<dialog>` is centred by the UA with `inset: 0` plus `margin: auto`
+ * on a `fit-content` box — and `reset.css` opens with
+ * `*, *::before, *::after { margin: 0 }`, which out-competes a UA rule and
+ * pins every modal to the top-left corner of the viewport. The site shipped
+ * that way once already.
  *
- * POSITION, INSET AND MARGIN ARE RESTATED rather than inherited. A modal is
- * centred by the UA with `inset: 0` plus `margin: auto`, and `reset.css` opens
- * with `*, *::before, *::after { margin: 0 }`, which beats a UA rule — an
- * uncorrected modal sits in the top-left corner. `.product-zoom` carries the
- * same correction and the same reason.
+ * The correction was then written out a second time when a second dialog
+ * arrived, comment and all. It is an element rule now, so a third dialog
+ * inherits the fix instead of rediscovering the bug: `.product-zoom` and
+ * `.iab-dialog` keep only their own sizing and skin, and a class beats an
+ * element selector regardless of import order.
+ *
+ * NO `display` HERE OR ON EITHER CLASS. The UA closes a dialog with
+ * `dialog:not([open]) { display: none }`, and any `display` of ours
+ * out-competes it and paints every dialog, open or not, on every page.
  */
-.iab-dialog {
+dialog {
   position: fixed;
   inset: 0;
-  width: min(90vw, 400px);
-  height: fit-content;
   margin: auto;
   padding: 0;
+  border: 0;
+}
+
+/*
+ * THE IN-APP BROWSER DIALOG. Opened by script only inside an embedded browser
+ * (see `InAppBrowserDialog.astro`), which is always a phone. Its layout lives
+ * on `.iab-body` inside it, for the `display` reason above.
+ */
+.iab-dialog {
+  width: min(90vw, 400px);
+  height: fit-content;
   border: 1px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-foreground);

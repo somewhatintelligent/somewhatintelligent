@@ -15,36 +15,55 @@
  */
 
 /**
+ * WHICH APP THIS IS, BY NAME — because the dialog says the name out loud, and
+ * a Facebook webview told "this is Instagram's browser" has spent the only
+ * credibility it had.
+ *
  * Instagram names itself; Facebook's webview goes by `FBAN`/`FBAV` (its app
- * and version keys) and `FB_IAB` (literally "in-app browser"). Threads and the
- * Messenger webview carry the FB markers too.
+ * and version keys) and `FB_IAB` (literally "in-app browser"). Messenger and
+ * Threads carry the FB markers too, and are near enough Facebook for a
+ * sentence about a broken browser.
  */
-const EMBEDDED = /Instagram|FBAN|FBAV|FB_IAB/i;
+export type EmbeddedApp = "Instagram" | "Facebook";
 
-export const isEmbeddedBrowser = (userAgent: string): boolean => EMBEDDED.test(userAgent);
+export const embeddedApp = (userAgent: string): EmbeddedApp | null => {
+  if (/Instagram/i.test(userAgent)) return "Instagram";
+  if (/FBAN|FBAV|FB_IAB/i.test(userAgent)) return "Facebook";
+  return null;
+};
 
-export const isAndroid = (userAgent: string): boolean => /Android/i.test(userAgent);
+export const isEmbeddedBrowser = (userAgent: string): boolean => embeddedApp(userAgent) !== null;
 
 /**
- * The URL that asks the OS for the phone's real browser.
+ * The URL that asks the OS for the phone's real browser, AND WHETHER TO
+ * BELIEVE IT.
  *
- * ANDROID'S IS DOCUMENTED AND RELIABLE: `intent://` with `scheme=https` hands
- * the address to whatever holds the default-browser role.
+ * The two travel together because they are one fact. Android's escape is
+ * documented and reliable: `intent://` with `scheme=https` hands the address
+ * to whatever holds the default-browser role. iOS has no documented escape at
+ * all — `x-safari-https://` is an undocumented scheme Safari registers
+ * system-wide, and current Instagram builds intercept it silently, with no
+ * error and no navigation. It is attempted anyway because that silence makes
+ * failure free.
  *
- * iOS HAS NO DOCUMENTED ESCAPE AT ALL. `x-safari-https://` is an undocumented
- * scheme Safari registers system-wide, and current Instagram builds intercept
- * it silently — no error, no navigation. It is attempted anyway because that
- * silence makes failure free, and the dialog prints the ⋯-menu route
- * underneath for the ordinary case where nothing happens.
+ * `reliable` IS WHAT DECIDES whether the dialog prints the ⋯-menu route
+ * underneath. Returning it here rather than re-deriving it from the platform
+ * at the call site means one file changes if a third platform appears, or if
+ * Instagram ever stops intercepting the iOS scheme.
  *
  * THE WHOLE QUERY STRING RIDES ALONG, which is what carries the cart: the
  * caller has already written `?cart=` onto the page's own URL, and both
  * schemes are handed that URL verbatim.
  */
-export const escapeUrl = (userAgent: string, href: string): string => {
+export interface EscapeRoute {
+  readonly href: string;
+  readonly reliable: boolean;
+}
+
+export const escapeRoute = (userAgent: string, href: string): EscapeRoute => {
   const url = new URL(href);
   const tail = `${url.host}${url.pathname}${url.search}`;
-  return isAndroid(userAgent)
-    ? `intent://${tail}#Intent;scheme=https;end`
-    : `x-safari-https://${tail}`;
+  return /Android/i.test(userAgent)
+    ? { href: `intent://${tail}#Intent;scheme=https;end`, reliable: true }
+    : { href: `x-safari-https://${tail}`, reliable: false };
 };

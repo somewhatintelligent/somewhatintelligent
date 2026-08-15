@@ -10,7 +10,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import { escapeUrl, isAndroid, isEmbeddedBrowser } from "../src/core/in-app-browser.ts";
+import { embeddedApp, escapeRoute, isEmbeddedBrowser } from "../src/core/in-app-browser.ts";
 
 const IOS_INSTAGRAM =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 361.0.0.32.87 (iPhone14,5; iOS 18_7; en_CA)";
@@ -43,36 +43,46 @@ describe("isEmbeddedBrowser", () => {
   });
 });
 
-describe("isAndroid", () => {
-  test("separates the two platforms inside the same app", () => {
-    expect(isAndroid(ANDROID_INSTAGRAM)).toBe(true);
-    expect(isAndroid(IOS_INSTAGRAM)).toBe(false);
+/** The dialog says the name out loud, so naming the wrong app is a real cost. */
+describe("embeddedApp", () => {
+  test("names the app", () => {
+    expect(embeddedApp(IOS_INSTAGRAM)).toBe("Instagram");
+    expect(embeddedApp(ANDROID_INSTAGRAM)).toBe("Instagram");
+    expect(embeddedApp(IOS_FACEBOOK)).toBe("Facebook");
+  });
+
+  test("null outside one", () => {
+    expect(embeddedApp(IOS_SAFARI)).toBeNull();
+    expect(embeddedApp(DESKTOP)).toBeNull();
   });
 });
 
-describe("escapeUrl", () => {
+describe("escapeRoute", () => {
   const HREF = "https://somewhatintelligent.ca/cart/?cart=var_7f3a%3A2";
 
-  test("Android gets the documented intent handoff", () => {
-    expect(escapeUrl(ANDROID_INSTAGRAM, HREF)).toBe(
-      "intent://somewhatintelligent.ca/cart/?cart=var_7f3a%3A2#Intent;scheme=https;end",
-    );
+  test("Android gets the documented intent handoff, and it is trusted", () => {
+    expect(escapeRoute(ANDROID_INSTAGRAM, HREF)).toEqual({
+      href: "intent://somewhatintelligent.ca/cart/?cart=var_7f3a%3A2#Intent;scheme=https;end",
+      reliable: true,
+    });
   });
 
-  test("iOS gets the undocumented Safari scheme", () => {
-    expect(escapeUrl(IOS_INSTAGRAM, HREF)).toBe(
-      "x-safari-https://somewhatintelligent.ca/cart/?cart=var_7f3a%3A2",
-    );
+  /** `reliable: false` is what puts the ⋯-menu instruction on screen. */
+  test("iOS gets the undocumented Safari scheme, and it is not trusted", () => {
+    expect(escapeRoute(IOS_INSTAGRAM, HREF)).toEqual({
+      href: "x-safari-https://somewhatintelligent.ca/cart/?cart=var_7f3a%3A2",
+      reliable: false,
+    });
   });
 
   test("THE CART RIDES ALONG — the query string survives both schemes", () => {
     for (const ua of [IOS_INSTAGRAM, ANDROID_INSTAGRAM]) {
-      expect(escapeUrl(ua, HREF)).toContain("cart=var_7f3a%3A2");
+      expect(escapeRoute(ua, HREF).href).toContain("cart=var_7f3a%3A2");
     }
   });
 
   test("a page with no cart yet carries no query", () => {
-    expect(escapeUrl(IOS_INSTAGRAM, "https://somewhatintelligent.ca/cart/")).toBe(
+    expect(escapeRoute(IOS_INSTAGRAM, "https://somewhatintelligent.ca/cart/").href).toBe(
       "x-safari-https://somewhatintelligent.ca/cart/",
     );
   });
@@ -84,8 +94,8 @@ describe("escapeUrl", () => {
    */
   test("the scheme is replaced, never appended to", () => {
     const prefix = "x-safari-https://";
-    const escaped = escapeUrl(IOS_INSTAGRAM, HREF);
-    expect(escaped.startsWith(prefix)).toBe(true);
-    expect(escaped.slice(prefix.length)).toBe("somewhatintelligent.ca/cart/?cart=var_7f3a%3A2");
+    const { href } = escapeRoute(IOS_INSTAGRAM, HREF);
+    expect(href.startsWith(prefix)).toBe(true);
+    expect(href.slice(prefix.length)).toBe("somewhatintelligent.ca/cart/?cart=var_7f3a%3A2");
   });
 });
