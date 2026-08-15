@@ -9,10 +9,11 @@ worker, storefront, operator console}, or when it changes what a published
 release means. Everything smaller belongs in the code, in the comment style the
 rest of this repo uses.
 
-| RFC                                                   | Title                                   | Status   |
-| ----------------------------------------------------- | --------------------------------------- | -------- |
-| [001](./001-non-destructive-image-framing.md)         | Non-destructive image framing           | Proposed |
-| [002](./002-platform-auth-as-mezes-oauth-provider.md) | platform.auth as mezes' OAuth2 provider | Proposed |
+| RFC                                                   | Title                                                      | Status   |
+| ----------------------------------------------------- | ---------------------------------------------------------- | -------- |
+| [001](./001-non-destructive-image-framing.md)         | Non-destructive image framing                              | Proposed |
+| [002](./002-platform-auth-as-mezes-oauth-provider.md) | platform.auth as mezes' OAuth2 provider                    | Proposed |
+| [003](./003-subscription-entitlements.md)             | Subscriptions, and the abstraction apps check them through | Proposed |
 
 ## Sections an RFC carries
 

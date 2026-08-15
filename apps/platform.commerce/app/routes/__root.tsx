@@ -83,7 +83,7 @@ const NAV = [
 ] as const;
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const { actor, paymentsEnvironment } = Route.useRouteContext();
+  const { actor, paymentsTier } = Route.useRouteContext();
 
   return (
     <div className="flex min-h-screen w-full flex-col gap-4 px-4 py-4 xl:px-6">
@@ -105,24 +105,20 @@ function Shell({ children }: { children: React.ReactNode }) {
 
         <div className="ml-auto flex items-center gap-2">
           {/*
-           * LIVE IS LOUD. The same buttons move real money on `prod` and do
-           * not on `dev`, and the only thing that says which is this.
+           * LIVE IS LOUD. The same buttons move real money on production and do
+           * not elsewhere, and the only thing that says which is this.
            *
-           * `"prod"`, NOT `"live"`. `PAYMENTS_ENVIRONMENT` is bound from
-           * `environmentFor(stage)`, whose whole range is `dev | preprod |
-           * prod` — `"live"` is not in it, so this comparison was never true
-           * and the production console wore the same quiet badge as a dev one.
-           * The `live` notion does exist, but elsewhere and differently:
-           * `StripeConfig` derives it from the key prefix, and that value is
-           * not what reaches this binding.
+           * `PAYMENTS_TIER` carries a `Tier`, so `"production"` is the value to
+           * match — not `"live"`, which is a different notion `StripeConfig`
+           * derives from the key prefix and which never reaches this binding.
            */}
-          {paymentsEnvironment ? (
+          {paymentsTier ? (
             <Badge
-              variant={paymentsEnvironment === "prod" ? "destructive" : "outline"}
+              variant={paymentsTier === "production" ? "destructive" : "outline"}
               size="sm"
               title="Which Stripe account this deployment settles against"
             >
-              {paymentsEnvironment}
+              {paymentsTier}
             </Badge>
           ) : null}
           <span className="text-xs text-muted-foreground" title={actor?.sub ?? undefined}>

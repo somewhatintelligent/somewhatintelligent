@@ -19,7 +19,9 @@ import { ChevronRightIcon } from "lucide-react";
 import { ChangePasswordDialog } from "@/components/account/change-password-dialog";
 import { DeleteAccountDialog } from "@/components/account/delete-account-dialog";
 import { IdentityCard, type IdentityUser } from "@/components/account/identity-card";
+import { MembershipCard } from "@/components/account/membership-card";
 import { TwoFactorDialog } from "@/components/account/two-factor-dialog";
+import { fetchMembership } from "@/lib/billing.functions";
 
 const manageItems = [
   { to: "/account/sessions", label: "Sessions", description: "Devices currently signed in" },
@@ -29,12 +31,14 @@ const manageItems = [
 ] as const;
 
 export const Route = createFileRoute("/_dashboard/account/")({
+  loader: async () => fetchMembership(),
   head: () => ({ meta: [{ title: "Account — Identity" }] }),
   component: AccountPage,
 });
 
 function AccountPage() {
   const { session } = Route.useRouteContext();
+  const membership = Route.useLoaderData();
   const user = session!.user;
   const twoFactorEnabled = user.twoFactorEnabled ?? false;
 
@@ -51,6 +55,8 @@ function AccountPage() {
   return (
     <div className="flex flex-1 flex-col gap-grid">
       <IdentityCard user={identityUser} />
+
+      <MembershipCard view={membership} />
 
       <Card>
         <CardHeader>

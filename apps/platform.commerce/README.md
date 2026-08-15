@@ -418,14 +418,19 @@ provider and the Stripe suite skips.
 
 ## Configuration
 
-| Variable                                               | Stages               | Effect                                 |
-| ------------------------------------------------------ | -------------------- | -------------------------------------- |
-| `STORE_STOREFRONT_URL`                                 | required outside dev | payment return URL                     |
-| `STORE_SHIPPING_CENTS_CA` / `_US`                      | optional             | flat shipping rates, default $12 / $22 |
-| `STRIPE_TEST_*` / `STRIPE_SANDBOX_*` / `STRIPE_LIVE_*` | per stage            | provider keys and webhook secret       |
+| Variable                        | Stages   | Effect                                                |
+| ------------------------------- | -------- | ----------------------------------------------------- |
+| `STRIPE_SECRET_KEY`             | required | the account both this and `platform.auth` talk to     |
+| `STRIPE_WEBHOOK_SIGNING_SECRET` | required | THIS store's endpoint secret, not the IdP's           |
+| `STORE_TAX_CODE_GOODS`          | optional | Stripe tax code for garments, default `txcd_99999999` |
 
-Stage names select the environment: `prod` / `production` → live,
-`preprod` / `staging` → sandbox, every other name → dev.
+The buyer's return URL is NOT configured. It is derived from the stage — the
+apex on production, the site worker's hostname on any other deployed stage, and
+`localhost:5173` under `alchemy dev`. See `storefrontOrigin` in `hostnames.ts`.
+
+`Tier` selects behaviour, and only the production tier may hold a live key.
+`Tier` is decoded from a validated stage rather than matched against a raw
+string, so a typo'd stage cannot reach production's branch.
 
 ## Before it takes real money
 
@@ -433,12 +438,13 @@ Stage names select the environment: `prod` / `production` → live,
   order is taxed $0.
 - Point a live webhook endpoint at the module's `webhookUrl` for the six events
   in `FORWARDED_EVENTS`, and set its signing secret.
-- Set `STORE_STOREFRONT_URL`.
 - Give the D1 in `runtime.ts` what `platform.auth`'s has — a pinned name, an id
   guard, and a retain policy. Today every stage gets its own stage-derived
   database, which is right until one of them holds orders.
-- Deploy `stacks/platform.access` at `prod`, once, before anything else here.
-- Deploy under a stage named `prod`.
+- Deploy `stacks/platform.access` at `production`, once, before anything else
+  here.
+- Deploy under the stage named `production` — that exact string is what
+  `PRODUCTION_STAGE` is, and what `tierOf` compares against.
 - Open `/settings` on the console and check that **checkout mints with** and
   **settlement settles with** name the same provider. They come from two Workers
   that resolve their provider independently, and a deployment where they

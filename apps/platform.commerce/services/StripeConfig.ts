@@ -1,17 +1,16 @@
 /**
  * Which Stripe account a deployment talks to, and with what secrets.
  *
- * THREE ENVIRONMENTS, ONE RULE: the keys are never chosen by the code, only by
- * the stage. Every environment reads the SAME two variable names and gets
- * different values, because the separation lives in the encrypted `.env` file a
- * stage decrypts rather than in the spelling of a variable.
+ * ONE RULE: the keys are never chosen by the code, only by the stage. Every tier
+ * reads the SAME two variable names and gets different values, because the
+ * separation lives in the encrypted `.env` file a stage decrypts rather than in
+ * the spelling of a variable.
  *
- *   dev       → `.env.development`. `stripe listen` on the developer's machine
- *               mints the signing secret and exports it at deploy time (see
- *               `Infrastructure/StripeDev.ts`), so nothing is checked in.
- *   preprod   → the SANDBOX account. Test-mode keys, sandbox webhook endpoint.
- *               Safe to point a staging storefront at.
- *   prod      → `.env.production`. The LIVE account, and `livemode` events only.
+ *   production → `.env.production`. The LIVE account, `livemode` events only.
+ *   everything → `.env.development`, one test account shared by local runs,
+ *   else         every preview stage and staging. On a laptop `stripe listen`
+ *                mints the signing secret at deploy time (see
+ *                `infrastructure/StripeDev.ts`), so nothing is checked in.
  *
  * WHAT STOPS A STAGE READING ANOTHER'S KEYS, now that the names are shared: the
  * `livemode` guard below, which derives the mode from the key's own prefix and
@@ -37,31 +36,44 @@
  * `livemode` is derived rather than configured, because it must agree with the
  * key in use — a live key with test-mode gating would settle real charges
  * against fake events, and the inverse would ignore real ones.
+ *
+ * THE ACCOUNT-LEVEL HALF MOVED OUT, to `@swi/infra/stripe`. The secret key's
+ * name, the tier→environment mapping and the livemode guard are shared with
+ * `platform.auth`, which sells subscriptions against the SAME Stripe account —
+ * and two copies of a rule whose entire job is that both surfaces agree would be
+ * the one duplication worth avoiding here. What stayed is what is the store's
+ * alone: the endpoint signing secret (Stripe mints one per endpoint, so the
+ * store's and the IdP's differ by construction), the storefront return URL, and
+ * the goods tax code.
  */
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Redacted from "effect/Redacted";
+import type * as Redacted from "effect/Redacted";
 
+import { assertKeyMatchesTier, livemodeOf, STRIPE_SECRET_KEY } from "@swi/infra/stripe";
 import { Deployment, type Tier } from "@swi/infra/stage/StandardizedStage";
 
 import { STOREFRONT_ORIGIN, storefrontOriginFor } from "../hostnames.ts";
-import * as Schema from "effect/Schema";
-
-export type StripeEnvironment = "dev" | "preprod" | "prod";
 
 /**
- * The two variable names every environment reads, matching the keys written in
- * `.env.development` and `.env.production`.
+ * The two variable names this deployment reads.
  *
- * Flat rather than keyed by environment: three entries resolving to identical
- * strings would read as a distinction the system no longer makes, and the next
- * person to add a stage would dutifully invent a fourth name for a value that
- * comes out of a file selected by dotenvx anyway.
+ * NOT RE-EXPORTED THROUGH THIS MODULE, and that is deliberate. `STRIPE_SECRET_KEY`
+ * is ACCOUNT-level and every call site imports it from `@swi/infra/stripe`
+ * directly, so a reader can tell an account-wide rule from a store-local one by
+ * where it came from. Behind a facade here it reads as the store's to change —
+ * and changing it silently moves the IdP's Stripe account too.
  */
 export const VARIABLES = {
-  secretKey: "STRIPE_SECRET_KEY",
+  secretKey: STRIPE_SECRET_KEY,
+  /**
+   * THE STORE'S OWN ENDPOINT SECRET, and it can never be the IdP's. Stripe signs
+   * with a secret minted per registered endpoint, so `hooks.…/webhook` and the
+   * IdP's `/api/auth/stripe/webhook` verify against different values even though
+   * both belong to this one account.
+   */
   webhookSecret: "STRIPE_WEBHOOK_SIGNING_SECRET",
 } as const;
 
@@ -80,40 +92,10 @@ const DEV_STOREFRONT_URL = "http://localhost:5173";
 const GOODS_TAX_CODE_VARIABLE = "STORE_TAX_CODE_GOODS";
 const DEFAULT_GOODS_TAX_CODE = "txcd_99999999";
 
-/**
- * A key that does not match the environment asking for it.
- *
- * Separate from a missing key on purpose: absent secrets are a normal state on a
- * contributor's machine, but a live key in a preprod slot is a mistake nobody
- * should be allowed to deploy past.
- */
-class StripeKeyMismatch extends Schema.TaggedErrorClass<StripeKeyMismatch>()("StripeKeyMismatch", {
-  environment: Schema.String,
-  detail: Schema.String,
-}) {}
-
-/**
- * Map a deploy TIER onto a Stripe environment.
- *
- * A tier, not a raw stage string, and that is the whole point: `Tier` is decoded
- * from a validated {@link StandardizedStage}, so the set of inputs is closed and
- * the mapping is total. The previous version matched `stage === "prod"` — a
- * string that is not a legal stage under the standard at all — which meant a
- * typo'd or invented stage name fell through to `dev` while a deliberately
- * crafted one could claim `prod` and load a live key.
- *
- * Read with `environmentFor(yield* StageTier)`, which validates the stage on the
- * way past. Combined with the `livemode` guard below, LIVE KEYS ARE REACHABLE
- * ONLY FROM THE `production` TIER: a live key resolved anywhere else refuses to
- * deploy, and a test key on production does too.
- */
-export const environmentFor = (tier: Tier): StripeEnvironment =>
-  tier === "production" ? "prod" : tier === "staging" ? "preprod" : "dev";
-
 export class StripeConfig extends Context.Service<
   StripeConfig,
   {
-    readonly environment: StripeEnvironment;
+    readonly tier: Tier;
     /** Live secret key, or test/sandbox. Redacted so it never reaches a log. */
     readonly secretKey: Redacted.Redacted<string>;
     /** The endpoint signing secret this deployment verifies against. */
@@ -143,10 +125,10 @@ export class StripeConfig extends Context.Service<
    * footgun, and the reason this is a named function rather than an inline read.
    *
    * Fails with `ConfigError` when a secret is absent. That is a legitimate state
-   * for `dev` and a deploy-stopping one everywhere else; the caller decides,
+   * on a laptop and a deploy-stopping one everywhere else; the caller decides,
    * because only the caller knows which stage it is.
    */
-  static readonly load = (environment: StripeEnvironment) =>
+  static readonly load = (tier: Tier) =>
     Effect.gen(function* () {
       const secretKey = yield* Config.redacted(VARIABLES.secretKey);
       const webhookSecret = yield* Config.redacted(VARIABLES.webhookSecret);
@@ -165,52 +147,46 @@ export class StripeConfig extends Context.Service<
        * dead page afterwards.
        *
        * It was also the one variable NOTHING PROVIDED. Production derived, an
-       * ephemeral stage resolved to `dev` and defaulted to localhost, and only
-       * `preprod` reached the bare `Config.string` — so staging asked for a
-       * value absent from both `.env` files and died at
-       * `PaymentsProvider.resolve`, in the one tier no preview exercises.
+       * ephemeral stage defaulted to localhost, and only staging reached the
+       * bare `Config.string` — so it asked for a value absent from both `.env`
+       * files and died at `PaymentsProvider.resolve`, in the one tier no preview
+       * exercises.
        *
-       * `dev` IS NOW THE LOCAL WORKERD, NOT A TIER. `environmentFor` maps every
-       * ephemeral stage to the `dev` Stripe environment, so keying the localhost
-       * guess off that name pointed a DEPLOYED preview's buyers at the
-       * developer's own machine. `Deployment.dev` is the narrower question — is
-       * a workerd serving this here — and it is the only one localhost answers.
+       * LOCALHOST IS ABOUT THE WORKERD, NOT THE TIER. `Deployment.dev` asks the
+       * narrow question — is a workerd serving this here — and it is the only
+       * one localhost answers. Keying the guess off the tier instead would point
+       * a DEPLOYED ephemeral stage's buyers at the developer's own machine.
        */
       const { stage, dev: local } = yield* Deployment;
       const storefrontUrl =
-        environment === "prod"
+        tier === "production"
           ? STOREFRONT_ORIGIN
           : local
             ? DEV_STOREFRONT_URL
             : storefrontOriginFor(stage);
 
       // `sk_live_…` is the only prefix that settles real money.
-      const livemode = Redacted.value(secretKey).startsWith("sk_live_");
+      const livemode = livemodeOf(secretKey);
 
       /**
        * The guard that makes the naming scheme load-bearing rather than
        * decorative. Without it a live key pasted into the sandbox slot deploys
        * happily and starts taking real payments on a staging storefront.
+       *
+       * FATAL HERE, and that is this surface's decision rather than the guard's:
+       * a store that cannot settle correctly has nothing left to do. The IdP
+       * makes the opposite call with the same check, because it has sign-in to
+       * keep serving — see `apps/platform.auth/api/billing.ts`.
        */
-      if (environment === "prod" && !livemode) {
-        return yield* new StripeKeyMismatch({
-          environment,
-          detail: `${VARIABLES.secretKey} does not hold a live key; prod must not run on test keys`,
-        });
-      }
-      if (environment !== "prod" && livemode) {
-        return yield* new StripeKeyMismatch({
-          environment,
-          detail: `${VARIABLES.secretKey} holds a LIVE key; ${environment} must use a test key`,
-        });
-      }
+      const mismatch = assertKeyMatchesTier(tier, livemode);
+      if (mismatch !== null) return yield* mismatch;
 
       const goodsTaxCode = yield* Config.string(GOODS_TAX_CODE_VARIABLE).pipe(
         Config.withDefault(DEFAULT_GOODS_TAX_CODE),
       );
 
       return StripeConfig.of({
-        environment,
+        tier,
         secretKey,
         webhookSecret,
         livemode,

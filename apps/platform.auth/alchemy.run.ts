@@ -16,12 +16,21 @@ import { DEV_PORT, ingress } from "./shared/ingress.ts";
 import { authDefines } from "./shared/surfaces.ts";
 
 import { AuthSchema } from "./api/schema.ts";
+import * as StripeDev from "./infrastructure/StripeDev.ts";
 import { requirePreview, UNGATED } from "@swi/infra/stage/preview";
 import { GateFor } from "@swi/infra/stage/StandardizedStage";
 import { telemetryEnv } from "@swi/infra/observability/telemetry";
 import * as Option from "effect/Option";
 
 import type { AuthFeatures } from "lib.better-auth-manifest";
+
+/**
+ * AT MODULE LOAD, and it has to be: alchemy snapshots `process.env` into its
+ * `ConfigProvider` before the stack body runs, so a secret exported from inside
+ * the body is invisible to every `Config` in the graph — including the one in
+ * `api/billing.ts` that records the Worker's binding.
+ */
+const stripeArmed = await Effect.runPromise(StripeDev.armIfDev());
 
 interface AuthRouting {
   readonly origin: string;
@@ -134,6 +143,14 @@ export default Auth.make(
     yield* Identity;
     const { origin, cookieDomain } = ingress(stage, local);
     const features = yield* authFeatures;
+
+    /**
+     * Only under `alchemy dev`, and only when the CLI answered — a deployed
+     * stage receives events from a registered endpoint. This is the one place
+     * the activation half of a subscription can be exercised: a preview sits
+     * behind Access, which answers Stripe with a login redirect.
+     */
+    if (stripeArmed) yield* StripeDev.forwarder(origin);
 
     return {
       origin,

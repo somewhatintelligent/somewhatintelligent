@@ -7,7 +7,7 @@
  * function. If this returns an actor, every mutation the console offers is
  * running as a verified person.
  *
- * `paymentsEnvironment` rides along because it changes how everything else on
+ * `paymentsTier` rides along because it changes how everything else on
  * screen should be read: the same buttons move real money on `live` and do not
  * on `dev`.
  *
@@ -21,7 +21,7 @@ import type { OperatorActor } from "../../domain/Contracts.ts";
 interface OperatorContext {
   readonly actor: OperatorActor | null;
   /** `dev` | `sandbox` | `live` — which Stripe account this deployment settles against. */
-  readonly paymentsEnvironment: string | null;
+  readonly paymentsTier: string | null;
   readonly version: { readonly id: string; readonly tag: string } | null;
 }
 
@@ -30,13 +30,13 @@ export const loadOperatorContext = createServerFn({ method: "GET" }).handler(
     const context = getGlobalStartContext() as
       | {
           actor?: OperatorActor;
-          paymentsEnvironment?: string;
+          paymentsTier?: string;
           version?: { id: string; tag: string };
         }
       | undefined;
     return {
       actor: context?.actor ?? null,
-      paymentsEnvironment: context?.paymentsEnvironment ?? null,
+      paymentsTier: context?.paymentsTier ?? null,
       version: context?.version ?? null,
     };
   },

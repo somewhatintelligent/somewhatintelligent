@@ -7,7 +7,6 @@ import { PREVIEW_SCRIPTS, workerSafeStage } from "platform.names";
 import { Hostnames } from "./hostnames.ts";
 import { PACKAGE_DIR } from "./paths.ts";
 import { CommerceDatabase, CommerceSchema, MediaBucket } from "./runtime.ts";
-import { environmentFor, type StripeEnvironment } from "./services/StripeConfig.ts";
 import CommerceWorker from "./workers/Commerce.ts";
 import MediaWorker from "./workers/Media.ts";
 import SettlementWorker from "./workers/Settlement.ts";
@@ -68,7 +67,7 @@ export class Operator extends Cloudflare.Website.Vite<Operator>()(
         POLICY_AUD: aud,
         TEAM_DOMAIN: teamDomain,
         OPERATOR_AUTH: operatorAuth,
-        PAYMENTS_ENVIRONMENT: environmentFor(yield* StageTier) satisfies StripeEnvironment,
+        PAYMENTS_TIER: yield* StageTier,
         CF_VERSION_METADATA: Cloudflare.Workers.VersionMetadata(),
         /**
          * A `Website.Vite` has no impl Effect for a telemetry Layer to bind
@@ -98,7 +97,7 @@ export const CommerceModule = Effect.gen(function* () {
   const { operator: operatorHost, hooks: hooksHost } = yield* Hostnames;
 
   return {
-    paymentsEnvironment: environmentFor(yield* StageTier) satisfies StripeEnvironment,
+    paymentsTier: yield* StageTier,
 
     webhookUrl: Output.interpolate`${Output.map(settlement.url, (url: string | undefined) =>
       url === undefined || url === "" ? `https://${hooksHost}` : url.replace(/\/+$/, ""),

@@ -54,6 +54,7 @@
         "@better-auth/api-key": "^1.6.25",
         "@better-auth/oauth-provider": "^1.6.25",
         "@better-auth/passkey": "^1.6.25",
+        "@better-auth/stripe": "^1.6.25",
         "@react-email/components": "^1.0.1",
         "@react-email/render": "^1.0.0",
         "@swi/infra": "workspace:*",
@@ -73,11 +74,13 @@
         "lucide-react": "catalog:",
         "next-themes": "catalog:",
         "platform.design": "workspace:*",
+        "platform.entitlements": "workspace:*",
         "platform.names": "workspace:*",
         "platform.ui": "workspace:*",
         "react": "catalog:",
         "react-dom": "catalog:",
         "simple-icons": "^16.16.0",
+        "stripe": "catalog:",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^5",
@@ -220,6 +223,7 @@
         "alchemy": "catalog:",
         "effect": "catalog:",
         "platform.names": "workspace:*",
+        "stripe": "catalog:",
       },
       "devDependencies": {
         "typescript": "catalog:",
@@ -299,6 +303,16 @@
       },
       "peerDependencies": {
         "react": "^19.0.0",
+      },
+    },
+    "packages/platform.entitlements": {
+      "name": "platform.entitlements",
+      "version": "0.0.0",
+      "devDependencies": {
+        "typescript": "catalog:",
+        "vite": "catalog:",
+        "vite-plus": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/platform.names": {
@@ -616,6 +630,8 @@
     "@better-auth/passkey": ["@better-auth/passkey@1.6.26", "", { "dependencies": { "@simplewebauthn/browser": "^13.2.2", "@simplewebauthn/server": "^13.2.3", "zod": "^4.3.6" }, "peerDependencies": { "@better-auth/core": "^1.6.26", "@better-auth/utils": "0.4.2", "@better-fetch/fetch": "1.3.1", "better-auth": "^1.6.26", "better-call": "1.3.7", "nanostores": "^1.0.1" } }, "sha512-qEnXvh5QPHVnqigNBJq/Qur+U9eCa2t4kgdJL+xKEZ4IOxvx55WiGkneNAzIuR7n5saTF6iWtmsbSwMAkWAl9w=="],
 
     "@better-auth/prisma-adapter": ["@better-auth/prisma-adapter@1.6.26", "", { "peerDependencies": { "@better-auth/core": "^1.6.26", "@better-auth/utils": "0.4.2", "@prisma/client": "^5.0.0 || ^6.0.0 || ^7.0.0", "prisma": "^5.0.0 || ^6.0.0 || ^7.0.0" }, "optionalPeers": ["@prisma/client", "prisma"] }, "sha512-ILQoYmnoYyghDP4iN1h/Gkd9Jt7Xs/vxoNAt4AuuJJbqs73u27LlQM4P1YiP7nJ+bM1iVTBI1dDF73myIAtjzQ=="],
+
+    "@better-auth/stripe": ["@better-auth/stripe@1.6.26", "", { "dependencies": { "defu": "^6.1.5", "zod": "^4.3.6" }, "peerDependencies": { "@better-auth/core": "^1.6.26", "better-auth": "^1.6.26", "better-call": "1.3.7", "stripe": "^18 || ^19 || ^20 || ^21 || ^22" } }, "sha512-Ue6p/z01zLcroXEVAMPJ0egZ/roYWUd6YMSTQWBr6+eVXqlhpmSZtBle3Dvpz47OfeeVqQYqZj1GGPwNUXC6xQ=="],
 
     "@better-auth/telemetry": ["@better-auth/telemetry@1.6.26", "", { "peerDependencies": { "@better-auth/core": "^1.6.26", "@better-auth/utils": "0.4.2", "@better-fetch/fetch": "1.3.1" } }, "sha512-pBs69RORUSJHRF9r5PdeY7pzLRga09YSWew8igFYrBvT2tLt7DktrbD5WjryLZpAZOuKAMZ+Xo0DlJbnvLWGpQ=="],
 
@@ -2970,6 +2986,8 @@
     "platform.commerce": ["platform.commerce@workspace:apps/platform.commerce"],
 
     "platform.design": ["platform.design@workspace:packages/platform.design"],
+
+    "platform.entitlements": ["platform.entitlements@workspace:packages/platform.entitlements"],
 
     "platform.inbox": ["platform.inbox@workspace:apps/platform.inbox"],
 

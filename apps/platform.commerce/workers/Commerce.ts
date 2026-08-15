@@ -28,7 +28,6 @@ import * as Layer from "effect/Layer";
 import { serviceName, telemetry } from "@swi/infra/observability/telemetry";
 
 import * as PaymentsProvider from "../services/PaymentsProvider.ts";
-import { environmentFor } from "../services/StripeConfig.ts";
 import { commerceSurface } from "./CommerceSurface.ts";
 
 export default class CommerceWorker extends Cloudflare.Worker<CommerceWorker>()(
@@ -49,7 +48,7 @@ export default class CommerceWorker extends Cloudflare.Worker<CommerceWorker>()(
      * checked out against Stripe while settling against something else would
      * take money and never mark an order paid.
      */
-    const provider = yield* PaymentsProvider.resolve(environmentFor(yield* StageTier));
+    const provider = yield* PaymentsProvider.resolve(yield* StageTier);
 
     return yield* commerceSurface(provider);
   }).pipe(

@@ -24,6 +24,18 @@ export const SURFACES = {
   MAGIC_LINK: "magic-link",
   OAUTH_PROVIDER: "oauth-provider",
   ORGANIZATION: "organization",
+  /**
+   * Billing. The id is `stripe` because that is what the plugin calls itself,
+   * and the flag is `SUBSCRIPTION` because that is what the surface sells — the
+   * app should not have a `VITE_AUTH_STRIPE` in it, since swapping the provider
+   * must not rename a screen.
+   *
+   * ALWAYS TRUE, unlike the others: the plugin is mounted unconditionally so the
+   * schema cannot depend on a secret (see `api/config.ts`). What a stage without
+   * Stripe credentials lacks is a working checkout, not the surface — so a
+   * client asks the server, and the answer is an error the person can read.
+   */
+  SUBSCRIPTION: "stripe",
 } as const satisfies Record<string, string>;
 
 export type SurfaceKey = keyof typeof SURFACES;

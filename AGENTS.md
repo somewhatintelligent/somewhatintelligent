@@ -19,6 +19,21 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 
 <!--VITE PLUS END-->
 
+## Where things are written down
+
+This file is an INDEX. Anything that needs more than a line lives in `docs/`
+and is linked from here — see [`docs/README.md`](docs/README.md) for the full
+list.
+
+- [`docs/generated-artefacts.md`](docs/generated-artefacts.md) — read this
+  before believing a `vp check` failure. A checkout that has never run
+  `astro sync` reports four `TS7006` errors in `apps/platform.site` that no
+  change introduced, and they do not go away by running the check from a
+  different directory.
+- [`docs/rfcs/`](docs/rfcs/) — design records for changes crossing a service, a
+  schema, or a published contract. Read the relevant one before changing what it
+  describes.
+
 ## Running a stack locally
 
 `SANDBOX=1` runs a stack against local state and skips the resources it has no

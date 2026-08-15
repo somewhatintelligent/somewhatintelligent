@@ -17,7 +17,7 @@
  *
  * The spike resolved Stripe and, on failure, fell back to a D1-backed FAKE
  * provider when the stage mapped to `dev`. The branch was gated correctly —
- * preprod and prod died rather than taking it — but gating a branch is not the
+ * staging and production died rather than taking it — but gating a branch is not the
  * same as not having one: `PaymentsFake` was imported here, so it reached the
  * bundle of every Worker that imports this module, including production's. Its
  * `fake_session` table was re-exported from `Domain/Schema.ts` to reach
@@ -38,7 +38,8 @@ import { Database } from "./Database.ts";
 import { Ids } from "./Ids.ts";
 import { Payments } from "./Payments.ts";
 import * as PaymentsStripe from "./PaymentsStripe.ts";
-import { StripeConfig, VARIABLES, type StripeEnvironment } from "./StripeConfig.ts";
+import type { Tier } from "@swi/infra/stage/StandardizedStage";
+import { StripeConfig, VARIABLES } from "./StripeConfig.ts";
 
 export interface Provider {
   /**
@@ -71,10 +72,19 @@ export const stripeProvider = (config: StripeConfig["Service"]): Provider => ({
  * Shared with the test entrypoints so a dev machine without Stripe is told the
  * same thing whichever worker it hit.
  */
-export const unconfigured = (environment: StripeEnvironment, cause: unknown): string => {
+export const unconfigured = (tier: Tier, cause: unknown): string => {
+  /**
+   * NAMES EVERY VARIABLE THAT CAN CAUSE THIS, not two of them. The message used
+   * to name the secret key and the endpoint secret alone, so a `ConfigError`
+   * from any OTHER read was reported as a missing Stripe secret — a staging
+   * deploy that failed on `STORE_STOREFRONT_URL` was read as a missing webhook
+   * signing secret, and the cause, which named the real variable, was buried
+   * behind the prose that contradicted it. Read the cause first.
+   */
   return (
-    `${environment} cannot resolve its Stripe configuration ` +
-    `(${VARIABLES.secretKey} / ${VARIABLES.webhookSecret}): ${String(cause)}.`
+    `${tier} cannot resolve its Stripe configuration ` +
+    `(${VARIABLES.secretKey}, ${VARIABLES.webhookSecret}, or the tax code). ` +
+    `THE CAUSE NAMES THE VARIABLE — read it before assuming which: ${String(cause)}.`
   );
 };
 
@@ -88,10 +98,8 @@ export const unconfigured = (environment: StripeEnvironment, cause: unknown): st
  * a Worker that boots, accepts webhooks it cannot verify, and looks healthy
  * while acking real money into a ledger nobody is watching.
  */
-export const resolve = Effect.fn("PaymentsProvider.resolve")(function* (
-  environment: StripeEnvironment,
-) {
-  return yield* StripeConfig.load(environment).pipe(
+export const resolve = Effect.fn("PaymentsProvider.resolve")(function* (tier: Tier) {
+  return yield* StripeConfig.load(tier).pipe(
     Effect.map(stripeProvider),
     /**
      * `catchCause` rather than a tag match because both ways of failing mean the
@@ -102,7 +110,7 @@ export const resolve = Effect.fn("PaymentsProvider.resolve")(function* (
     Effect.catchCause((cause) =>
       Effect.die(
         new Error(
-          `${unconfigured(environment, cause)} ` +
+          `${unconfigured(tier, cause)} ` +
             `Refusing to deploy a payment surface with no payment provider.`,
         ),
       ),

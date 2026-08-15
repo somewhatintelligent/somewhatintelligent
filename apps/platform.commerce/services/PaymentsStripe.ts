@@ -23,6 +23,8 @@ import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 import Stripe from "stripe";
 
+import { stripeClient } from "@swi/infra/stripe";
+
 import {
   EventNotVerified,
   Payments,
@@ -107,11 +109,10 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const config = yield* StripeConfig;
 
-    const stripe = new Stripe(Redacted.value(config.secretKey), {
-      // Workers have no Node http stack; this is the supported transport.
-      httpClient: Stripe.createFetchHttpClient(),
-      apiVersion: "2026-07-29.dahlia",
-    });
+    // Constructed by the account module, not here: the IdP sells subscriptions
+    // against this same account, and two adapters pinning the API version
+    // separately is how one of them goes stale on a `stripe` catalog bump.
+    const stripe = stripeClient(config.secretKey);
 
     const unavailable = (operation: string) => (cause: unknown) =>
       new PaymentsUnavailable({

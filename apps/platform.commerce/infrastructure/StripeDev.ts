@@ -29,21 +29,12 @@
 import * as Alchemy from "alchemy";
 import * as Command from "alchemy/Command";
 import * as Output from "alchemy/Output";
-import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
-import * as Schema from "effect/Schema";
+
+import { cliSigningSecret, configured, listenCommand as listen } from "@swi/infra/stripe.dev";
 
 import { VARIABLES } from "../services/StripeConfig.ts";
-
-class StripeCliUnavailable extends Schema.TaggedErrorClass<StripeCliUnavailable>()(
-  "StripeCliUnavailable",
-  { message: Schema.String },
-) {}
-
-/** What `stripe listen --print-secret` emits, and nothing else on the line. */
-const SIGNING_SECRET = /whsec_[A-Za-z0-9]+/;
 
 /**
  * The events the settlement path maps, and no others.
@@ -73,59 +64,7 @@ const FORWARDED_EVENTS = [
  * that it exercises real signature verification, the one thing the fake provider
  * cannot.
  */
-export const listenCommand = (webhookUrl: string): string =>
-  `stripe listen --forward-to ${webhookUrl} --events ${FORWARDED_EVENTS.join(",")}`;
-
-/**
- * Read a signing secret out of the Stripe CLI.
- *
- * `--print-secret` reuses the SAME secret the forwarder signs with, so the two
- * agree without either being configured. A missing CLI, a logged-out CLI, and a
- * CLI that printed something unexpected all fail here rather than producing a
- * Worker that rejects every webhook with an opaque 400.
- */
-const printSigningSecret = Effect.fn("StripeDev.printSigningSecret")(function* () {
-  /**
-   * Spawned directly rather than through `CommandExecutor`, whose `run` wants an
-   * internal plan session this call site does not have.
-   */
-  const result = yield* Effect.tryPromise({
-    try: async () => {
-      const child = Bun.spawn(["stripe", "listen", "--print-secret"], {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const [stdout, stderr] = await Promise.all([
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-      ]);
-      return { exitCode: await child.exited, stdout, stderr };
-    },
-    catch: (cause) =>
-      new StripeCliUnavailable({
-        message: `could not run the Stripe CLI — is it installed and on PATH? ${String(cause)}`,
-      }),
-  });
-
-  if (result.exitCode !== 0) {
-    return yield* new StripeCliUnavailable({
-      message:
-        `stripe listen --print-secret exited ${result.exitCode}. ` +
-        `Run \`stripe login\` first. ${result.stderr.slice(0, 200)}`,
-    });
-  }
-
-  const matched = SIGNING_SECRET.exec(result.stdout);
-  if (!matched) {
-    return yield* new StripeCliUnavailable({
-      message: `no whsec_… in the CLI output: ${result.stdout.slice(0, 200)}`,
-    });
-  }
-
-  // Redacted from here on: it is a signing key, and it must not reach a log,
-  // alchemy's state file, or a diff.
-  return Redacted.make(matched[0] as string);
-});
+export const listenCommand = (webhookUrl: string): string => listen(webhookUrl, FORWARDED_EVENTS);
 
 /** What `stripe config --list` calls the logged-in device's test key. */
 const CLI_TEST_KEY = /test_mode_api_key\s*=\s*'(sk_test_[A-Za-z0-9]+)'/;
@@ -157,17 +96,6 @@ const cliTestKey = Effect.fn("StripeDev.cliTestKey")(function* () {
   const matched = CLI_TEST_KEY.exec(output)?.[1];
   return matched === undefined ? null : Redacted.make(matched);
 });
-
-/**
- * Whether this host was handed a value for `name`.
- *
- * Asked of `Config` rather than of `process.env`, so it is the same question,
- * against the same provider, that the Workers' `Config.redacted` will ask during
- * the plan. A lookup that answered `yes` here and `no` there — or the reverse —
- * is how a stack arms itself against one environment and deploys another.
- */
-const configured = (name: string) =>
-  Effect.map(Config.option(Config.redacted(name)), Option.isSome);
 
 /**
  * Arm the dev environment, and say whether it worked.
@@ -208,7 +136,7 @@ export const arm = Effect.fn("StripeDev.arm")(function* () {
      * present, so the real path has been asked for — the only correct outcome is
      * a deploy that stops with the CLI's own message attached.
      */
-    const secret = yield* Effect.orDie(printSigningSecret());
+    const secret = yield* Effect.orDie(cliSigningSecret());
     process.env[VARIABLES.webhookSecret] = Redacted.value(secret);
   }
 
