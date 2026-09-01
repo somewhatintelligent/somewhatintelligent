@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.3...v1.0.4) (2026-09-01)
+
+
+### Features
+
+* **commerce:** fulfilment demand summary for paid orders ([#20](https://github.com/somewhatintelligent/somewhatintelligent/issues/20)) ([1a878a0](https://github.com/somewhatintelligent/somewhatintelligent/commit/1a878a0ecdd360bb2d56067a8b81713416e0f3fa))
+
 ## [1.0.3](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.2...v1.0.3) (2026-08-15)
 
 
