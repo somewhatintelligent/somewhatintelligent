@@ -130,6 +130,7 @@ export type OrderStatus = typeof Rpc.OrderStatus.Type;
 export type ShippingAddress = typeof Rpc.ShippingAddress.Type;
 export type OrderDetailDTO = typeof Rpc.OrderDetail.Type;
 export type OrderListResult = typeof Rpc.OrderPage.Type;
+export type FulfillmentDemandDTO = typeof Rpc.FulfillmentDemand.Type;
 
 export type OrderMutationError =
   | "not_found"

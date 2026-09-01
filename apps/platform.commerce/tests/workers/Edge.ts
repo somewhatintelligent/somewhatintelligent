@@ -278,6 +278,8 @@ export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
           lift(result, notFound("order", payload.orderNumber)),
         ),
 
+      fulfillmentDemand: () => commerce.fulfillmentDemand(readEnvelope("fulfillmentDemand", {})),
+
       orderTimeline: ({ orderNumber }) =>
         Effect.flatMap(commerce.orderTimeline(orderNumber), (entries) =>
           entries === null

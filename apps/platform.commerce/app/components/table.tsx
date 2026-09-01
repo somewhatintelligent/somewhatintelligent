@@ -27,24 +27,31 @@ import { Outcome } from "./outcome.tsx";
  * option rather than a string, so a route cannot wire it to a param the loader
  * does not understand.
  */
+interface StatusFilterProps<T extends string> {
+  value: T;
+  options: readonly T[];
+  labels?: Partial<Record<T, string>>;
+  onChange: (value: T) => void;
+}
+
 function StatusFilter<T extends string>({
   value,
   options,
+  labels,
   onChange,
-}: {
-  value: T;
-  options: readonly T[];
-  onChange: (value: T) => void;
-}) {
+}: StatusFilterProps<T>) {
+  const label = (option: T): string => labels?.[option] ?? option;
   return (
     <Select value={value} onValueChange={(next) => next && onChange(next as T)}>
       <SelectTrigger className="w-40">
-        <SelectValue />
+        {/* A function child, because the collapsed trigger otherwise stringifies the raw
+            value and shows `paid` under a list that says `ready to ship`. */}
+        <SelectValue>{label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option} value={option}>
-            {option}
+            {label(option)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -118,7 +125,7 @@ export function RecordList<S extends string>({
 }: {
   title: string;
   description?: React.ReactNode;
-  filter: { value: S; options: readonly S[]; onChange: (value: S) => void };
+  filter: StatusFilterProps<S>;
   /** The domain's refusal text, or `null` when the read succeeded. */
   refusal: string | null;
   columns: readonly Column[];
@@ -127,13 +134,7 @@ export function RecordList<S extends string>({
   children: React.ReactNode;
 }) {
   return (
-    <Section
-      title={title}
-      description={description}
-      actions={
-        <StatusFilter value={filter.value} options={filter.options} onChange={filter.onChange} />
-      }
-    >
+    <Section title={title} description={description} actions={<StatusFilter {...filter} />}>
       {refusal !== null ? (
         <Outcome error={new Error(refusal)} />
       ) : isEmpty ? (

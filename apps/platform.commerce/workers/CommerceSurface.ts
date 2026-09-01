@@ -318,6 +318,12 @@ export const commerceSurface = Effect.fn("commerceSurface")(function* (provider:
         return "failure" in outcome ? outcome.failure : outcome.response;
       }).pipe(Effect.provide(layer)),
 
+    fulfillmentDemand: (_call: OperatorCall<Record<string, never>>) =>
+      Effect.gen(function* () {
+        const database = yield* Database;
+        return yield* Orders.fulfillmentDemand(database.db);
+      }).pipe(Effect.provide(layer)),
+
     getOrder: (call: OperatorCall<{ orderNumber: string }>) =>
       Effect.gen(function* () {
         const database = yield* Database;

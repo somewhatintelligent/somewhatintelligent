@@ -12,13 +12,17 @@ import { AlertTriangle, ArrowRight } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "platform.ui/components/alert";
 import { Button } from "platform.ui/components/button";
+import { Separator } from "platform.ui/components/separator";
+import { cn } from "platform.ui/lib/utils";
 
 import { Empty, Facts, PageHeader, Section } from "../components/page.tsx";
 import { OrderStatusBadge, ProductStatusBadge } from "../components/badges.tsx";
-import { listOrders } from "../lib/orders.functions.ts";
+import { FulfillmentDemandSummary } from "../components/fulfillment-demand.tsx";
+import { Outcome } from "../components/outcome.tsx";
+import { fulfillmentDemand, listOrders } from "../lib/orders.functions.ts";
 import { listProducts } from "../lib/catalog.functions.ts";
 import { paymentsProvider, settlementProvider } from "../lib/admin.functions.ts";
-import { money, when } from "../lib/format.ts";
+import { money, refusalText, when } from "../lib/format.ts";
 
 export const Route = createFileRoute("/")({
   /**
@@ -28,25 +32,37 @@ export const Route = createFileRoute("/")({
    * it is broken.
    */
   loader: async () => {
-    const [orders, products, minting, settling] = await Promise.all([
+    const [orders, readyOrders, demand, products, minting, settling] = await Promise.all([
       listOrders({ data: { status: "all", limit: 50 } }),
+      listOrders({ data: { status: "paid", limit: 8 } }),
+      /**
+       * The RPC declares no error channel, so a failure arrives as a rejection
+       * rather than a refusal value. `null` here means UNREADABLE, and
+       * `FulfillmentDemandSummary` renders it as such — never stood in for.
+       */
+      fulfillmentDemand().catch(() => null),
       listProducts({ data: { status: "all", limit: 100 } }),
       paymentsProvider().catch(() => null),
       settlementProvider().catch(() => null),
     ]);
-    return { orders, products, minting, settling };
+    return { orders, readyOrders, demand, products, minting, settling };
   },
   component: Overview,
 });
 
 function Overview() {
-  const { orders, products, minting, settling } = Route.useLoaderData();
+  const { orders, readyOrders, demand, products, minting, settling } = Route.useLoaderData();
 
   const orderRows = orders.ok ? orders.value.orders : [];
+  const toShip = readyOrders.ok ? readyOrders.value.orders : [];
   const productRows = products.ok ? products.value.products : [];
 
   const awaitingPayment = orderRows.filter((o) => o.status === "pending");
-  const toShip = orderRows.filter((o) => o.status === "paid");
+  /**
+   * `null` is UNKNOWN, and it stays unknown. The paid list beside this is a
+   * window of eight, so its length is never stood in for the real count.
+   */
+  const readyCount = demand?.orderCount ?? null;
   const drafts = productRows.filter((p) => p.status === "draft");
   const live = productRows.filter((p) => p.status === "active");
 
@@ -79,12 +95,18 @@ function Overview() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Awaiting payment" value={awaitingPayment.length} to="/orders" />
+        <Stat
+          label="Awaiting payment"
+          value={awaitingPayment.length}
+          to="/orders"
+          search={{ status: "pending" }}
+        />
         <Stat
           label="Ready to ship"
-          value={toShip.length}
+          value={readyCount}
           to="/orders"
-          emphasis={toShip.length > 0}
+          search={{ status: "paid" }}
+          emphasis={readyCount !== null && readyCount > 0}
         />
         <Stat label="Live products" value={live.length} to="/products" />
         <Stat label="Drafts" value={drafts.length} to="/products" />
@@ -104,26 +126,43 @@ function Overview() {
           </Button>
         }
       >
-        {toShip.length === 0 ? (
-          <Empty>Nothing waiting. Every paid order has shipped.</Empty>
-        ) : (
-          <ul className="divide-y divide-border">
-            {toShip.slice(0, 8).map((order) => (
-              <li key={order.orderNumber}>
-                <Link
-                  to="/orders/$orderNumber"
-                  params={{ orderNumber: order.orderNumber }}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-surface-sunken"
-                >
-                  <span className="font-medium">{order.orderNumber}</span>
-                  <span className="text-muted-foreground">{order.email}</span>
-                  <span className="ml-auto tnum">{money(order.totalCents)}</span>
-                  <span className="text-xs text-muted-foreground">{when(order.createdAt)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/*
+          Two independent reads, each owning its own failure. The summary states
+          unreadable / nothing waiting / the matrices itself, so a refused order
+          list can only ever hide the ORDER LINKS beneath it, never the demand —
+          and an all-clear is only printed by a count that was actually read.
+        */}
+        <div className="flex flex-col gap-5">
+          <FulfillmentDemandSummary demand={demand} />
+          {!readyOrders.ok ? (
+            <Outcome error={refusalText(readyOrders.error, readyOrders.message)} />
+          ) : toShip.length > 0 ? (
+            <>
+              <Separator />
+              <div>
+                <h3 className="mb-2 text-sm font-semibold">Orders</h3>
+                <ul className="divide-y divide-border">
+                  {toShip.map((order) => (
+                    <li key={order.orderNumber}>
+                      <Link
+                        to="/orders/$orderNumber"
+                        params={{ orderNumber: order.orderNumber }}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-surface-sunken"
+                      >
+                        <span className="font-medium">{order.orderNumber}</span>
+                        <span className="text-muted-foreground">{order.email}</span>
+                        <span className="ml-auto tnum">{money(order.totalCents)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {when(order.createdAt)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          ) : null}
+        </div>
       </Section>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -199,24 +238,27 @@ function Stat({
   label,
   value,
   to,
+  search,
   emphasis,
 }: {
   label: string;
-  value: number;
+  /** `null` is a count that could not be read: an em dash, never a stand-in number. */
+  value: number | null;
   to: string;
+  search?: { status: "pending" | "paid" };
   emphasis?: boolean;
 }) {
   return (
     <Link
       to={to}
-      className={
-        emphasis
-          ? "rounded-md border-2 border-primary bg-card p-4 transition-colors hover:bg-surface-sunken"
-          : "rounded-md border border-border bg-card p-4 transition-colors hover:bg-surface-sunken"
-      }
+      search={search}
+      className={cn(
+        "rounded-md border border-border bg-card p-4 transition-colors hover:bg-surface-sunken",
+        emphasis && "border-2 border-primary",
+      )}
     >
       <div className="text-xs tracking-wide text-muted-foreground uppercase">{label}</div>
-      <div className="tnum mt-1 font-display text-3xl font-semibold">{value}</div>
+      <div className="tnum mt-1 font-display text-3xl font-semibold">{value ?? "—"}</div>
     </Link>
   );
 }

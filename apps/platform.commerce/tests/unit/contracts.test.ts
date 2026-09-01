@@ -16,6 +16,7 @@ import * as Schema from "effect/Schema";
 
 import type {
   DeletionPlan,
+  FulfillmentDemandDTO,
   OrderDetailDTO,
   ProductDraftDTO,
   ProductMediaDTO,
@@ -58,6 +59,31 @@ const media: ProductMediaDTO = {
   contentType: "image/webp",
   size: 84_213,
   sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+};
+
+const demand: FulfillmentDemandDTO = {
+  orderCount: 2,
+  unitCount: 4,
+  lines: [
+    {
+      productId: "01JQ0000000000000000000000",
+      variantId: "01JQ0000000000000000000001",
+      title: "Field Tee",
+      size: "M",
+      quantity: 3,
+      preorder: false,
+      expectedShipAt: null,
+    },
+    {
+      productId: "01JQ0000000000000000000000",
+      variantId: "01JQ0000000000000000000004",
+      title: "Field Tee",
+      size: "L",
+      quantity: 1,
+      preorder: true,
+      expectedShipAt: 1_770_000_000_000,
+    },
+  ],
 };
 
 const order: OrderDetailDTO = {
@@ -123,6 +149,10 @@ describe("domain values survive the RPC boundary", () => {
 
   test("a full order detail, items and address included", () => {
     expect(roundTrip(Rpc.OrderDetail, order)).toEqual(order);
+  });
+
+  test("a fulfillment demand summary", () => {
+    expect(roundTrip(Rpc.FulfillmentDemand, demand)).toEqual(demand);
   });
 
   test("an order with no address — `shipping` is all-or-nothing", () => {
