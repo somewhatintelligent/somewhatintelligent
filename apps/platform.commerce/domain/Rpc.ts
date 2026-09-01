@@ -222,6 +222,30 @@ export const OrderPage = Schema.Struct({
   nextCursor: Schema.NullOr(Schema.String),
 });
 
+/**
+ * One aggregated line of demand from PAID, unshipped orders.
+ *
+ * Identity and buyer-facing copy are both retained. The ids prevent two
+ * products with the same title and size from collapsing together; the snapshots
+ * keep the summary readable after catalog copy changes or deletion.
+ */
+const FulfillmentDemandLine = Schema.Struct({
+  productId: Schema.String,
+  variantId: Schema.String,
+  title: Schema.String,
+  size: Schema.String,
+  quantity: Schema.Number,
+  preorder: Schema.Boolean,
+  expectedShipAt: Schema.NullOr(Schema.Number),
+});
+
+/** The complete, unpaginated work represented by orders in `paid`. */
+export const FulfillmentDemand = Schema.Struct({
+  orderCount: Schema.Number,
+  unitCount: Schema.Number,
+  lines: Schema.Array(FulfillmentDemandLine),
+});
+
 export const DeletionImpact = Schema.Struct({
   targetType: Schema.Literals(["product", "product_release", "product_variant", "media"]),
   targetId: Schema.String,
@@ -621,6 +645,10 @@ export class OperatorRpcs extends RpcGroup.make(
     payload: { orderNumber: Schema.String },
     success: OrderDetail,
     error: NotFound,
+  }),
+  Rpc.make("fulfillmentDemand", {
+    payload: {},
+    success: FulfillmentDemand,
   }),
   /**
    * The full history of an order, merged from both append-only logs.

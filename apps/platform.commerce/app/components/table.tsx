@@ -30,10 +30,12 @@ import { Outcome } from "./outcome.tsx";
 function StatusFilter<T extends string>({
   value,
   options,
+  labels,
   onChange,
 }: {
   value: T;
   options: readonly T[];
+  labels?: Partial<Record<T, string>>;
   onChange: (value: T) => void;
 }) {
   return (
@@ -44,7 +46,7 @@ function StatusFilter<T extends string>({
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option} value={option}>
-            {option}
+            {labels?.[option] ?? option}
           </SelectItem>
         ))}
       </SelectContent>
@@ -118,7 +120,12 @@ export function RecordList<S extends string>({
 }: {
   title: string;
   description?: React.ReactNode;
-  filter: { value: S; options: readonly S[]; onChange: (value: S) => void };
+  filter: {
+    value: S;
+    options: readonly S[];
+    labels?: Partial<Record<S, string>>;
+    onChange: (value: S) => void;
+  };
   /** The domain's refusal text, or `null` when the read succeeded. */
   refusal: string | null;
   columns: readonly Column[];
@@ -131,7 +138,12 @@ export function RecordList<S extends string>({
       title={title}
       description={description}
       actions={
-        <StatusFilter value={filter.value} options={filter.options} onChange={filter.onChange} />
+        <StatusFilter
+          value={filter.value}
+          options={filter.options}
+          labels={filter.labels}
+          onChange={filter.onChange}
+        />
       }
     >
       {refusal !== null ? (

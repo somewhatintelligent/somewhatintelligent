@@ -15,7 +15,7 @@
  * Orders are addressed by `orderNumber` throughout. The internal row id never
  * crosses the RPC boundary.
  */
-import { and, desc, eq, lt, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, lt, or, sql } from "drizzle-orm";
 import * as Effect from "effect/Effect";
 
 import type { CoreOutcome } from "../services/Audit.ts";
@@ -24,6 +24,7 @@ import {
   err,
   ok,
   type FulfillOrderInput,
+  type FulfillmentDemandDTO,
   type OrderDetailDTO,
   type OrderListInput,
   type OrderListResult,
@@ -194,6 +195,66 @@ export const getOrder = Effect.fn("Orders.getOrder")(function* (
     statements: [],
     response: ok(loaded.detail),
     facts: { targetType: "order", targetId: orderNumber },
+  };
+});
+
+/**
+ * Every unit represented by `paid`: money received, no shipment recorded.
+ *
+ * This is a DATABASE AGGREGATE rather than an aggregation over `listOrders`.
+ * That list is paginated, and both console callers deliberately request bounded
+ * windows; deriving operational demand from either would silently undercount as
+ * soon as enough orders existed. Snapshot fields are grouped with identity so
+ * catalog edits cannot rewrite the work while same-named products remain apart.
+ *
+ * `preorder` is kept as a dimension, not presentation trivia. In this model a
+ * stock line is a physical unit already on the shelf while a pre-order line is
+ * a unit in a manufacturing run. Combining them would tell a manufacturer to
+ * make inventory the system says already exists.
+ */
+export const fulfillmentDemand = Effect.fn("Orders.fulfillmentDemand")(function* (
+  db: ClassicDb,
+): Effect.fn.Return<FulfillmentDemandDTO> {
+  const orderTotals = yield* query(() =>
+    db.select({ total: count() }).from(customerOrder).where(eq(customerOrder.status, "paid")),
+  );
+
+  const lines = yield* query(() =>
+    db
+      .select({
+        productId: orderItem.productId,
+        variantId: orderItem.variantId,
+        title: orderItem.titleSnapshot,
+        size: orderItem.sizeSnapshot,
+        quantity: sql<number>`sum(${orderItem.quantity})`.mapWith(Number),
+        preorder: orderItem.preorder,
+        expectedShipAt: orderItem.expectedShipAt,
+      })
+      .from(orderItem)
+      .innerJoin(customerOrder, eq(customerOrder.id, orderItem.orderId))
+      .where(eq(customerOrder.status, "paid"))
+      .groupBy(
+        orderItem.productId,
+        orderItem.variantId,
+        orderItem.titleSnapshot,
+        orderItem.sizeSnapshot,
+        orderItem.preorder,
+        orderItem.expectedShipAt,
+      )
+      .orderBy(
+        asc(orderItem.preorder),
+        asc(orderItem.titleSnapshot),
+        asc(orderItem.expectedShipAt),
+        asc(orderItem.sizeSnapshot),
+        asc(orderItem.productId),
+        asc(orderItem.variantId),
+      ),
+  );
+
+  return {
+    orderCount: orderTotals[0]?.total ?? 0,
+    unitCount: lines.reduce((total, line) => total + line.quantity, 0),
+    lines,
   };
 });
 

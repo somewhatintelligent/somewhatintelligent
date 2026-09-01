@@ -43,6 +43,16 @@ export const getOrder = createServerFn({ method: "GET" })
     }),
   );
 
+/** Complete paid, unshipped demand. Deliberately unpaginated and aggregated by Commerce. */
+export const fulfillmentDemand = createServerFn({ method: "GET" })
+  .middleware([requireOperator])
+  .handler(async ({ context }) =>
+    commerce().fulfillmentDemand({
+      input: {},
+      meta: { actor: context.actor, ...readMeta(context.actor.sub, "fulfillmentDemand") },
+    }),
+  );
+
 /**
  * Both audit ledgers for one order, merged and ordered.
  *
