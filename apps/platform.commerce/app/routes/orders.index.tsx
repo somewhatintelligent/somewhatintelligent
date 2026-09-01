@@ -23,6 +23,18 @@ const STATUSES: Array<OrderStatus | "all"> = [
   "cancelled",
 ];
 
+/**
+ * `paid` is the actionable view, so this page prints it as the work it is.
+ * One map, so the heading and the filter cannot drift.
+ */
+const STATUS_LABELS: Partial<Record<OrderStatus | "all", string>> = { paid: "ready to ship" };
+
+const heading = (status: OrderStatus | "all"): string => {
+  if (status === "all") return "All orders";
+  const label = STATUS_LABELS[status];
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : `${status} orders`;
+};
+
 const COLUMNS: Column[] = [
   { label: "Order" },
   { label: "Buyer" },
@@ -63,7 +75,12 @@ function Orders() {
     <>
       <PageHeader title="Orders" subtitle="Every order this deployment has taken." />
 
-      {status === "paid" && demand ? (
+      {/*
+        `demand` is only requested for the paid view, so `null` there means the
+        read FAILED and the summary says so. A demand of zero drops the section
+        instead — the list below already states its own empty.
+      */}
+      {status === "paid" && (demand === null || demand.orderCount > 0) ? (
         <Section
           title="Fulfilment demand"
           description="Paid, not yet shipped. Pre-order manufacturing is kept separate from physical stock."
@@ -73,14 +90,12 @@ function Orders() {
       ) : null}
 
       <RecordList
-        title={
-          status === "all" ? "All orders" : status === "paid" ? "Ready to ship" : `${status} orders`
-        }
+        title={heading(status)}
         description={`${orders.length} order${orders.length === 1 ? "" : "s"}`}
         filter={{
           value: status,
           options: STATUSES,
-          labels: { paid: "ready to ship" },
+          labels: STATUS_LABELS,
           onChange: (next) => void navigate({ search: { status: next } }),
         }}
         refusal={result.ok ? null : refusalText(result.error, result.message)}

@@ -2,32 +2,14 @@ import { useState } from "react";
 
 import { Button } from "platform.ui/components/button";
 
+import { sortBySize } from "../../core/money.ts";
 import type { FulfillmentDemandDTO } from "../../domain/Contracts.ts";
+import { when } from "../lib/format.ts";
+import { Outcome } from "./outcome.tsx";
 import { Empty } from "./page.tsx";
 import { DataTable, Td, type Column } from "./table.tsx";
 
 type DemandLine = FulfillmentDemandDTO["lines"][number];
-
-const COMMON_SIZES = ["XXS", "XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL", "XXXL", "4XL"];
-const SIZE_RANK = new Map(COMMON_SIZES.map((size, index) => [size, index]));
-
-const compareSizes = (left: string, right: string): number => {
-  const leftRank = SIZE_RANK.get(left.trim().toUpperCase());
-  const rightRank = SIZE_RANK.get(right.trim().toUpperCase());
-  if (leftRank !== undefined || rightRank !== undefined) {
-    return (leftRank ?? Number.MAX_SAFE_INTEGER) - (rightRank ?? Number.MAX_SAFE_INTEGER);
-  }
-  return left.localeCompare(right, "en-CA", { numeric: true });
-};
-
-const expectedDate = (at: number | null): string =>
-  at === null
-    ? "Not set"
-    : new Date(at).toLocaleDateString("en-CA", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
 
 interface MatrixRow {
   key: string;
@@ -39,10 +21,14 @@ interface MatrixRow {
 
 /** Turn identity-safe aggregate lines into the product-by-size matrix an operator reads. */
 const matrix = (lines: readonly DemandLine[]): { sizes: string[]; rows: MatrixRow[] } => {
-  const sizes = [...new Set(lines.map((line) => line.size))].sort(compareSizes);
+  // The garment scale from `core/money.ts`, so a column here sits where the
+  // catalog and the storefront already put it.
+  const sizes = [...new Set(sortBySize(lines).map((line) => line.size))];
   const rows = new Map<string, MatrixRow>();
 
   for (const line of lines) {
+    // No `preorder` in the key: both callers split on it before grouping, and a
+    // mixed list would merge a stock row into a manufacturing one.
     const key = `${line.productId}\u0000${line.title}\u0000${line.expectedShipAt ?? "none"}`;
     const row = rows.get(key) ?? {
       key,
@@ -56,15 +42,10 @@ const matrix = (lines: readonly DemandLine[]): { sizes: string[]; rows: MatrixRo
     rows.set(key, row);
   }
 
-  return {
-    sizes,
-    rows: [...rows.values()].sort(
-      (left, right) =>
-        left.title.localeCompare(right.title, "en-CA") ||
-        (left.expectedShipAt ?? Number.MAX_SAFE_INTEGER) -
-          (right.expectedShipAt ?? Number.MAX_SAFE_INTEGER),
-    ),
-  };
+  // Row order is the aggregate's — title, then expected date, within one
+  // pre-order class — and grouping keeps first appearance, so there is no
+  // second ordering here to drift from the domain's.
+  return { sizes, rows: [...rows.values()] };
 };
 
 const units = (lines: readonly DemandLine[]): number =>
@@ -79,18 +60,29 @@ const manufacturerText = (lines: readonly DemandLine[]): string => {
       .filter(([, quantity]) => quantity > 0)
       .map(([size, quantity]) => `${size}: ${quantity}`)
       .join("\n");
-    const expected =
-      row.expectedShipAt === null ? "" : ` · expected ${expectedDate(row.expectedShipAt)}`;
+    const expected = row.expectedShipAt === null ? "" : ` · expected ${when(row.expectedShipAt)}`;
     return `${row.title}${expected}\n${sizes}`;
   });
 
   return [`Manufacturing demand`, ...blocks, `Total: ${units(lines)} units`].join("\n\n");
 };
 
+/** A lone `\r` frames a new record for an RFC 4180 reader, so it quotes like `\n` does. */
 const csvCell = (value: string | number): string => {
   const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
+
+/**
+ * Free text, defused.
+ *
+ * Titles and sizes are whatever the operator typed — `minLength(1)` and nothing
+ * else — and a cell opening with `=`, `+`, `-` or `@` is a FORMULA to Excel and
+ * Sheets, evaluated on open. The leading apostrophe is the spreadsheet's own
+ * escape for "this is text"; it stays off the numeric columns so quantity
+ * arrives as a number.
+ */
+const csvText = (value: string): string => (/^[=+\-@]/.test(value) ? `'${value}` : value);
 
 const demandCsv = (lines: readonly DemandLine[]): string => {
   const header = [
@@ -106,8 +98,8 @@ const demandCsv = (lines: readonly DemandLine[]): string => {
     line.preorder ? "manufacture" : "stock",
     line.productId,
     line.variantId,
-    line.title,
-    line.size,
+    csvText(line.title),
+    csvText(line.size),
     line.quantity,
     line.expectedShipAt === null ? "" : new Date(line.expectedShipAt).toISOString(),
   ]);
@@ -126,16 +118,6 @@ function DemandTable({
   showExpected?: boolean;
 }) {
   const demand = matrix(lines);
-  if (demand.rows.length === 0) {
-    return (
-      <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        <p className="py-4 text-sm text-muted-foreground">None.</p>
-      </div>
-    );
-  }
-
   const columns: Column[] = [
     { label: "Product" },
     ...(showExpected ? [{ label: "Expected" }] : []),
@@ -147,51 +129,91 @@ function DemandTable({
     <div>
       <h3 className="text-sm font-semibold">{title}</h3>
       <p className="mt-0.5 mb-2 text-xs text-muted-foreground">{description}</p>
-      <DataTable columns={columns}>
-        {demand.rows.map((row) => (
-          <tr key={row.key}>
-            <Td className="font-medium">{row.title}</Td>
-            {showExpected ? (
-              <Td className="text-xs text-muted-foreground">{expectedDate(row.expectedShipAt)}</Td>
-            ) : null}
-            {demand.sizes.map((size) => {
-              const quantity = row.quantities.get(size) ?? 0;
-              return (
-                <Td
-                  key={size}
-                  align="right"
-                  className={quantity === 0 ? "text-muted-foreground" : undefined}
-                >
-                  {quantity === 0 ? "—" : quantity}
-                </Td>
-              );
-            })}
-            <Td align="right" className="font-semibold">
-              {row.total}
-            </Td>
-          </tr>
-        ))}
-      </DataTable>
+      {demand.rows.length === 0 ? (
+        <Empty>None.</Empty>
+      ) : (
+        <DataTable columns={columns}>
+          {demand.rows.map((row) => (
+            <tr key={row.key}>
+              <Td className="font-medium">{row.title}</Td>
+              {showExpected ? (
+                <Td className="text-xs text-muted-foreground">{when(row.expectedShipAt)}</Td>
+              ) : null}
+              {demand.sizes.map((size) => {
+                const quantity = row.quantities.get(size) ?? 0;
+                return (
+                  <Td
+                    key={size}
+                    align="right"
+                    className={quantity === 0 ? "text-muted-foreground" : undefined}
+                  >
+                    {quantity === 0 ? "—" : quantity}
+                  </Td>
+                );
+              })}
+              <Td align="right" className="font-semibold">
+                {row.total}
+              </Td>
+            </tr>
+          ))}
+        </DataTable>
+      )}
     </div>
   );
 }
 
 /**
+ * The aggregate is the ONLY honest source for the ready-to-ship numbers. Any
+ * order list beside it is a capped window, so standing one in would print a
+ * plausible number over the real one — exactly the undercount
+ * `Orders.fulfillmentDemand` exists to prevent. When the aggregate does not
+ * arrive, the demand is unknown and every page that renders this says so, in
+ * these words.
+ */
+const DEMAND_UNREADABLE =
+  "The fulfilment demand read failed, so the number of paid, unshipped orders is unknown. Anything listed below is a capped window, not the whole queue — reload to try again.";
+
+/**
  * The paid-order read model: pre-order units for the manufacturer, stock units
  * for packing, and no dependence on the paginated order table beneath it.
+ *
+ * Owns all three states of the read — unreadable, nothing waiting, and the
+ * matrices — so no route can render the same `null` two different ways.
  */
-export function FulfillmentDemandSummary({ demand }: { demand: FulfillmentDemandDTO }) {
+export function FulfillmentDemandSummary({ demand }: { demand: FulfillmentDemandDTO | null }) {
   const [copied, setCopied] = useState(false);
-  const manufacturing = demand.lines.filter((line) => line.preorder);
-  const stock = demand.lines.filter((line) => !line.preorder);
+  const [error, setError] = useState<string | null>(null);
 
+  // The RPC declares no error channel, so the loaders catch a rejection to
+  // `null`: a read that FAILED, never a demand of zero.
+  if (demand === null) {
+    return <Outcome error={DEMAND_UNREADABLE} />;
+  }
   if (demand.orderCount === 0) {
     return <Empty>Nothing waiting. Every paid order has shipped.</Empty>;
   }
 
+  const manufacturing = demand.lines.filter((line) => line.preorder);
+  const stock = demand.lines.filter((line) => !line.preorder);
+  const manufacturingUnits = units(manufacturing);
+  const stockUnits = units(stock);
+
+  /**
+   * A clipboard write is a PERMISSION, not a certainty — an insecure origin or a
+   * denied prompt rejects it — and the label has to fall back so it never claims
+   * a copy the operator did not get, here or after the loader revalidates.
+   */
   const copyManufacturing = async () => {
-    await navigator.clipboard.writeText(manufacturerText(manufacturing));
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(manufacturerText(manufacturing));
+      setError(null);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (cause) {
+      setCopied(false);
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      setError(`The clipboard refused the copy (${detail}). Download the CSV instead.`);
+    }
   };
 
   const download = () => {
@@ -200,8 +222,14 @@ export function FulfillmentDemandSummary({ demand }: { demand: FulfillmentDemand
     const anchor = document.createElement("a");
     anchor.href = href;
     anchor.download = `fulfillment-demand-${new Date().toISOString().slice(0, 10)}.csv`;
+    // `appendChild`, not `append`: `@cloudflare/workers-types` merges its own
+    // HTMLRewriter `Element` into the DOM one and takes that name over.
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(href);
+    anchor.remove();
+    // The click only QUEUES the download, so the object URL has to outlive this
+    // frame — revoking inline races the fetch that reads it.
+    setTimeout(() => URL.revokeObjectURL(href), 0);
   };
 
   return (
@@ -229,15 +257,17 @@ export function FulfillmentDemandSummary({ demand }: { demand: FulfillmentDemand
         </div>
       </div>
 
+      <Outcome error={error} />
+
       <DemandTable
         title="To manufacture"
-        description={`${units(manufacturing)} pre-order unit${units(manufacturing) === 1 ? "" : "s"} from manufacturing runs.`}
+        description={`${manufacturingUnits} pre-order unit${manufacturingUnits === 1 ? "" : "s"} from manufacturing runs.`}
         lines={manufacturing}
         showExpected
       />
       <DemandTable
         title="From stock"
-        description={`${units(stock)} physical unit${units(stock) === 1 ? "" : "s"} already allocated from shelf inventory.`}
+        description={`${stockUnits} physical unit${stockUnits === 1 ? "" : "s"} already allocated from shelf inventory.`}
         lines={stock}
       />
     </div>

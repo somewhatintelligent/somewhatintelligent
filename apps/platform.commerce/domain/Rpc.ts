@@ -19,6 +19,7 @@
  * handlers convert those values into typed failures exactly once, at the edge.
  */
 import * as Schema from "effect/Schema";
+import * as Struct from "effect/Struct";
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
 
 // ── Shared value objects ─────────────────────────────────────────────────────
@@ -228,16 +229,11 @@ export const OrderPage = Schema.Struct({
  * Identity and buyer-facing copy are both retained. The ids prevent two
  * products with the same title and size from collapsing together; the snapshots
  * keep the summary readable after catalog copy changes or deletion.
+ *
+ * The shape IS `OrderLine` minus the price — derived rather than re-declared,
+ * so a field a purchased line gains cannot silently go missing here.
  */
-const FulfillmentDemandLine = Schema.Struct({
-  productId: Schema.String,
-  variantId: Schema.String,
-  title: Schema.String,
-  size: Schema.String,
-  quantity: Schema.Number,
-  preorder: Schema.Boolean,
-  expectedShipAt: Schema.NullOr(Schema.Number),
-});
+const FulfillmentDemandLine = Schema.Struct(Struct.omit(OrderLine.fields, ["unitPriceCents"]));
 
 /** The complete, unpaginated work represented by orders in `paid`. */
 export const FulfillmentDemand = Schema.Struct({

@@ -211,6 +211,11 @@ export const getOrder = Effect.fn("Orders.getOrder")(function* (
  * stock line is a physical unit already on the shelf while a pre-order line is
  * a unit in a manufacturing run. Combining them would tell a manufacturer to
  * make inventory the system says already exists.
+ *
+ * The ORDER BY is the console's ROW order — title, then expected date, within
+ * one pre-order class — and the trailing keys are determinism, not display:
+ * the console re-orders size COLUMNS on the garment scale, so `sizeSnapshot`
+ * ascending is only a tie-break.
  */
 export const fulfillmentDemand = Effect.fn("Orders.fulfillmentDemand")(function* (
   db: ClassicDb,
