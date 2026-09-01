@@ -18,7 +18,7 @@ import { button, color, font, layout } from "platform.design/generated/email/tok
  * The chrome every auth email shares, and the rules it enforces by being the
  * only way to build one.
  *
- * Read `docs/design/somewhatintelligent-brand-study` for why it looks like
+ * Read `design/somewhatintelligent/brand-study` for why it looks like
  * this. The short version: an email from here is a RECORD, not a greeting.
  * Institutional masthead, cold-paper ground, a claim set large, metadata in
  * mono, and exactly one breach where something too personal for the document
