@@ -327,7 +327,7 @@ tests/
   workers/                Commerce, Settlement, Edge, Storefront
   services/               PaymentsFake, FakeProvider
   unit/                   179 tests, no infrastructure
-  *.integ.test.ts         30 tests against a live deployment
+  *.integ.test.ts         31 tests against a live deployment
 migrations/               11 domain tables, generated from domain/Schema.ts
 ```
 
@@ -421,14 +421,14 @@ the order book.
 ```sh
 vp run platform.commerce#test               # 179 unit, ~280ms, no infrastructure
 cd apps/platform.commerce
-bun run test:integ                          # 30 integration; deploys and tears down
+bun run test:integ                          # 31 integration; deploys and tears down
 bun run test:keep                           # keeps the test stack up between runs
 ```
 
 | Tier                   | Count | Needs                           |
 | ---------------------- | ----- | ------------------------------- |
 | Unit and contract      | 179   | nothing                         |
-| Operator integration   | 13    | a deployment                    |
+| Operator integration   | 14    | a deployment                    |
 | Settlement integration | 9     | a deployment                    |
 | Stripe end-to-end      | 8     | a deployment and `stripe login` |
 
