@@ -21,6 +21,7 @@ import type {
   ProductDraftDTO,
   ProductMediaDTO,
   ProductVariantDTO,
+  RecordedOrderDTO,
 } from "../../domain/Contracts.ts";
 import * as Rpc from "../../domain/Rpc.ts";
 
@@ -95,6 +96,7 @@ const order: OrderDetailDTO = {
   receiptEmail: null,
   status: "paid",
   paymentStatus: "paid",
+  externalPayment: null,
   subtotalCents: 4_500,
   shippingCents: 1_200,
   taxCents: 741,
@@ -153,6 +155,29 @@ describe("domain values survive the RPC boundary", () => {
 
   test("a fulfillment demand summary", () => {
     expect(roundTrip(Rpc.FulfillmentDemand, demand)).toEqual(demand);
+  });
+
+  test("an order recorded against a payment taken outside checkout", () => {
+    const recorded: OrderDetailDTO = {
+      ...order,
+      sessionId: null,
+      externalPayment: { method: "e-transfer", reference: "CA7Q2M" },
+    };
+    expect(roundTrip(Rpc.OrderDetail, recorded)).toEqual(recorded);
+    const unreferenced: OrderDetailDTO = {
+      ...recorded,
+      externalPayment: { method: "cash", reference: null },
+    };
+    expect(roundTrip(Rpc.OrderDetail, unreferenced)).toEqual(unreferenced);
+  });
+
+  test("what recording an external order hands back", () => {
+    const recorded: RecordedOrderDTO = {
+      orderNumber: "SO-ABCD1234",
+      totalCents: 6_441,
+      currency: "cad",
+    };
+    expect(roundTrip(Rpc.RecordedOrder, recorded)).toEqual(recorded);
   });
 
   test("an order with no address — `shipping` is all-or-nothing", () => {
@@ -226,6 +251,12 @@ describe("the schema rejects what the domain must never emit", () => {
 
   test("a market outside the two supported", () => {
     expect(decode(Rpc.MarketPrice, { market: "EU", priceCents: 7_500, active: true })).toThrow();
+  });
+
+  test("an external payment with no method", () => {
+    expect(
+      decode(Rpc.OrderDetail, { ...order, externalPayment: { reference: "CA7Q2M" } }),
+    ).toThrow();
   });
 
   test("an empty commandId — the one thing the browser supplies toward idempotency", () => {

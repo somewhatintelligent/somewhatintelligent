@@ -39,8 +39,10 @@ import type {
   SaveProductDraftInput,
   SetOrderStatusInput,
   FulfillOrderInput,
+  RecordExternalOrderInput,
 } from "../domain/Contracts.ts";
 import * as Checkout from "../domain/Checkout.ts";
+import * as ExternalOrders from "../domain/ExternalOrders.ts";
 import type { MarketCode } from "../core/markets.ts";
 import * as Deletion from "../domain/Deletion.ts";
 import * as Media from "../domain/Media.ts";
@@ -377,6 +379,20 @@ export const commerceSurface = Effect.fn("commerceSurface")(function* (provider:
             const now = yield* Effect.clockWith((clock) => clock.currentTimeMillis);
             return yield* Orders.markDelivered(database.db, call.input.orderNumber, now);
           }),
+        );
+      }).pipe(Effect.provide(layer)),
+
+    /**
+     * An order paid outside checkout, written in as `paid`. Under `claimed`
+     * rather than `command` for checkout's reason: the reservation must commit,
+     * and be inspected, before the outcome is known — and the claim rides in
+     * that batch, so a double-submitted form reserves once.
+     */
+    recordExternalOrder: (call: OperatorCall<RecordExternalOrderInput>) =>
+      Effect.gen(function* () {
+        const audit = yield* Audit;
+        return yield* audit.claimed("recordExternalOrder", call, (claim) =>
+          ExternalOrders.recordExternalOrder(call.input, claim),
         );
       }).pipe(Effect.provide(layer)),
 

@@ -14,7 +14,11 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 
-import type { FulfillOrderInput, OrderListInput } from "../../domain/Contracts.ts";
+import type {
+  FulfillOrderInput,
+  OrderListInput,
+  RecordExternalOrderInput,
+} from "../../domain/Contracts.ts";
 import { commerce } from "./commerce.server.ts";
 import { operatorCall, requireOperator } from "./server-fn-actor.ts";
 
@@ -92,4 +96,23 @@ export const markDelivered = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { commandId, ...input } = data;
     return commerce().markDelivered(operatorCall(context.actor, "markDelivered", commandId, input));
+  });
+
+/**
+ * An order that was paid OUTSIDE checkout, written in as `paid`.
+ *
+ * A pass-through like every other: the amounts, the stock and the address are
+ * all validated by Commerce, and its refusals — `out_of_stock`,
+ * `preorder_full`, `invalid_address` — come back as values for the form to
+ * render. The buyer's customer subject is derived there from the email, not
+ * here, so the browser cannot file an order under a namespace it chose.
+ */
+export const recordExternalOrder = createServerFn({ method: "POST" })
+  .middleware([requireOperator])
+  .validator((data: RecordExternalOrderInput & { commandId: string }) => data)
+  .handler(async ({ context, data }) => {
+    const { commandId, ...input } = data;
+    return commerce().recordExternalOrder(
+      operatorCall(context.actor, "recordExternalOrder", commandId, input),
+    );
   });

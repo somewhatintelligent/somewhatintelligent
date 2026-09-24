@@ -81,8 +81,19 @@ const REFUSALS: Record<string, string> = {
   invalid_transition: "The order is not in a state that allows this.",
   payment_incomplete: "The order has not been paid, so it cannot be fulfilled.",
   already_fulfilled: "This order was already marked shipped.",
-  out_of_stock: "Not enough stock left.",
-  preorder_full: "The pre-order run is fully subscribed.",
+  out_of_stock:
+    "Not enough stock left. If the units really are on the shelf, correct the count on the product page first.",
+  preorder_full:
+    "The pre-order run is fully subscribed. Raise the run cap on the product page to take more.",
+  empty_order: "Add at least one item.",
+  invalid_quantity: "Quantities must be whole numbers above zero.",
+  invalid_amount: "Prices, shipping and tax must be zero or more, in whole cents.",
+  invalid_email: "That does not look like an email address. The buyer looks the order up with it.",
+  invalid_address: "Name, street, city, region and postal code are all needed to ship.",
+  missing_payment_method: "Say how the order was paid.",
+  variant_not_found: "One of those sizes no longer exists. Reload and pick again.",
+  in_progress:
+    "This exact submission is already being recorded. Check the order book before retrying.",
   /** One allowlist for every image the store holds — photography and size guides. */
   unsupported_type: "Images must be JPEG, PNG, WebP or AVIF.",
   invalid_size: "The image is empty or larger than 10 MB.",

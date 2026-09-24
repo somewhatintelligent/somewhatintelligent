@@ -5,6 +5,9 @@
  * link. `paid` is that view: money in, nothing sent.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
+
+import { Button } from "platform.ui/components/button";
 
 import type { OrderStatus } from "../../domain/Contracts.ts";
 import { PageHeader, Section } from "../components/page.tsx";
@@ -73,7 +76,20 @@ function Orders() {
 
   return (
     <>
-      <PageHeader title="Orders" subtitle="Every order this deployment has taken." />
+      <PageHeader
+        title="Orders"
+        subtitle="Every order this deployment has taken."
+        actions={
+          /**
+           * The one door for an order that did not come through checkout — paid
+           * by e-transfer, cash, a card terminal. It lands here as `paid`.
+           */
+          <Button nativeButton={false} render={<Link to="/orders/new" />}>
+            <Plus />
+            Record order
+          </Button>
+        }
+      />
 
       {/*
         `demand` is only requested for the paid view, so `null` there means the

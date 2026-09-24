@@ -38,6 +38,7 @@ import {
 } from "../../domain/Contracts.ts";
 import {
   DeletionRefused,
+  ExternalOrderRefused,
   InvalidCursor,
   InvalidPrice,
   MediaRefused,
@@ -318,6 +319,18 @@ export default class EdgeWorker extends Cloudflare.Worker<EdgeWorker>()(
                 ? new NotFound({ what: "order", id: input.orderNumber })
                 : new OrderRefused({ reason: error, detail }),
             ),
+        ),
+
+      recordExternalOrder: ({ commandId, ...input }) =>
+        Effect.flatMap(
+          commerce.recordExternalOrder(
+            envelope("recordExternalOrder", commandId, {
+              ...input,
+              items: input.items.map((item) => ({ ...item })),
+            }),
+          ),
+          (result) =>
+            lift(result, (error, detail) => new ExternalOrderRefused({ reason: error, detail })),
         ),
 
       planProductReleaseDeletion: ({ commandId, ...input }) =>

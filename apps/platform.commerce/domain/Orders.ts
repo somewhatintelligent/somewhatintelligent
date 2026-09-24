@@ -103,6 +103,9 @@ const loadOrder = Effect.fn("Orders.loadOrder")(function* (db: ClassicDb, orderN
     receiptEmail: row.receiptEmail,
     status: row.status as OrderStatus,
     paymentStatus: row.paymentStatus,
+    externalPayment: row.externalPaymentMethod
+      ? { method: row.externalPaymentMethod, reference: row.externalPaymentReference }
+      : null,
     subtotalCents: row.subtotalCents,
     shippingCents: row.shippingCents,
     taxCents: row.taxCents,

@@ -590,6 +590,19 @@ export const customerOrder = sqliteTable(
      */
     sessionExpiresAt: integer("session_expires_at"),
     paymentStatus: text("payment_status").notNull().default("unpaid"),
+    /**
+     * HOW THE MONEY ARRIVED, when it did not arrive through checkout — an
+     * e-transfer, cash, a card terminal. Written once, by the operator who
+     * recorded the order, and never by settlement.
+     *
+     * A column rather than an inference from `session_id IS NULL`, because a
+     * null session also describes an orphaned checkout the sweep is about to
+     * cancel. Present means an operator vouched for a payment this system never
+     * saw; absent means the provider is the witness.
+     */
+    externalPaymentMethod: text("external_payment_method"),
+    /** Whatever identifies that payment where it happened: a confirmation number, a receipt id. */
+    externalPaymentReference: text("external_payment_reference"),
     carrier: text("carrier"),
     trackingNumber: text("tracking_number"),
     fulfillmentNote: text("fulfillment_note"),
