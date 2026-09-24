@@ -752,3 +752,74 @@ test(
   }),
   { timeout: TEST_TIMEOUT },
 );
+
+test(
+  "N · an order paid elsewhere is recorded paid, takes its stock, and refuses an oversell",
+  Effect.gen(function* () {
+    const { edgeUrl } = yield* stack;
+    const product = yield* publishedProduct(edgeUrl, slugFor("external"));
+    const before = yield* stockOf(edgeUrl, product.productId, product.variantId);
+
+    const record = (commandId: string, quantity: number) =>
+      withClient(edgeUrl, (client) =>
+        client.recordExternalOrder({
+          commandId,
+          market: "CA",
+          email: `  Paid-${RUN}@Spike.local `,
+          shipping: {
+            name: "Ada Buyer",
+            line1: "1 Main St",
+            city: "Toronto",
+            region: "ON",
+            postal: "M5V 1A1",
+            country: "CA",
+          },
+          items: [{ variantId: product.variantId, quantity, unitPriceCents: 4_000 }],
+          shippingCents: 1_500,
+          taxCents: 1_170,
+          payment: { method: "e-transfer", reference: "CA7Q2M" },
+        }),
+      );
+
+    /**
+     * The same command id twice: a double-submitted form records ONE order,
+     * and the second answer is the first one replayed.
+     */
+    const commandId = cmd("external");
+    const recorded = yield* record(commandId, 2);
+    const replayed = yield* record(commandId, 2);
+    expect(replayed).toEqual(recorded);
+    expect(recorded.totalCents).toBe(2 * 4_000 + 1_500 + 1_170);
+
+    const order = yield* withClient(edgeUrl, (client) =>
+      client.getOrder({ orderNumber: recorded.orderNumber }),
+    );
+    const after = yield* stockOf(edgeUrl, product.productId, product.variantId);
+
+    /** More than is left is refused as a typed domain error, and writes nothing. */
+    const oversell = yield* Effect.flip(record(cmd("external-oversell"), after + 1));
+    const untouched = yield* stockOf(edgeUrl, product.productId, product.variantId);
+
+    show("N · external order", {
+      orderNumber: recorded.orderNumber,
+      status: order.status,
+      externalPayment: order.externalPayment,
+      stockBefore: before,
+      stockAfter: after,
+      oversell: oversell._tag,
+    });
+
+    expect(order).toMatchObject({
+      status: "paid",
+      paymentStatus: "paid",
+      sessionId: null,
+      email: `paid-${RUN}@spike.local`,
+      externalPayment: { method: "e-transfer", reference: "CA7Q2M" },
+      totalCents: 10_670,
+    });
+    expect(after).toBe(before - 2);
+    expect(oversell).toMatchObject({ _tag: "ExternalOrderRefused", reason: "out_of_stock" });
+    expect(untouched).toBe(after);
+  }),
+  { timeout: TEST_TIMEOUT },
+);
