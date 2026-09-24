@@ -34,7 +34,7 @@
 import * as Alchemy from "alchemy";
 import { StageTier } from "@swi/infra/stage/StandardizedStage";
 import * as Cloudflare from "alchemy/Cloudflare";
-import * as Drizzle from "alchemy/Drizzle";
+import * as Drizzle from "alchemy/Drizzle/Providers";
 import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
