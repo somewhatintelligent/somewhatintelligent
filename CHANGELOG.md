@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.4...v1.0.5) (2026-09-25)
+
+
+### Features
+
+* **commerce:** record orders paid outside checkout ([#23](https://github.com/somewhatintelligent/somewhatintelligent/issues/23)) ([abd9ae4](https://github.com/somewhatintelligent/somewhatintelligent/commit/abd9ae44fcd26b5368c48c5a7067cfa5524ed36c))
+
 ## [1.0.4](https://github.com/somewhatintelligent/somewhatintelligent/compare/v1.0.3...v1.0.4) (2026-09-01)
 
 
