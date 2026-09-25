@@ -25,10 +25,34 @@ and the console behind a Cloudflare Access application.
 | Settlement        | provider webhook → queue → order state, with replay and refunds                                   |
 | Reconcile         | cron sweep that heals lost webhooks and releases abandoned stock                                  |
 | Order lifecycle   | `pending → paid → shipped → delivered`, `cancelled` as a terminal exit                            |
+| External orders   | paid outside checkout, recorded by an operator as `paid`; stock taken by checkout's guards        |
 | Fulfilment        | carrier and tracking, delivery marking                                                            |
 | Deletion          | two-phase plan/confirm with an impact report and drift detection                                  |
 | Audit             | every mutation and its ledger row commit in one D1 batch                                          |
 | Idempotency       | command ledger keyed per actor, action and command id                                             |
+
+### External orders
+
+Not every sale goes through checkout. `recordExternalOrder` writes in an order
+that was paid somewhere this system never saw — an e-transfer, cash at a stall,
+a card terminal — and the console's `/orders/new` is the form for it.
+
+- **Stock is taken the way checkout takes it.** The ledger claim, the
+  per-variant and per-run guards, the compensation when one loses, and the
+  release marker are `Checkout.reserve`, shared rather than copied. A shelf that
+  is short refuses with `out_of_stock` and a full run with `preorder_full`;
+  correct the count or the cap first, then record the order.
+- **The amounts are the operator's.** Each line carries the unit price actually
+  charged (prefilled from the market's price), plus the shipping and tax
+  actually collected. The total is computed from them, never typed. Checkout's
+  price authority is the active release because a shopper must not choose what
+  they pay; here the money has already moved, and the order has to say how
+  much.
+- **It is an ordinary paid order afterwards.** It lands in the ready-to-ship
+  queue and the fulfilment demand, ships through `fulfillOrder`, and the buyer
+  can look it up on the storefront with the address it was filed under. The
+  receipt names the method and reference instead of a payment session, and the
+  timeline records which operator vouched for the payment.
 
 ## What deploys
 
@@ -36,7 +60,7 @@ and the console behind a Cloudflare Access application.
 
 | Worker         | Address                      | Surface                                                                                                              |
 | -------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Commerce**   | none (`workersDev: false`)   | 32 methods over service binding — the whole domain                                                                   |
+| **Commerce**   | none (`workersDev: false`)   | 33 methods over service binding — the whole domain                                                                   |
 | **Settlement** | public                       | `POST /webhook` (HMAC-verified); queue consumer; cron `*/15 * * * *`; `settleNow` `sweepNow` `provider` over binding |
 | **Media**      | public                       | `GET /media/:id`, read-only                                                                                          |
 | **Operator**   | `desk.<zone>`, behind Access | The console. TanStack Start. Binds Commerce and Settlement; holds no data binding of its own                         |
@@ -70,6 +94,7 @@ catalog     listProducts getProduct createProduct saveProductDraft publishProduc
             ingestProductMedia reorderProductMedia
             streamOperatorMedia operatorMediaContentType
 orders      listOrders getOrder orderTimeline setOrderStatus fulfillOrder markDelivered
+            recordExternalOrder
 deletion    planProductReleaseDeletion deleteProductRelease planProductDeletion
             deleteProduct planVariantDeletion deleteVariant
             planProductMediaDeletion deleteProductMedia
@@ -119,6 +144,7 @@ surface in front of it.
 | `/products`            | The catalogue, filtered by status. Creating lands a draft                                |
 | `/products/$productId` | Draft, lifecycle, variants and stock, pre-order cap, media, and four deletion flows      |
 | `/orders`              | The order book, filtered by status                                                       |
+| `/orders/new`          | Record an order paid outside checkout — e-transfer, cash, a card terminal                |
 | `/orders/$orderNumber` | Receipt, address, line items, fulfilment, and the merged audit timeline                  |
 | `/storefront`          | What is actually on sale — read from the active release, not from the draft              |
 | `/storefront/$slug`    | One product as a shopper gets it                                                         |
@@ -248,7 +274,7 @@ graph TB
     money; versions; result; actors
   end
   subgraph domain["domain/ — emits statements, never commits"]
-    Cat[Catalog]; Ord[Orders]; Chk[Checkout]; Res[Reservations]
+    Cat[Catalog]; Ord[Orders]; Chk[Checkout]; Ext[ExternalOrders]; Res[Reservations]
     Set[Settlement]; Rec[Reconcile]; Del[Deletion]; Med[Media]
     Sto[Storefront]; Tim[Timeline]
   end
@@ -291,7 +317,7 @@ workers/
 app/                      the operator console — TanStack Start
   tsconfig.json           its OWN project: this tree needs DOM, the substrate must not have it
   worker.ts               the Access gate, and the console's own /media/:id
-  routes/                 eight routes; see "The console" above
+  routes/                 nine routes; see "The console" above
   components/             page furniture, badges, tables, the deletion dialog
   lib/*.functions.ts      server functions — one file per domain area
   lib/*.server.ts         the bindings and the gate; never reachable from a client bundle
@@ -301,7 +327,7 @@ tests/
   workers/                Commerce, Settlement, Edge, Storefront
   services/               PaymentsFake, FakeProvider
   unit/                   179 tests, no infrastructure
-  *.integ.test.ts         30 tests against a live deployment
+  *.integ.test.ts         31 tests against a live deployment
 migrations/               11 domain tables, generated from domain/Schema.ts
 ```
 
@@ -395,14 +421,14 @@ the order book.
 ```sh
 vp run platform.commerce#test               # 179 unit, ~280ms, no infrastructure
 cd apps/platform.commerce
-bun run test:integ                          # 30 integration; deploys and tears down
+bun run test:integ                          # 31 integration; deploys and tears down
 bun run test:keep                           # keeps the test stack up between runs
 ```
 
 | Tier                   | Count | Needs                           |
 | ---------------------- | ----- | ------------------------------- |
 | Unit and contract      | 179   | nothing                         |
-| Operator integration   | 13    | a deployment                    |
+| Operator integration   | 14    | a deployment                    |
 | Settlement integration | 9     | a deployment                    |
 | Stripe end-to-end      | 8     | a deployment and `stripe login` |
 

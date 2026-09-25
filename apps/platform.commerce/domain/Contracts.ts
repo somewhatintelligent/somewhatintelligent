@@ -16,6 +16,7 @@
 import type * as Rpc from "./Rpc.ts";
 import type * as StorefrontRpc from "./Storefront.rpc.ts";
 import type { Bump } from "../core/versions.ts";
+import type { ExternalOrderError as CoreExternalOrderError } from "../core/external-order.ts";
 import type { MarketCode } from "../core/markets.ts";
 
 // ── Result envelope ──────────────────────────────────────────────────────────
@@ -137,6 +138,11 @@ export type OrderMutationError =
   | "invalid_transition"
   | "payment_incomplete"
   | "already_fulfilled";
+
+export type RecordedOrderDTO = typeof Rpc.RecordedOrder.Type;
+
+/** The pure refusals, plus the ledger's own — see `Audit.claimed`. */
+export type ExternalOrderError = CoreExternalOrderError | "in_progress";
 
 // ── Deletion protocol ────────────────────────────────────────────────────────
 
@@ -263,6 +269,35 @@ export interface FulfillOrderInput {
   carrier: string;
   trackingNumber: string;
   note?: string;
+}
+
+/**
+ * An order that was PAID ELSEWHERE, as the operator recording it states it.
+ *
+ * Unlike a checkout, every amount here is the operator's: the money has
+ * already moved, and the order has to say how much moved. The total is not an
+ * input — it is the sum of what is.
+ */
+export interface RecordExternalOrderInput {
+  /** Decides the currency the amounts are in. */
+  market: MarketCode;
+  /** The buyer's address — the one they will quote to look the order up. */
+  email: string;
+  shipping: ShippingAddress;
+  items: readonly {
+    variantId: string;
+    quantity: number;
+    /** Minor units actually charged per unit, after whatever was agreed. */
+    unitPriceCents: number;
+  }[];
+  shippingCents: number;
+  taxCents: number;
+  payment: {
+    /** Free text — `e-transfer`, `cash`, `card terminal`. */
+    method: string;
+    /** A confirmation number or receipt id, where there is one. */
+    reference?: string;
+  };
 }
 
 export interface PlanProductReleaseDeletionInput {

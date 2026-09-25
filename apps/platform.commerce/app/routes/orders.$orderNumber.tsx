@@ -117,7 +117,19 @@ function Receipt({ order }: { order: OrderDetailDTO }) {
   if (order.refundedCents > 0) {
     rows.push(["Refunded", money(order.refundedCents, order.currency)]);
   }
-  rows.push(["Payment session", order.sessionId ?? "none"]);
+  /**
+   * WHO VOUCHES FOR THE MONEY. A provider-settled order names its session; one
+   * recorded by hand names how it was paid instead, because there is no session
+   * to name and "none" would read like a checkout that never finished.
+   */
+  if (order.externalPayment) {
+    rows.push(["Paid outside checkout", order.externalPayment.method]);
+    if (order.externalPayment.reference) {
+      rows.push(["Payment reference", order.externalPayment.reference]);
+    }
+  } else {
+    rows.push(["Payment session", order.sessionId ?? "none"]);
+  }
   if (order.receiptEmail && order.receiptEmail !== order.email) {
     rows.push(["Receipt email", order.receiptEmail]);
   }
@@ -126,8 +138,9 @@ function Receipt({ order }: { order: OrderDetailDTO }) {
     <Section title="Receipt">
       <Facts rows={rows} />
       <Hint>
-        Shipping and tax are zero until the order is paid — they do not exist before the payment
-        page settles them.
+        {order.externalPayment
+          ? "Recorded by hand against a payment taken elsewhere — these are the amounts that were entered. The timeline says who recorded it."
+          : "Shipping and tax are zero until the order is paid — they do not exist before the payment page settles them."}
       </Hint>
     </Section>
   );

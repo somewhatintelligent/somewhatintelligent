@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import * as Effect from "effect/Effect";
 
 import type { CoreOutcome } from "../services/Audit.ts";
-import { Database, type ClassicDb, type DbStatement } from "../services/Database.ts";
+import { Database, type DbStatement } from "../services/Database.ts";
 import { Ids } from "../services/Ids.ts";
 import { MARKETS, type MarketCode } from "../core/markets.ts";
 import { Payments } from "../services/Payments.ts";
@@ -97,74 +97,233 @@ type CheckoutError =
 /**
  * The order number a customer quotes. Derived from the id's tail rather than a
  * counter, so it needs no sequence table and no coordination.
+ *
+ * Shared by every door an order comes in through, so an order an operator
+ * recorded by hand is quoted, and looked up, exactly like one a shopper placed.
  */
-const orderNumberFor = (orderId: string): string => `SO-${orderId.slice(-8).toUpperCase()}`;
+export const orderNumberFor = (orderId: string): string => `SO-${orderId.slice(-8).toUpperCase()}`;
 
-const orderWriteStatements = (
-  db: ClassicDb,
-  orderId: string,
-  orderNumber: string,
-  input: PlaceOrderInput,
+/**
+ * The order row {@link reserve} writes — everything except the two columns it
+ * owns: the status it is born in and the release marker.
+ */
+export type ReservedOrderRow = Omit<
+  typeof customerOrder.$inferInsert,
+  "status" | "stockReleasedAt"
+>;
+
+/** Why a reservation did not take. Every one of them leaves nothing behind. */
+type ReserveError = "in_progress" | "out_of_stock" | "preorder_full";
+
+/**
+ * Reserve every line's stock and write the order, atomically, and unwind it all
+ * if any guard lost. `null` when the reservation is held; otherwise the refusal,
+ * with the stock handed back and the order rows gone.
+ *
+ * ONE COPY, for every door an order comes in through. Checkout calls it before
+ * attaching a payment session; an operator recording a sale that was paid
+ * elsewhere calls it before marking the order paid. The guard, compensation and
+ * release-marker sequence below is the part of order capture that is hard to
+ * get right under concurrency, and two copies of it would drift in the one
+ * place drift is invisible until stock goes wrong.
+ *
+ * On a `null` return the order row is still `pending` with its release marker
+ * cleared: from that instant until the caller's own commit, it is exactly the
+ * orphan the reconcile sweep is built to find and release.
+ */
+export const reserve = Effect.fn("Checkout.reserve")(function* (
+  /**
+   * THE LEDGER'S CLAIM, and it goes in the FIRST batch — beside the stock
+   * guards, not after them. See `placeOrder` and `Audit.claimed`.
+   */
+  claim: DbStatement,
+  order: ReservedOrderRow,
   lines: readonly OrderLine[],
-  subtotalCents: number,
-  currency: string,
-  now: number,
   itemIds: readonly string[],
-): readonly DbStatement[] => [
-  db.insert(customerOrder).values({
-    id: orderId,
-    orderNumber,
-    userId: input.customerId,
-    email: input.email,
-    status: "pending",
-    paymentStatus: "unpaid",
-    subtotalCents,
-    currency,
-    /**
-     * Shipping, tax and total are deliberately LEFT AT ZERO here. They are not
-     * yet knowable — the buyer has not entered an address — and
-     * writing a guess would put a number in the books that no receipt agrees
-     * with. The settlement path fills all three from the paid event.
-     */
-    shipCountry: input.market,
-    /**
-     * BORN RELEASED, and cleared only once the reservation is known good.
-     *
-     * `releaseStatements` guards every restore on this marker being null, so
-     * setting it here means the sweep can restore NOTHING for this order until
-     * classification clears it. That closes the window this batch opens: the
-     * guards and the order rows commit TOGETHER, including a line whose guard
-     * matched nothing, so a process that dies before compensation runs would
-     * otherwise leave the orphan sweep restoring stock for every `order_item`
-     * row — including lines that never decremented.
-     *
-     * The failure mode that fixes is the expensive direction. Restoring a line
-     * that never reserved INVENTS inventory: units that do not physically exist,
-     * sold to a buyer who can never be shipped. Leaving a winner's decrement
-     * stranded instead understates stock, which an operator can see and correct
-     * with `adjustStock`. Understating is recoverable; overstating is not.
-     */
-    stockReleasedAt: now,
-    createdAt: now,
-    updatedAt: now,
-  }) as unknown as DbStatement,
-  ...lines.map(
-    (line, index) =>
-      db.insert(orderItem).values({
-        id: itemIds[index] as string,
-        orderId,
-        productId: line.productId,
-        variantId: line.variantId,
-        // SNAPSHOT: later catalog edits never rewrite this line.
-        titleSnapshot: line.title,
-        sizeSnapshot: line.size,
-        unitPriceCents: line.unitPriceCents,
-        quantity: line.quantity,
-        preorder: line.preorder,
-        expectedShipAt: line.expectedShipAt,
+): Effect.fn.Return<{ ok: false; error: ReserveError; message?: string } | null, never, Database> {
+  const database = yield* Database;
+  const db = database.db;
+  const orderId = order.id;
+
+  /**
+   * The guards and the order writes commit together. If any guard matched no
+   * row the batch still SUCCEEDS — a zero-row UPDATE is not an error — so the
+   * result has to be inspected rather than trusted.
+   */
+  /**
+   * Two levels of guard, both compare-and-set, both in the SAME batch as the
+   * order writes: one per variant against its own count, and one per product
+   * against its manufacturing run. A pre-order for two sizes of one shirt takes
+   * two variant guards and ONE run guard, which is the whole reason the run cap
+   * lives on the product.
+   *
+   * Order matters — `classifyGuards` reads the results positionally, because
+   * positional correspondence is all D1's batch hands back.
+   */
+  const claims = runClaims(lines);
+
+  /**
+   * THE CLAIM IS A GUARD LIKE ANY OTHER, and it is read the same way.
+   *
+   * The claim shares this batch with the stock guards precisely so a concurrent
+   * duplicate loses to the unique index rather than reserving twice. That is a
+   * CONTROL PATH, not a crash — so it must not arrive as an exception. An
+   * `ON CONFLICT DO NOTHING` claim reports its loss the way every other
+   * conditional write here does: `meta.changes === 0`.
+   *
+   * This replaces a regex over D1's error text
+   * (`/UNIQUE constraint failed: command_event/`). Matching a driver's prose to
+   * decide control flow means a wording change in drizzle or D1 turns the losing
+   * tap of a double-clicked Buy into a 500 — on the money path, silently, at the
+   * next dependency bump.
+   *
+   * The trade is real and worth naming: a constraint violation used to abort the
+   * batch and roll everything back, so there was nothing to compensate. `DO
+   * NOTHING` lets the batch commit, so the loser now unwinds explicitly — using
+   * the same compensation the lost-stock-guard path already runs, and covered by
+   * the same release marker.
+   */
+  const results = yield* Effect.orDie(
+    database.run([
+      claim,
+      ...lines.map((line) => guardStatement(db, line)),
+      ...claims.map((claim) => runGuardStatement(db, claim)),
+      db.insert(customerOrder).values({
+        ...order,
+        /**
+         * BORN PENDING, whatever the caller goes on to make of it. Until the
+         * caller's own commit lands, `pending` with no session is what puts this
+         * row in front of the orphan sweep — the only thing that cleans up after
+         * a process that dies partway through.
+         */
+        status: "pending",
+        /**
+         * BORN RELEASED, and cleared only once the reservation is known good.
+         *
+         * `releaseStatements` guards every restore on this marker being null, so
+         * setting it here means the sweep can restore NOTHING for this order until
+         * classification clears it. That closes the window this batch opens: the
+         * guards and the order rows commit TOGETHER, including a line whose guard
+         * matched nothing, so a process that dies before compensation runs would
+         * otherwise leave the orphan sweep restoring stock for every `order_item`
+         * row — including lines that never decremented.
+         *
+         * The failure mode that fixes is the expensive direction. Restoring a line
+         * that never reserved INVENTS inventory: units that do not physically exist,
+         * sold to a buyer who can never be shipped. Leaving a winner's decrement
+         * stranded instead understates stock, which an operator can see and correct
+         * with `adjustStock`. Understating is recoverable; overstating is not.
+         *
+         * Set HERE rather than by the caller, so no door into this function can
+         * write an order that the sweep would release before it was reserved.
+         */
+        stockReleasedAt: order.createdAt,
       }) as unknown as DbStatement,
-  ),
-];
+      ...lines.map(
+        (line, index) =>
+          db.insert(orderItem).values({
+            id: itemIds[index] as string,
+            orderId,
+            productId: line.productId,
+            variantId: line.variantId,
+            // SNAPSHOT: later catalog edits never rewrite this line.
+            titleSnapshot: line.title,
+            sizeSnapshot: line.size,
+            unitPriceCents: line.unitPriceCents,
+            quantity: line.quantity,
+            preorder: line.preorder,
+            expectedShipAt: line.expectedShipAt,
+          }) as unknown as DbStatement,
+      ),
+    ]),
+  );
+
+  /**
+   * The claim occupies the FIRST slot. Losing it means another request with this
+   * command id already holds the ledger row, so this one reserved nothing it may
+   * keep — hand back every guard that won and delete the order rows that
+   * committed beside them.
+   */
+  if (!guardWon(results[0])) {
+    const all = classifyGuards(lines, claims, results.slice(1));
+    yield* Effect.orDie(
+      database.run([
+        ...all.succeeded.map((line) => compensateStatement(db, line)),
+        ...all.claimed.map((claim) => compensateRunStatement(db, claim)),
+        ...orderRollbackStatements(db, orderId),
+      ]),
+    );
+    return err("in_progress");
+  }
+
+  /**
+   * The claim occupies the FIRST slot, so the guard results start one later.
+   * `classifyGuards` reads positionally because positional correspondence is all
+   * D1's batch hands back, which makes this offset load-bearing rather than
+   * cosmetic.
+   */
+  const { succeeded, firstFailing, claimed, firstFullRun } = classifyGuards(
+    lines,
+    claims,
+    results.slice(1),
+  );
+
+  /**
+   * ANY guard losing unwinds ALL of them. A zero-row UPDATE does not abort a D1
+   * batch, so the winners committed alongside the loser and have to be handed
+   * back explicitly — variant counts and run places alike.
+   */
+  if (firstFailing || firstFullRun) {
+    yield* Effect.orDie(
+      database.run([
+        ...succeeded.map((line) => compensateStatement(db, line)),
+        ...claimed.map((claim) => compensateRunStatement(db, claim)),
+        ...orderRollbackStatements(db, orderId),
+      ]),
+    );
+    /**
+     * The run being full is reported as its own condition. Telling a shopper a
+     * pre-order is "out of stock" describes inventory that never existed and
+     * implies more is coming; `preorder_full` says the run is spoken for.
+     */
+    return firstFullRun
+      ? err("preorder_full", firstFullRun.title)
+      : err(
+          "out_of_stock",
+          `${(firstFailing as OrderLine).title} (${(firstFailing as OrderLine).size})`,
+        );
+  }
+
+  /**
+   * EVERY GUARD WON, so this order's lines really do hold the stock their rows
+   * claim — hand it over to the sweep by clearing the release marker.
+   *
+   * Until this commits the order is BORN RELEASED (see above) and the sweep can
+   * restore nothing for it. That covers the one window that matters: the first
+   * batch commits the guards AND the order rows together, including a line whose
+   * guard matched nothing, so a process that dies before compensation runs would
+   * otherwise leave the sweep restoring stock for lines that never decremented —
+   * inventing inventory that does not exist.
+   *
+   * Cleared HERE rather than alongside whatever the caller commits next, because
+   * an order that dies between the two is a legitimate reservation the sweep is
+   * supposed to release — checkout's `payments_unavailable` orphan is exactly
+   * that. Deferring the clear would strand that stock instead.
+   *
+   * The compensation branches above never reach this: they delete the order
+   * rows outright, so there is nothing left to release.
+   */
+  yield* Effect.orDie(
+    database.run([
+      db
+        .update(customerOrder)
+        .set({ stockReleasedAt: null })
+        .where(eq(customerOrder.id, orderId)) as unknown as DbStatement,
+    ]),
+  );
+
+  return null;
+});
 
 /**
  * Price the cart, reserve stock and write the order atomically, compensate if a
@@ -219,148 +378,30 @@ export const placeOrder = Effect.fn("Checkout.placeOrder")(function* (
   const itemIds = yield* ids.many(totals.lines.length);
   const orderNumber = orderNumberFor(orderId);
 
-  /**
-   * The guards and the order writes commit together. If any guard matched no
-   * row the batch still SUCCEEDS — a zero-row UPDATE is not an error — so the
-   * result has to be inspected rather than trusted.
-   */
-  /**
-   * Two levels of guard, both compare-and-set, both in the SAME batch as the
-   * order writes: one per variant against its own count, and one per product
-   * against its manufacturing run. A pre-order for two sizes of one shirt takes
-   * two variant guards and ONE run guard, which is the whole reason the run cap
-   * lives on the product.
-   *
-   * Order matters — `classifyGuards` reads the results positionally, because
-   * positional correspondence is all D1's batch hands back.
-   */
-  const claims = runClaims(totals.lines);
-
-  /**
-   * THE CLAIM IS A GUARD LIKE ANY OTHER, and it is read the same way.
-   *
-   * The claim shares this batch with the stock guards precisely so a concurrent
-   * duplicate loses to the unique index rather than reserving twice. That is a
-   * CONTROL PATH, not a crash — so it must not arrive as an exception. An
-   * `ON CONFLICT DO NOTHING` claim reports its loss the way every other
-   * conditional write here does: `meta.changes === 0`.
-   *
-   * This replaces a regex over D1's error text
-   * (`/UNIQUE constraint failed: command_event/`). Matching a driver's prose to
-   * decide control flow means a wording change in drizzle or D1 turns the losing
-   * tap of a double-clicked Buy into a 500 — on the money path, silently, at the
-   * next dependency bump.
-   *
-   * The trade is real and worth naming: a constraint violation used to abort the
-   * batch and roll everything back, so there was nothing to compensate. `DO
-   * NOTHING` lets the batch commit, so the loser now unwinds explicitly — using
-   * the same compensation the lost-stock-guard path already runs, and covered by
-   * the same release marker.
-   */
-  const results = yield* Effect.orDie(
-    database.run([
-      claim,
-      ...totals.lines.map((line) => guardStatement(db, line)),
-      ...claims.map((claim) => runGuardStatement(db, claim)),
-      ...orderWriteStatements(
-        db,
-        orderId,
-        orderNumber,
-        input,
-        totals.lines,
-        totals.subtotalCents,
-        currency,
-        now,
-        itemIds,
-      ),
-    ]),
-  );
-
-  /**
-   * The claim occupies the FIRST slot. Losing it means another request with this
-   * command id already holds the ledger row, so this one reserved nothing it may
-   * keep — hand back every guard that won and delete the order rows that
-   * committed beside them.
-   */
-  if (!guardWon(results[0])) {
-    const all = classifyGuards(totals.lines, claims, results.slice(1));
-    yield* Effect.orDie(
-      database.run([
-        ...all.succeeded.map((line) => compensateStatement(db, line)),
-        ...all.claimed.map((claim) => compensateRunStatement(db, claim)),
-        ...orderRollbackStatements(db, orderId),
-      ]),
-    );
-    return { failure: err("in_progress") };
-  }
-
-  /**
-   * The claim occupies the FIRST slot, so the guard results start one later.
-   * `classifyGuards` reads positionally because positional correspondence is all
-   * D1's batch hands back, which makes this offset load-bearing rather than
-   * cosmetic.
-   */
-  const { succeeded, firstFailing, claimed, firstFullRun } = classifyGuards(
+  const refused = yield* reserve(
+    claim,
+    {
+      id: orderId,
+      orderNumber,
+      userId: input.customerId,
+      email: input.email,
+      paymentStatus: "unpaid",
+      subtotalCents: totals.subtotalCents,
+      currency,
+      /**
+       * Shipping, tax and total are deliberately LEFT AT ZERO here. They are not
+       * yet knowable — the buyer has not entered an address — and
+       * writing a guess would put a number in the books that no receipt agrees
+       * with. The settlement path fills all three from the paid event.
+       */
+      shipCountry: input.market,
+      createdAt: now,
+      updatedAt: now,
+    },
     totals.lines,
-    claims,
-    results.slice(1),
+    itemIds,
   );
-
-  /**
-   * ANY guard losing unwinds ALL of them. A zero-row UPDATE does not abort a D1
-   * batch, so the winners committed alongside the loser and have to be handed
-   * back explicitly — variant counts and run places alike.
-   */
-  if (firstFailing || firstFullRun) {
-    yield* Effect.orDie(
-      database.run([
-        ...succeeded.map((line) => compensateStatement(db, line)),
-        ...claimed.map((claim) => compensateRunStatement(db, claim)),
-        ...orderRollbackStatements(db, orderId),
-      ]),
-    );
-    /**
-     * The run being full is reported as its own condition. Telling a shopper a
-     * pre-order is "out of stock" describes inventory that never existed and
-     * implies more is coming; `preorder_full` says the run is spoken for.
-     */
-    return firstFullRun
-      ? { failure: err("preorder_full", firstFullRun.title) }
-      : {
-          failure: err(
-            "out_of_stock",
-            `${(firstFailing as OrderLine).title} (${(firstFailing as OrderLine).size})`,
-          ),
-        };
-  }
-
-  /**
-   * EVERY GUARD WON, so this order's lines really do hold the stock their rows
-   * claim — hand it over to the sweep by clearing the release marker.
-   *
-   * Until this commits the order is BORN RELEASED (see `orderWriteStatements`)
-   * and the sweep can restore nothing for it. That covers the one window that
-   * matters: batch 1 commits the guards AND the order rows together, including
-   * a line whose guard matched nothing, so a process that dies before
-   * compensation runs would otherwise leave the sweep restoring stock for lines
-   * that never decremented — inventing inventory that does not exist.
-   *
-   * Cleared HERE rather than alongside the session, because the orphan the
-   * `payments_unavailable` path leaves behind is a legitimate reservation the
-   * sweep is supposed to release. Deferring the clear until after the provider
-   * call would strand that stock instead.
-   *
-   * The compensation branch above never reaches this: it deletes the order rows
-   * outright, so there is nothing left to release.
-   */
-  yield* Effect.orDie(
-    database.run([
-      db
-        .update(customerOrder)
-        .set({ stockReleasedAt: null })
-        .where(eq(customerOrder.id, orderId)) as unknown as DbStatement,
-    ]),
-  );
+  if (refused) return { failure: refused };
 
   /**
    * Stock is held; attach a session. A failure here leaves an ORPHAN on

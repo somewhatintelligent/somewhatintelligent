@@ -156,6 +156,16 @@ export const ShippingAddress = Schema.Struct({
   phone: Schema.optional(Schema.String),
 });
 
+/**
+ * How a payment this system never saw was taken, as the operator who recorded
+ * it described it. `method` is free text for the same reason a carrier is: the
+ * list of ways a small shop gets paid changes faster than a schema should.
+ */
+const ExternalPayment = Schema.Struct({
+  method: Schema.String,
+  reference: Schema.NullOr(Schema.String),
+});
+
 const OrderLine = Schema.Struct({
   productId: Schema.String,
   variantId: Schema.String,
@@ -177,6 +187,12 @@ export const OrderDetail = Schema.Struct({
   receiptEmail: Schema.NullOr(Schema.String),
   status: OrderStatus,
   paymentStatus: Schema.String,
+  /**
+   * Present when an operator RECORDED this order against a payment taken
+   * outside checkout; `null` when the provider settled it. See
+   * `recordExternalOrder`.
+   */
+  externalPayment: Schema.NullOr(ExternalPayment),
   subtotalCents: Schema.Number,
   shippingCents: Schema.Number,
   taxCents: Schema.Number,
@@ -192,6 +208,13 @@ export const OrderDetail = Schema.Struct({
   deliveredAt: Schema.NullOr(Schema.Number),
   createdAt: Schema.Number,
   items: Schema.Array(OrderLine),
+});
+
+/** What recording an externally-paid order hands back: where to find it, and what it came to. */
+export const RecordedOrder = Schema.Struct({
+  orderNumber: Schema.String,
+  totalCents: Schema.Number,
+  currency: Schema.String,
 });
 
 /**
@@ -344,6 +367,36 @@ export class OrderRefused extends Schema.TaggedErrorClass<OrderRefused>()("Order
   reason: Schema.Literals(["invalid_transition", "payment_incomplete", "already_fulfilled"]),
   detail: Schema.optional(Schema.String),
 }) {}
+
+/**
+ * Every way recording an externally-paid order can be refused. None of them
+ * leaves an order or a reservation behind.
+ *
+ * The inventory refusals are checkout's own, because the same guards decide
+ * them: a sale recorded against units that are not there is an oversell
+ * whichever door it came through. `adjustStock` or `setPreorderCap` first, then
+ * record the order.
+ */
+export class ExternalOrderRefused extends Schema.TaggedErrorClass<ExternalOrderRefused>()(
+  "ExternalOrderRefused",
+  {
+    reason: Schema.Literals([
+      "empty_order",
+      "invalid_quantity",
+      "invalid_amount",
+      "invalid_email",
+      "invalid_address",
+      "missing_payment_method",
+      "variant_not_found",
+      "out_of_stock",
+      "preorder_full",
+      "preorder_cap_missing",
+      /** Another attempt with the same command id holds the ledger — see `Audit.claimed`. */
+      "in_progress",
+    ]),
+    detail: Schema.optional(Schema.String),
+  },
+) {}
 
 /**
  * Every way a confirm-delete can be refused.
@@ -680,6 +733,43 @@ export class OperatorRpcs extends RpcGroup.make(
     payload: call({ orderNumber: Schema.String }),
     success: OrderDetail,
     error: Schema.Union([NotFound, OrderRefused]),
+  }),
+  /**
+   * An order that was PAID ELSEWHERE — e-transfer, cash, a card terminal —
+   * written into the book as `paid`, with its stock reserved exactly as a
+   * checkout reserves it.
+   *
+   * The operator supplies what checkout cannot take from a shopper: the unit
+   * price actually charged, and the shipping and tax actually collected. The
+   * total is computed from them, never supplied. The order lands in the
+   * ready-to-ship queue and the fulfilment demand like any other paid order.
+   */
+  Rpc.make("recordExternalOrder", {
+    payload: call({
+      market: Market,
+      /** Bounded like checkout's: RFC 5321's limit, and persisted twice. */
+      email: Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(254)),
+      shipping: ShippingAddress,
+      /**
+       * Bounded like checkout's cart, and for the same reason: pricing issues
+       * an `inArray` over the variants, and D1 allows 100 bound parameters.
+       */
+      items: Schema.Array(
+        Schema.Struct({
+          variantId: Schema.String,
+          quantity: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+          unitPriceCents: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+        }),
+      ).check(Schema.isMinLength(1), Schema.isMaxLength(20)),
+      shippingCents: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      taxCents: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      payment: Schema.Struct({
+        method: Schema.String.check(Schema.isMinLength(1)),
+        reference: Schema.optional(Schema.String),
+      }),
+    }),
+    success: RecordedOrder,
+    error: ExternalOrderRefused,
   }),
 
   // Deletion — four plan/confirm pairs

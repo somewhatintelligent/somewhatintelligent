@@ -26,7 +26,7 @@
  * deploys with.
  */
 import * as Cloudflare from "alchemy/Cloudflare";
-import * as Drizzle from "alchemy/Drizzle";
+import * as Drizzle from "alchemy/Drizzle/Providers";
 import * as Test from "alchemy/Test/Bun";
 import { afterAll as bunAfterAll, expect } from "bun:test";
 import * as Effect from "effect/Effect";
